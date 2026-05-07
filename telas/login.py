@@ -95,19 +95,16 @@ def tela_login():
     """, unsafe_allow_html=True)
 
     st.markdown("""
-        <div class="login-box">
+    <div class="login-box">
+    <div class="titulo">
+        ERP <span class="verde">Empresarial</span>
+    </div>
 
-            <div class="titulo">
-                ERP <span class="verde">Empresarial</span>
-            </div>
-
-            <div class="subtitulo">
-                Faça login para acessar o sistema
-            </div>
-
-    """, 
-    unsafe_allow_html=True
-)
+    <div class="subtitulo">
+        Faça login para acessar o sistema
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     usuario = st.text_input("Usuário")
     senha = st.text_input("Senha", type="password")
