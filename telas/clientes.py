@@ -59,37 +59,42 @@ def tela_clientes():
 
        if st.button("Salvar Cliente"):
 
-            try:
+           # VALIDAÇÃO
 
-                conn = conectar()
-                cur = conn.cursor()
+           if not nome:
 
-                cur.execute("""
-                    INSERT INTO clientes
-                    (nome, telefone, email)
+             st.warning("Informe o nome.")
+             st.stop()
 
-                    VALUES (%s, %s, %s)
-                """, (nome, telefone, email))
+       try:
 
-                conn.commit()
+            conn = conectar()
+            cur = conn.cursor()
 
-                cur.close()
-                conn.close()
+            cur.execute("""
+                 INSERT INTO clientes
+                 (nome, telefone, email)
 
+                 VALUES (%s, %s, %s)
+            """, (nome, telefone, email))
 
-		st.success("✅ Cliente cadastrado!")
+        conn.commit()
 
-		# LIMPAR CAMPOS
+        cur.close()
+        conn.close()
 
-		  st.session_state["cliente_nome"] = ""
-		  st.session_state["cliente_telefone"] = ""
-		  st.session_state["cliente_email"] = ""
+        st.success("✅ Cliente cadastrado!")
 
-		  st.rerun()
+        # LIMPAR CAMPOS
 
-            #except Exception as e:
-                #st.error(f"Erro: {e}")
+        st.session_state["cliente_nome"] = ""
+        st.session_state["cliente_telefone"] = ""
+        st.session_state["cliente_email"] = ""
 
+        st.rerun()
+
+        except Exception as e:
+        st.error(f"Erro: {e}")
     # ==========================================
     # LISTAR CLIENTES
     # ==========================================
