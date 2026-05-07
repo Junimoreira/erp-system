@@ -8,11 +8,8 @@ load_dotenv()
 def conectar():
 
     conn = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT")
+        os.getenv("DATABASE_URL"),
+        sslmode="require"
     )
 
     return conn
