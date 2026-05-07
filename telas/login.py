@@ -105,7 +105,9 @@ def tela_login():
                 Faça login para acessar o sistema
             </div>
 
-    """, unsafe_allow_html=True)
+    """, 
+    unsafe_allow_html=True
+)
 
     usuario = st.text_input("Usuário")
     senha = st.text_input("Senha", type="password")
