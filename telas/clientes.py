@@ -22,79 +22,80 @@ def tela_clientes():
         st.subheader("Cadastrar Cliente")
 
         # ==========================================
-        # CONTROLE DOS CAMPOS
+        # SESSION STATE
         # ==========================================
 
         if "cliente_nome" not in st.session_state:
-           st.session_state["cliente_nome"] = ""
+            st.session_state["cliente_nome"] = ""
 
         if "cliente_telefone" not in st.session_state:
-           st.session_state["cliente_telefone"] = ""
+            st.session_state["cliente_telefone"] = ""
 
         if "cliente_email" not in st.session_state:
-           st.session_state["cliente_email"] = ""
+            st.session_state["cliente_email"] = ""
 
         # ==========================================
         # CAMPOS
         # ==========================================
 
         nome = st.text_input(
-          "Nome",
-          key="cliente_nome"
+            "Nome",
+            key="cliente_nome"
         )
 
         telefone = st.text_input(
-          "Telefone",
-        key="cliente_telefone"
+            "Telefone",
+            key="cliente_telefone"
         )
 
-       email = st.text_input(
-         "E-mail",
-         key="cliente_email"
-       )
+        email = st.text_input(
+            "E-mail",
+            key="cliente_email"
+        )
 
-# ==========================================
-# BOTÃO
-# ==========================================
+        # ==========================================
+        # BOTÃO
+        # ==========================================
 
-       if st.button("Salvar Cliente"):
+        if st.button("Salvar Cliente"):
 
-           # VALIDAÇÃO
+            # VALIDAÇÃO
 
-           if not nome:
+            if not nome:
 
-             st.warning("Informe o nome.")
-             st.stop()
+                st.warning("Informe o nome.")
+                st.stop()
 
-       try:
+            try:
 
-            conn = conectar()
-            cur = conn.cursor()
+                conn = conectar()
+                cur = conn.cursor()
 
-            cur.execute("""
-                 INSERT INTO clientes
-                 (nome, telefone, email)
+                cur.execute("""
+                    INSERT INTO clientes
+                    (nome, telefone, email)
 
-                 VALUES (%s, %s, %s)
-            """, (nome, telefone, email))
+                    VALUES (%s, %s, %s)
+                """, (nome, telefone, email))
 
-        conn.commit()
+                conn.commit()
 
-        cur.close()
-        conn.close()
+                cur.close()
+                conn.close()
 
-        st.success("✅ Cliente cadastrado!")
+                st.success("✅ Cliente cadastrado!")
 
-        # LIMPAR CAMPOS
+                # LIMPAR CAMPOS
 
-        st.session_state["cliente_nome"] = ""
-        st.session_state["cliente_telefone"] = ""
-        st.session_state["cliente_email"] = ""
+                st.session_state["cliente_nome"] = ""
+                st.session_state["cliente_telefone"] = ""
+                st.session_state["cliente_email"] = ""
 
-        st.rerun()
+                st.rerun()
 
-        except Exception as e:
-        st.error(f"Erro: {e}")
+            except Exception as e:
+                st.error(f"Erro: {e}")
+
     # ==========================================
     # LISTAR CLIENTES
     # ==========================================
