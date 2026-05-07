@@ -1,6 +1,7 @@
 import streamlit as st
 
 from telas.login import tela_login
+from telas.clientes import tela_clientes
 
 st.set_page_config(
     page_title="ERP Empresarial",
@@ -104,9 +105,8 @@ else:
     elif menu == "👥 Clientes":
 
         st.title("👥 Clientes")
-
-        st.write("Tela de clientes.")
-
+        #from telas.clientes import tela_clientes
+        tela_clientes()
     # =========================
     # PRODUTOS
     # =========================
