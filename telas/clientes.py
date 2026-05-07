@@ -21,80 +21,56 @@ def tela_clientes():
 
         st.subheader("Cadastrar Cliente")
 
-        # ==========================================
-        # SESSION STATE
-        # ==========================================
+        with st.form(
+            "form_cliente",
+            clear_on_submit=True
+        ):
 
-        if "cliente_nome" not in st.session_state:
-            st.session_state["cliente_nome"] = ""
+            nome = st.text_input("Nome")
 
-        if "cliente_telefone" not in st.session_state:
-            st.session_state["cliente_telefone"] = ""
+            telefone = st.text_input("Telefone")
 
-        if "cliente_email" not in st.session_state:
-            st.session_state["cliente_email"] = ""
+            email = st.text_input("E-mail")
 
-        # ==========================================
-        # CAMPOS
-        # ==========================================
+            salvar = st.form_submit_button(
+                "Salvar Cliente"
+            )
 
-        nome = st.text_input(
-            "Nome",
-            key="cliente_nome"
-        )
+            if salvar:
 
-        telefone = st.text_input(
-            "Telefone",
-            key="cliente_telefone"
-        )
+                # ==========================================
+                # VALIDAÇÃO
+                # ==========================================
 
-        email = st.text_input(
-            "E-mail",
-            key="cliente_email"
-        )
+                if not nome:
 
-        # ==========================================
-        # BOTÃO
-        # ==========================================
+                    st.warning("Informe o nome.")
+                    st.stop()
 
-        if st.button("Salvar Cliente"):
+                try:
 
-            # VALIDAÇÃO
+                    conn = conectar()
+                    cur = conn.cursor()
 
-            if not nome:
+                    cur.execute("""
+                        INSERT INTO clientes
+                        (nome, telefone, email)
 
-                st.warning("Informe o nome.")
-                st.stop()
+                        VALUES (%s, %s, %s)
+                    """, (nome, telefone, email))
 
-            try:
+                    conn.commit()
 
-                conn = conectar()
-                cur = conn.cursor()
+                    cur.close()
+                    conn.close()
 
-                cur.execute("""
-                    INSERT INTO clientes
-                    (nome, telefone, email)
+                    st.success("✅ Cliente cadastrado!")
 
-                    VALUES (%s, %s, %s)
-                """, (nome, telefone, email))
+                    st.rerun()
 
-                conn.commit()
+                except Exception as e:
 
-                cur.close()
-                conn.close()
-
-                st.success("✅ Cliente cadastrado!")
-
-                # LIMPAR CAMPOS
-
-                st.session_state["cliente_nome"] = ""
-                st.session_state["cliente_telefone"] = ""
-                st.session_state["cliente_email"] = ""
-
-                st.rerun()
-
-            except Exception as e:
-                st.error(f"Erro: {e}")
+                    st.error(f"Erro: {e}")
 
     # ==========================================
     # LISTAR CLIENTES
@@ -119,7 +95,10 @@ def tela_clientes():
                 ORDER BY id DESC
             """
 
-            df = pd.read_sql(query, conn)
+            df = pd.read_sql(
+                query,
+                conn
+            )
 
             conn.close()
 
@@ -129,4 +108,5 @@ def tela_clientes():
             )
 
         except Exception as e:
+
             st.error(f"Erro: {e}")
