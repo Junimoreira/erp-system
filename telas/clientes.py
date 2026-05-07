@@ -21,11 +21,43 @@ def tela_clientes():
 
         st.subheader("Cadastrar Cliente")
 
-        nome = st.text_input("Nome")
-        telefone = st.text_input("Telefone")
-        email = st.text_input("E-mail")
+        # ==========================================
+        # CONTROLE DOS CAMPOS
+        # ==========================================
 
-        if st.button("Salvar Cliente"):
+        if "cliente_nome" not in st.session_state:
+           st.session_state["cliente_nome"] = ""
+
+        if "cliente_telefone" not in st.session_state:
+           st.session_state["cliente_telefone"] = ""
+
+        if "cliente_email" not in st.session_state:
+           st.session_state["cliente_email"] = ""
+
+        # ==========================================
+        # CAMPOS
+        # ==========================================
+
+        nome = st.text_input(
+          "Nome",
+          key="cliente_nome"
+        )
+
+        telefone = st.text_input(
+          "Telefone",
+        key="cliente_telefone"
+        )
+
+       email = st.text_input(
+         "E-mail",
+         key="cliente_email"
+       )
+
+# ==========================================
+# BOTÃO
+# ==========================================
+
+       if st.button("Salvar Cliente"):
 
             try:
 
@@ -44,10 +76,19 @@ def tela_clientes():
                 cur.close()
                 conn.close()
 
-                st.success("✅ Cliente cadastrado!")
 
-            except Exception as e:
-                st.error(f"Erro: {e}")
+		st.success("✅ Cliente cadastrado!")
+
+		# LIMPAR CAMPOS
+
+		  st.session_state["cliente_nome"] = ""
+		  st.session_state["cliente_telefone"] = ""
+		  st.session_state["cliente_email"] = ""
+
+		  st.rerun()
+
+            #except Exception as e:
+                #st.error(f"Erro: {e}")
 
     # ==========================================
     # LISTAR CLIENTES
