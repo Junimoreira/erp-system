@@ -1,6 +1,6 @@
 from database.connection import conectar
 
-with open("database/schema.sql", "r", encoding="utf-8") as arquivo:
+with open("criar-tabela.py", "r", encoding="utf-8") as arquivo:
     sql = arquivo.read()
 
 try:
@@ -12,7 +12,7 @@ try:
 
     conn.commit()
 
-    print("✅ Banco criado com sucesso!")
+    print("✅ tabela criada criado com sucesso!")
 
     cur.close()
     conn.close()
