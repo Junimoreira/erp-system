@@ -8,7 +8,7 @@ def conectar():
 
     database_url = os.getenv("DATABASE_URL")
 
-    print("DATABASE_URL =", postgresql://bd_erp_system_user:QEEydMjHue8CdduUnbcjOnSdKp7dQSbG@dpg-d7uc7aho3t8c73fao0rg-a/bd_erp_system
+    print("DATABASE_URL =", database_url)
 
     if not database_url:
         raise Exception("DATABASE_URL não encontrada")
@@ -17,4 +17,3 @@ def conectar():
         database_url,
         sslmode="require"
     )
-
