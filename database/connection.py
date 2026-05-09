@@ -4,17 +4,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def conectar():
 
-    database_url = os.getenv("DATABASE_URL")
+    host = os.getenv("DB_HOST")
+    database = os.getenv("DB_NAME")
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
+    port = os.getenv("DB_PORT")
 
-    print("DATABASE_URL =", database_url)
-
-    if not database_url:
-        raise Exception("DATABASE_URL não encontrada")
+    print("HOST =", host)
 
     conn = psycopg2.connect(
-        database_url,
+        host=host,
+        database=database,
+        user=user,
+        password=password,
+        port=port,
         sslmode="require"
     )
 

@@ -2,6 +2,7 @@ import streamlit as st
 
 from telas.login import tela_login
 from telas.clientes import tela_clientes
+from telas.produtos import tela_produtos
 
 st.set_page_config(
     page_title="ERP Empresarial",
