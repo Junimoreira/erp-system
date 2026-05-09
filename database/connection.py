@@ -13,7 +13,11 @@ def conectar():
     if not database_url:
         raise Exception("DATABASE_URL não encontrada")
 
-    return psycopg2.connect(
+    conn = psycopg2.connect(
         database_url,
         sslmode="require"
     )
+
+    print("✅ CONEXÃO COM POSTGRES REALIZADA COM SUCESSO")
+
+    return conn
