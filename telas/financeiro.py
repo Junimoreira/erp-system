@@ -34,7 +34,18 @@ def tela_financeiro():
             key="tipo_cadastro"
         )
 
-        categoria = st.text_input("Categoria")
+        categoria = st.selectbox(
+            "Categoria",
+        [
+            "Vendas",
+            "Estoque",
+            "Salários",
+            "Impostos",
+            "Marketing",
+            "Outros"
+        ],
+            key="categoria_cadastro"
+        )
 
         data_lancamento = st.date_input(
             "Data",
@@ -131,9 +142,23 @@ def tela_financeiro():
                 key="tipo_edicao"
             )
 
-            nova_categoria = st.text_input(
-                "Categoria",
-                value=mov["categoria"]
+                categorias = [
+                "Vendas",
+                "Estoque",
+                "Salários",
+                "Impostos",
+                "Marketing",
+                "Outros"
+            ]
+
+                indice_categoria = categorias.index(mov["categoria"]) \
+                if mov["categoria"] in categorias else 0
+
+            nova_categoria = st.selectbox(
+                 "Categoria",
+                 categorias,
+                 index=indice_categoria,
+                 key="categoria_edicao"
             )
 
             nova_data = st.date_input(
