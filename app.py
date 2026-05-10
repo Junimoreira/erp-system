@@ -77,27 +77,27 @@ else:
 
         dados = obter_dashboard()
 
-col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4)
 
-col1.metric(
-    "💰 Entradas",
-    f"R$ {dados['entradas']:,.2f}"
-)
+        col1.metric(
+        "💰 Entradas",
+        f"R$ {dados['entradas']:,.2f}"
+    )
 
-col2.metric(
-    "👥 Clientes",
-    dados["clientes"]
-)
+        col2.metric(
+        "👥 Clientes",
+        dados["clientes"]
+    )
 
-col3.metric(
-    "📦 Produtos",
-    dados["produtos"]
-)
+       col3.metric(
+       "📦 Produtos",
+       dados["produtos"]
+    )
 
-col4.metric(
-    "🏦 Saldo",
-    f"R$ {dados['saldo']:,.2f}"
-)
+        col4.metric(
+        "🏦 Saldo",
+        f"R$ {dados['saldo']:,.2f}"
+    )
 
     # =========================
     # CLIENTES
