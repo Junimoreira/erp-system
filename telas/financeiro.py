@@ -38,7 +38,8 @@ def tela_financeiro():
 
         data_lancamento = st.date_input(
             "Data",
-            value=date.today()
+            value=date.today(),
+            key="data_cadastro"
         )
 
         if st.button("Salvar Lançamento"):
@@ -137,8 +138,9 @@ def tela_financeiro():
 
             nova_data = st.date_input(
                 "Data",
-                value=mov["data_lancamento"]
-            )
+                value=mov["data_lancamento"],
+                key="data_edicao"
+           )
 
             if st.button("Atualizar"):
 
