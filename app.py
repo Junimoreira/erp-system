@@ -5,6 +5,7 @@ from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.financeiro import tela_financeiro
 from database.dashboard_db import obter_dashboard
+from telas.vendas import tela_vendas
 
 st.set_page_config(
     page_title="ERP Empresarial",
@@ -142,6 +143,7 @@ else:
         st.title("🛒 Vendas")
 
         st.write("Tela de vendas.")
+        tela_vendas()
 
     # =========================
     # CONFIGURAÇÕES
