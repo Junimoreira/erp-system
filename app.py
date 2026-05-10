@@ -4,6 +4,7 @@ from telas.login import tela_login
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.financeiro import tela_financeiro
+from database.dashboard_db import obter_dashboard
 
 st.set_page_config(
     page_title="ERP Empresarial",
@@ -74,31 +75,29 @@ else:
 
         st.title("🚀 ERP Empresarial")
 
-        col1, col2, col3, col4 = st.columns(4)
+        dados = obter_dashboard()
 
-        col1.metric(
-            "Vendas Hoje",
-            "R$ 0,00"
-        )
+col1, col2, col3, col4 = st.columns(4)
 
-        col2.metric(
-            "Clientes",
-            "0"
-        )
+col1.metric(
+    "💰 Entradas",
+    f"R$ {dados['entradas']:,.2f}"
+)
 
-        col3.metric(
-            "Produtos",
-            "0"
-        )
+col2.metric(
+    "👥 Clientes",
+    dados["clientes"]
+)
 
-        col4.metric(
-            "Caixa",
-            "R$ 0,00"
-        )
+col3.metric(
+    "📦 Produtos",
+    dados["produtos"]
+)
 
-        st.divider()
-
-        st.info("Sistema ERP online funcionando.")
+col4.metric(
+    "🏦 Saldo",
+    f"R$ {dados['saldo']:,.2f}"
+)
 
     # =========================
     # CLIENTES
