@@ -89,9 +89,9 @@ else:
         dados["clientes"]
     )
 
-       col3.metric(
-       "📦 Produtos",
-       dados["produtos"]
+        col3.metric(
+        "📦 Produtos",
+        dados["produtos"]
     )
 
         col4.metric(
