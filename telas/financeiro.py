@@ -28,10 +28,11 @@ def tela_financeiro():
             format="%.2f"
         )
 
-        tipo = st.selectbox(
-            "Tipo",
-            ["Entrada", "Saída"]
-        )
+       tipo = st.selectbox(
+           "Tipo",
+           ["Entrada", "Saída"],
+           key="tipo_cadastro"
+       )
 
         categoria = st.text_input("Categoria")
 
@@ -115,8 +116,9 @@ def tela_financeiro():
             )
 
             novo_tipo = st.selectbox(
-                "Tipo",
-                ["Entrada", "Saída"]
+               "Tipo",
+               ["Entrada", "Saída"],
+               key="tipo_edicao"
             )
 
             nova_categoria = st.text_input(
