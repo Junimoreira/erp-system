@@ -13,19 +13,32 @@ def tela_financeiro():
         "✏️ Editar"
     ])
 
-    # ==========================================
+    categorias = [
+        "Vendas",
+        "Estoque",
+        "Salários",
+        "Impostos",
+        "Marketing",
+        "Outros"
+    ]
+
+    # ==================================================
     # NOVO LANÇAMENTO
-    # ==========================================
+    # ==================================================
     with abas[0]:
 
         st.subheader("Novo Lançamento")
 
-        descricao = st.text_input("Descrição")
+        descricao = st.text_input(
+            "Descrição",
+            key="descricao_cadastro"
+        )
 
         valor = st.number_input(
             "Valor",
             min_value=0.0,
-            format="%.2f"
+            format="%.2f",
+            key="valor_cadastro"
         )
 
         tipo = st.selectbox(
@@ -36,14 +49,7 @@ def tela_financeiro():
 
         categoria = st.selectbox(
             "Categoria",
-        [
-            "Vendas",
-            "Estoque",
-            "Salários",
-            "Impostos",
-            "Marketing",
-            "Outros"
-        ],
+            categorias,
             key="categoria_cadastro"
         )
 
@@ -53,7 +59,10 @@ def tela_financeiro():
             key="data_cadastro"
         )
 
-        if st.button("Salvar Lançamento"):
+        if st.button(
+            "Salvar Lançamento",
+            key="botao_salvar"
+        ):
 
             cadastrar_movimentacao(
                 descricao,
@@ -63,13 +72,13 @@ def tela_financeiro():
                 data_lancamento
             )
 
-            st.success("✅ Lançamento cadastrado!")
+            st.success("✅ Lançamento cadastrado com sucesso!")
 
             st.rerun()
 
-    # ==========================================
+    # ==================================================
     # LISTAGEM
-    # ==========================================
+    # ==================================================
     with abas[1]:
 
         st.subheader("Movimentações")
@@ -89,6 +98,8 @@ def tela_financeiro():
 
             saldo = entradas - saidas
 
+            st.divider()
+
             col1, col2, col3 = st.columns(3)
 
             col1.metric(
@@ -106,9 +117,9 @@ def tela_financeiro():
                 f"R$ {saldo:,.2f}"
             )
 
-    # ==========================================
+    # ==================================================
     # EDITAR
-    # ==========================================
+    # ==================================================
     with abas[2]:
 
         st.subheader("Editar Lançamento")
@@ -118,56 +129,61 @@ def tela_financeiro():
         if not df.empty:
 
             id_mov = st.selectbox(
-                "Selecione",
-                df["id"]
+                "Selecione o Lançamento",
+                df["id"],
+                key="select_edicao"
             )
 
             mov = df[df["id"] == id_mov].iloc[0]
 
             nova_descricao = st.text_input(
                 "Descrição",
-                value=mov["descricao"]
+                value=mov["descricao"],
+                key="descricao_edicao"
             )
 
             novo_valor = st.number_input(
                 "Valor",
                 min_value=0.0,
                 value=float(mov["valor"]),
-                format="%.2f"
+                format="%.2f",
+                key="valor_edicao"
+            )
+
+            indice_tipo = (
+                0 if mov["tipo"] == "Entrada" else 1
             )
 
             novo_tipo = st.selectbox(
                 "Tipo",
                 ["Entrada", "Saída"],
+                index=indice_tipo,
                 key="tipo_edicao"
             )
 
-                categorias = [
-                "Vendas",
-                "Estoque",
-                "Salários",
-                "Impostos",
-                "Marketing",
-                "Outros"
-            ]
-
-                indice_categoria = categorias.index(mov["categoria"]) \
-                if mov["categoria"] in categorias else 0
+            indice_categoria = (
+                categorias.index(mov["categoria"])
+                if mov["categoria"] in categorias
+                else 0
+            )
 
             nova_categoria = st.selectbox(
-                 "Categoria",
-                 categorias,
-                 index=indice_categoria,
-                 key="categoria_edicao"
+                "Categoria",
+                categorias,
+                index=indice_categoria,
+                key="categoria_edicao"
             )
 
             nova_data = st.date_input(
                 "Data",
                 value=mov["data_lancamento"],
                 key="data_edicao"
-           )
+            )
 
-            if st.button("Atualizar"):
+            if st.button(
+                "Atualizar",
+                key="botao_atualizar"
+            ):
 
                 atualizar_movimentacao(
                     id_mov,
@@ -178,17 +194,20 @@ def tela_financeiro():
                     nova_data
                 )
 
-                st.success("✅ Atualizado!")
+                st.success("✅ Lançamento atualizado!")
 
                 st.rerun()
 
             st.divider()
 
-            if st.button("🗑️ Excluir"):
+            if st.button(
+                "🗑️ Excluir",
+                key="botao_excluir"
+            ):
 
                 excluir_movimentacao(id_mov)
 
-                st.success("Movimentação excluída!")
+                st.success("✅ Lançamento excluído!")
 
                 st.rerun()
 
