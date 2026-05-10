@@ -28,11 +28,11 @@ def tela_financeiro():
             format="%.2f"
         )
 
-       tipo = st.selectbox(
-           "Tipo",
-           ["Entrada", "Saída"],
-           key="tipo_cadastro"
-       )
+        tipo = st.selectbox(
+            "Tipo",
+            ["Entrada", "Saída"],
+            key="tipo_cadastro"
+        )
 
         categoria = st.text_input("Categoria")
 
@@ -69,8 +69,6 @@ def tela_financeiro():
             use_container_width=True
         )
 
-        # RESUMO FINANCEIRO
-
         if not df.empty:
 
             entradas = df[df["tipo"] == "Entrada"]["valor"].sum()
@@ -81,9 +79,20 @@ def tela_financeiro():
 
             col1, col2, col3 = st.columns(3)
 
-            col1.metric("Entradas", f"R$ {entradas:,.2f}")
-            col2.metric("Saídas", f"R$ {saidas:,.2f}")
-            col3.metric("Saldo", f"R$ {saldo:,.2f}")
+            col1.metric(
+                "Entradas",
+                f"R$ {entradas:,.2f}"
+            )
+
+            col2.metric(
+                "Saídas",
+                f"R$ {saidas:,.2f}"
+            )
+
+            col3.metric(
+                "Saldo",
+                f"R$ {saldo:,.2f}"
+            )
 
     # ==========================================
     # EDITAR
@@ -116,9 +125,9 @@ def tela_financeiro():
             )
 
             novo_tipo = st.selectbox(
-               "Tipo",
-               ["Entrada", "Saída"],
-               key="tipo_edicao"
+                "Tipo",
+                ["Entrada", "Saída"],
+                key="tipo_edicao"
             )
 
             nova_categoria = st.text_input(
