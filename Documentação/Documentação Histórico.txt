@@ -1,0 +1,11 @@
+Depois podemos evoluir para:
+
+gráficos
+fluxo de caixa
+contas a pagar
+contas a receber
+DRE
+integração com vendas
+PIX
+exportação Excel/PDF
+dashboard executivo profissional
