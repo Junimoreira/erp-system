@@ -136,29 +136,8 @@ def tela_financeiro():
 
             mov = df[df["id"] == id_mov].iloc[0]
 
-            nova_descricao = st.text_input(
-                "Descrição",
-                value=mov["descricao"],
-                key="descricao_edicao"
-            )
-
-            novo_valor = st.number_input(
-                "Valor",
-                min_value=0.0,
-                value=float(mov["valor"]),
-                format="%.2f",
-                key="valor_edicao"
-            )
-
             indice_tipo = (
                 0 if mov["tipo"] == "Entrada" else 1
-            )
-
-            novo_tipo = st.selectbox(
-                "Tipo",
-                ["Entrada", "Saída"],
-                index=indice_tipo,
-                key="tipo_edicao"
             )
 
             indice_categoria = (
@@ -167,22 +146,43 @@ def tela_financeiro():
                 else 0
             )
 
+            nova_descricao = st.text_input(
+                "Descrição",
+                value=mov["descricao"],
+                key=f"descricao_{id_mov}"
+            )
+
+            novo_valor = st.number_input(
+                "Valor",
+                min_value=0.0,
+                value=float(mov["valor"]),
+                format="%.2f",
+                key=f"valor_{id_mov}"
+            )
+
+            novo_tipo = st.selectbox(
+                "Tipo",
+                ["Entrada", "Saída"],
+                index=indice_tipo,
+                key=f"tipo_{id_mov}"
+            )
+
             nova_categoria = st.selectbox(
                 "Categoria",
                 categorias,
                 index=indice_categoria,
-                key="categoria_edicao"
+                key=f"categoria_{id_mov}"
             )
 
             nova_data = st.date_input(
                 "Data",
                 value=mov["data_lancamento"],
-                key="data_edicao"
+                key=f"data_{id_mov}"
             )
 
             if st.button(
                 "Atualizar",
-                key="botao_atualizar"
+                key=f"atualizar_{id_mov}"
             ):
 
                 atualizar_movimentacao(
@@ -202,7 +202,7 @@ def tela_financeiro():
 
             if st.button(
                 "🗑️ Excluir",
-                key="botao_excluir"
+                key=f"excluir_{id_mov}"
             ):
 
                 excluir_movimentacao(id_mov)
