@@ -4,7 +4,7 @@ from database.produto_db import *
 
 def tela_produtos():
 
-    st.title("📦 Produtos")
+    st.subheader("📦 Produtos")
 
     abas = st.tabs([
         "➕ Novo Produto",
@@ -12,14 +12,12 @@ def tela_produtos():
         "✏️ Editar Produto"
     ])
 
-    # ==========================================
+    # =========================================
     # NOVO PRODUTO
-    # ==========================================
+    # =========================================
     with abas[0]:
 
-        st.subheader("Cadastrar Produto")
-
-        nome = st.text_input("Nome do Produto")
+        nome = st.text_input("Nome do produto")
 
         preco = st.number_input(
             "Preço",
@@ -35,22 +33,26 @@ def tela_produtos():
 
         if st.button("Cadastrar Produto"):
 
-            cadastrar_produto(
-                nome,
-                preco,
-                estoque
-            )
+            if nome == "":
 
-            st.success("✅ Produto cadastrado com sucesso!")
+                st.warning("Digite o nome do produto")
 
-            st.rerun()
+            else:
 
-    # ==========================================
+                cadastrar_produto(
+                    nome,
+                    preco,
+                    estoque
+                )
+
+                st.success("✅ Produto cadastrado!")
+
+                st.rerun()
+
+    # =========================================
     # LISTAGEM
-    # ==========================================
+    # =========================================
     with abas[1]:
-
-        st.subheader("Produtos Cadastrados")
 
         df = listar_produtos()
 
@@ -59,20 +61,37 @@ def tela_produtos():
             use_container_width=True
         )
 
-    # ==========================================
-    # EDITAR PRODUTO
-    # ==========================================
-    with abas[2]:
+        st.divider()
 
-        st.subheader("Editar Produto")
+        id_excluir = st.number_input(
+            "ID para excluir",
+            min_value=1,
+            step=1,
+            key="excluir_produto"
+        )
+
+        if st.button("🗑️ Excluir Produto"):
+
+            excluir_produto(id_excluir)
+
+            st.success("Produto excluído!")
+
+            st.rerun()
+
+    # =========================================
+    # EDITAR
+    # =========================================
+    with abas[2]:
 
         df = listar_produtos()
 
-        if not df.empty:
+        lista_ids = df["id"].tolist()
+
+        if len(lista_ids) > 0:
 
             id_produto = st.selectbox(
-                "Selecione o Produto",
-                df["id"]
+                "Selecione o produto",
+                lista_ids
             )
 
             produto = df[df["id"] == id_produto].iloc[0]
@@ -106,16 +125,6 @@ def tela_produtos():
                 )
 
                 st.success("✅ Produto atualizado!")
-
-                st.rerun()
-
-            st.divider()
-
-            if st.button("🗑️ Excluir Produto"):
-
-                excluir_produto(id_produto)
-
-                st.success("Produto excluído!")
 
                 st.rerun()
 

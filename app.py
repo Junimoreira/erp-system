@@ -117,6 +117,7 @@ else:
         st.title("📦 Produtos")
 
         st.write("Tela de produtos.")
+        tela_produtos()
 
     # =========================
     # FINANCEIRO
