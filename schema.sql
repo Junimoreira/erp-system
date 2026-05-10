@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS vendas (
     data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS itens_venda (
+    id SERIAL PRIMARY KEY,
+    venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
+    produto_id INTEGER REFERENCES produtos(id),
+    quantidade INTEGER NOT NULL,
+    preco_unitario NUMERIC(10,2) NOT NULL,
+    subtotal NUMERIC(10,2) NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS financeiro (
     id SERIAL PRIMARY KEY,
     descricao VARCHAR(200) NOT NULL,

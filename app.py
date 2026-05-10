@@ -12,6 +12,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+col1, col2 = st.columns(2)
+use_container_width=True
+
 # =========================
 # SESSÃO
 # =========================
