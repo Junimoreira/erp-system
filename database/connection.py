@@ -1,29 +1,17 @@
-import psycopg2
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
+import psycopg2
 
 
 def conectar():
+    try:
+        database_url = os.getenv("DATABASE_URL")
 
-    host = os.getenv("DB_HOST")
-    database = os.getenv("DB_NAME")
-    user = os.getenv("DB_USER")
-    password = os.getenv("DB_PASSWORD")
-    port = os.getenv("DB_PORT")
+        print("DATABASE_URL =", database_url)
 
-    print("HOST =", host)
+        conn = psycopg2.connect(database_url)
 
-    conn = psycopg2.connect(
-        host=host,
-        database=database,
-        user=user,
-        password=password,
-        port=port,
-        sslmode="require"
-    )
+        return conn
 
-    print("✅ CONEXÃO COM POSTGRES REALIZADA COM SUCESSO")
-
-    return conn
+    except Exception as e:
+        print("Erro ao conectar:", e)
+        return None
