@@ -1,21 +1,13 @@
-# telas/vendas.py
-
 import streamlit as st
 import pandas as pd
+from database.vendas_db import *
+from database.connection import conectar
 
-from database.vendas_db import (
-    listar_clientes,
-    listar_produtos,
-    criar_venda,
-    adicionar_item_venda,
-    lancar_financeiro_venda,
-    historico_vendas
-)
 
 
 def tela_vendas():
 
-    st.title("🛒 Vendas")
+    #st.title("🛒 Vendas")
 
     abas = st.tabs([
         "➕ Nova Venda",
@@ -30,21 +22,18 @@ def tela_vendas():
         st.subheader("Nova Venda")
 
         clientes = listar_clientes()
+
         produtos = listar_produtos()
 
         if clientes.empty:
 
-            st.warning(
-                "Cadastre clientes primeiro."
-            )
+            st.warning("Cadastre clientes primeiro.")
 
             return
 
         if produtos.empty:
 
-            st.warning(
-                "Cadastre produtos primeiro."
-            )
+            st.warning("Cadastre produtos primeiro.")
 
             return
 
@@ -99,10 +88,6 @@ def tela_vendas():
             f"Subtotal: R$ {subtotal:,.2f}"
         )
 
-        # ==========================================
-        # ADICIONAR AO CARRINHO
-        # ==========================================
-
         if st.button(
             "Adicionar ao Carrinho",
             key="botao_add_carrinho"
@@ -117,7 +102,6 @@ def tela_vendas():
             else:
 
                 st.session_state.carrinho.append({
-
                     "produto_id": int(produto["id"]),
                     "produto": produto["nome"],
                     "quantidade": quantidade,
@@ -168,23 +152,21 @@ def tela_vendas():
             ):
 
                 venda_id = criar_venda(
-                    int(cliente_id),
-                    float(total)
+                    cliente_id,
+                    total
                 )
 
                 for item in st.session_state.carrinho:
 
                     adicionar_item_venda(
                         venda_id,
-                        int(item["produto_id"]),
-                        int(item["quantidade"]),
-                        float(item["preco_unitario"]),
-                        float(item["subtotal"])
+                        item["produto_id"],
+                        item["quantidade"],
+                        item["preco_unitario"],
+                        item["subtotal"]
                     )
 
-                lancar_financeiro_venda(
-                    float(total)
-                )
+                lancar_financeiro_venda(total)
 
                 st.session_state.carrinho = []
 
@@ -205,51 +187,47 @@ def tela_vendas():
     # ==================================================
     with abas[1]:
 
-        st.subheader(
-            "📋 Histórico de Vendas"
-        )
+        st.subheader("Histórico de Vendas")
 
-        df = historico_vendas()
-
-        # ==========================================
-        # FILTRO
-        # ==========================================
-
-        filtro = st.text_input(
-            "🔎 Buscar pedido"
-        )
-
-        if filtro:
-
-            df = df[
-                df["pedido"].astype(str).str.contains(filtro)
-            ]
-
-        # ==========================================
-        # FORMATAR MOEDA
-        # ==========================================
-
-        if not df.empty:
-
-            df["valor_unitario"] = df[
-                "valor_unitario"
-            ].map(
-                lambda x: f"R$ {x:,.2f}"
-            )
-
-            df["subtotal"] = df[
-                "subtotal"
-            ].map(
-                lambda x: f"R$ {x:,.2f}"
-            )
-
-            df["total"] = df[
-                "total"
-            ].map(
-                lambda x: f"R$ {x:,.2f}"
-            )
+        df = listar_vendas()
 
         st.dataframe(
             df,
             use_container_width=True
         )
+
+#=====HSTÓRICO DE VENDAS==========
+
+    def historico_vendas():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+            v.id AS pedido,
+            c.nome AS cliente,
+            v.data,
+            p.nome AS produto,
+            iv.quantidade,
+            iv.valor_unitario,
+            (iv.quantidade * iv.valor_unitario) AS subtotal,
+            v.total
+        FROM vendas v
+
+        JOIN clientes c
+            ON v.cliente_id = c.id
+
+        JOIN itens_venda iv
+            ON v.id = iv.venda_id
+
+        JOIN produtos p
+            ON iv.produto_id = p.id
+
+        ORDER BY v.id DESC
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
