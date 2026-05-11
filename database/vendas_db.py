@@ -51,21 +51,20 @@ def listar_produtos():
 def criar_venda(cliente_id, total):
 
     conn = conectar()
-
     cursor = conn.cursor()
 
     query = """
-        INSERT INTO vendas (
-            cliente_id,
-            total
-        )
+        INSERT INTO vendas (cliente_id, total)
         VALUES (%s, %s)
         RETURNING id
     """
 
     cursor.execute(
         query,
-        (cliente_id, total)
+        (
+            int(cliente_id),
+            float(total)
+        )
     )
 
     venda_id = cursor.fetchone()[0]
