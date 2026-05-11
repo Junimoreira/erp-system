@@ -1,6 +1,6 @@
 import streamlit as st
 
-from telas.dashboard import tela_dashboard
+#from telas.dashboard import tela_dashboard
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.financeiro import tela_financeiro
