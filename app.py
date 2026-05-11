@@ -155,13 +155,3 @@ else:
 
         st.write("Configurações do sistema.")
 
-paginas = {
-    "Dashboard": tela_dashboard,
-    "Clientes": tela_clientes,
-    "Produtos": tela_produtos,
-    "Financeiro": tela_financeiro,
-    "Vendas": tela_vendas,
-    "Configurações": tela_configuracoes
-}
-
-paginas[menu]()
