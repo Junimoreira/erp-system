@@ -7,6 +7,7 @@ from telas.financeiro import tela_financeiro
 from telas.vendas import tela_vendas
 #from telas.configuracoes import tela_configuracoes
 from telas.login import tela_login
+from database.dashboard_db import obter_dashboard
 
 st.set_page_config(
     page_title="ERP Empresarial",
@@ -119,9 +120,9 @@ else:
 
     elif menu == "📦 Produtos":
 
-        #st.title("📦 Produtos")
+        st.title("📦 Produtos")
 
-        st.write("Tela de produtos.")
+        #st.write("Tela de produtos.")
         tela_produtos()
 
     # =========================
@@ -130,9 +131,9 @@ else:
 
     elif menu == "💰 Financeiro":
 
-        #st.title("💰 Financeiro")
+        st.title("💰 Financeiro")
 
-        st.write("Tela financeira.")
+        #st.write("Tela financeira.")
         tela_financeiro()
 
     # =========================
@@ -141,9 +142,9 @@ else:
 
     elif menu == "🛒 Vendas":
 
-        #st.title("🛒 Vendas")
+        st.title("🛒 Vendas")
 
-        st.write("Tela de vendas.")
+        #st.write("Tela de vendas.")
         tela_vendas()
 
     # =========================
