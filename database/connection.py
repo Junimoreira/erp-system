@@ -8,7 +8,12 @@ def conectar():
 
         print("DATABASE_URL =", database_url)
 
-        conn = psycopg2.connect(database_url)
+        conn = psycopg2.connect(
+            database_url,
+            sslmode="require"
+        )
+
+        print("Conexão realizada com sucesso!")
 
         return conn
 
