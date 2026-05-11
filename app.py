@@ -109,7 +109,7 @@ else:
 
     elif menu == "👥 Clientes":
 
-        st.title("👥 Clientes")
+        #st.title("👥 Clientes")
         #from telas.clientes import tela_clientes
         tela_clientes()
     # =========================
@@ -118,7 +118,7 @@ else:
 
     elif menu == "📦 Produtos":
 
-        st.title("📦 Produtos")
+        #st.title("📦 Produtos")
 
         st.write("Tela de produtos.")
         tela_produtos()
@@ -129,7 +129,7 @@ else:
 
     elif menu == "💰 Financeiro":
 
-        st.title("💰 Financeiro")
+        #st.title("💰 Financeiro")
 
         st.write("Tela financeira.")
         tela_financeiro()
@@ -140,7 +140,7 @@ else:
 
     elif menu == "🛒 Vendas":
 
-        st.title("🛒 Vendas")
+        #st.title("🛒 Vendas")
 
         st.write("Tela de vendas.")
         tela_vendas()
@@ -154,3 +154,13 @@ else:
         st.title("⚙️ Configurações")
 
         st.write("Configurações do sistema.")
+
+paginas = {
+    "Dashboard": tela_dashboard,
+    "Clientes": tela_clientes,
+    "Produtos": tela_produtos,
+    "Financeiro": tela_financeiro,
+    "Vendas": tela_vendas
+}
+
+paginas[menu]()
