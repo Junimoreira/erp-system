@@ -156,4 +156,4 @@ else:
         st.title("⚙️ Configurações")
 
         st.write("Configurações do sistema.")
-	tela_configuracoes()
+        tela_configuracoes()

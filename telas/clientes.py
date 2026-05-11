@@ -6,7 +6,7 @@ from database.connection import conectar
 
 def tela_clientes():
 
-    st.title("👥 Clientes")
+    #st.title("👥 Clientes")
 
     abas = st.tabs([
         "➕ Novo Cliente",
