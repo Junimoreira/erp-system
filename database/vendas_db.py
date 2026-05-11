@@ -152,8 +152,8 @@ def lancar_financeiro_venda(total):
 
     query = """
         INSERT INTO financeiro
-        (descricao, tipo, valor)
-        VALUES (%s, %s, %s)
+        (descricao, tipo, valor, data_lancamento)
+        VALUES (%s, %s, %s, %s)
     """
 
     cursor.execute(
