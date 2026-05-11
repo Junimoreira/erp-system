@@ -1,5 +1,6 @@
 from database.connection import conectar
 import pandas as pd
+from datetime import date
 
 
 # ==================================================
@@ -190,6 +191,44 @@ def listar_vendas():
         LEFT JOIN clientes
             ON vendas.cliente_id = clientes.id
         ORDER BY vendas.id DESC
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+# ==================================================
+# HISTÓRICO COMPLETO DE VENDAS
+# ==================================================
+
+def historico_vendas():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+            v.id AS pedido,
+            c.nome AS cliente,
+            v.data,
+            p.nome AS produto,
+            iv.quantidade,
+            iv.preco_unitario AS valor_unitario,
+            iv.subtotal,
+            v.total
+        FROM vendas v
+
+        JOIN clientes c
+            ON v.cliente_id = c.id
+
+        JOIN itens_venda iv
+            ON v.id = iv.venda_id
+
+        JOIN produtos p
+            ON iv.produto_id = p.id
+
+        ORDER BY v.id DESC
     """
 
     df = pd.read_sql(query, conn)
