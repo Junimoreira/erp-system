@@ -146,33 +146,22 @@ def adicionar_item_venda(
 def lancar_financeiro_venda(total):
 
     conn = conectar()
-
     cursor = conn.cursor()
 
+    total = float(total)
+
     query = """
-        INSERT INTO financeiro (
-            descricao,
-            valor,
-            tipo,
-            categoria,
-            data_lancamento
-        )
-        VALUES (
-            %s,
-            %s,
-            %s,
-            %s,
-            CURRENT_DATE
-        )
+        INSERT INTO financeiro
+        (descricao, tipo, valor)
+        VALUES (%s, %s, %s)
     """
 
     cursor.execute(
         query,
         (
             "Venda realizada",
-            total,
             "Entrada",
-            "Vendas"
+            total
         )
     )
 
