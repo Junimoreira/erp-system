@@ -143,16 +143,16 @@ def adicionar_item_venda(
 # LANÇAR FINANCEIRO
 # ==================================================
 
+from datetime import date
+
 def lancar_financeiro_venda(total):
 
     conn = conectar()
     cursor = conn.cursor()
 
-    total = float(total)
-
     query = """
         INSERT INTO financeiro
-        (descricao, tipo, valor, data_lancamento)
+        (descricao, valor, tipo, data_lancamento)
         VALUES (%s, %s, %s, %s)
     """
 
@@ -160,8 +160,9 @@ def lancar_financeiro_venda(total):
         query,
         (
             "Venda realizada",
+            float(total),
             "Entrada",
-            total
+            date.today()
         )
     )
 
