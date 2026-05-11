@@ -1,11 +1,11 @@
 import streamlit as st
 
-from telas.login import tela_login
+from telas.dashboard import tela_dashboard
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.financeiro import tela_financeiro
-from database.dashboard_db import obter_dashboard
 from telas.vendas import tela_vendas
+from telas.configuracoes import tela_configuracoes
 
 st.set_page_config(
     page_title="ERP Empresarial",
@@ -160,7 +160,8 @@ paginas = {
     "Clientes": tela_clientes,
     "Produtos": tela_produtos,
     "Financeiro": tela_financeiro,
-    "Vendas": tela_vendas
+    "Vendas": tela_vendas,
+    "Configurações": tela_configuracoes
 }
 
 paginas[menu]()
