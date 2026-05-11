@@ -111,7 +111,7 @@ else:
 
     elif menu == "👥 Clientes":
 
-        #st.title("👥 Clientes")
+        st.title("👥 Clientes")
         #from telas.clientes import tela_clientes
         tela_clientes()
     # =========================
@@ -156,4 +156,4 @@ else:
         st.title("⚙️ Configurações")
 
         st.write("Configurações do sistema.")
-
+	tela_configuracoes()

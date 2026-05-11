@@ -5,7 +5,7 @@ from datetime import date
 
 def tela_financeiro():
 
-    st.title("💰 Financeiro")
+    #st.title("💰 Financeiro")
 
     abas = st.tabs([
         "➕ Novo Lançamento",

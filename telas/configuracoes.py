@@ -3,7 +3,7 @@ import streamlit as st
 
 def tela_configuracoes():
 
-    st.title("⚙️ Configurações")
+    #st.title("⚙️ Configurações")
 
     abas = st.tabs([
         "🏢 Empresa",

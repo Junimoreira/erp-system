@@ -4,7 +4,7 @@ from database.produto_db import *
 
 def tela_produtos():
 
-    st.title("📦 Produtos")
+    #st.title("📦 Produtos")
 
     abas = st.tabs([
         "➕ Novo Produto",
