@@ -5,9 +5,10 @@ from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.financeiro import tela_financeiro
 from telas.vendas import tela_vendas
-#from telas.configuracoes import tela_configuracoes
+from telas.configuracoes import tela_configuracoes
 from telas.login import tela_login
 from database.dashboard_db import obter_dashboard
+
 
 st.set_page_config(
     page_title="ERP Empresarial",
