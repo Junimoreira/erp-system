@@ -63,7 +63,7 @@ else:
                 "💰 Financeiro",
                 "🛒 Vendas",
                 "⚙️ Configurações"
-                "🏦 Contas Bancárias",
+                "🏦 Contas Banco",
             ]
         )
 
@@ -107,6 +107,16 @@ else:
         "🏦 Saldo",
         f"R$ {dados['saldo']:,.2f}"
     )
+
+
+    # =========================
+    # CONTAS BANCÁRIAS
+    # =========================
+    elif menu == "🏦 Contas Banco":
+
+        st.title("🏦 Contas Banco")
+
+        tela_contas()
 
     # =========================
     # CLIENTES
@@ -161,8 +171,4 @@ else:
         st.write("Configurações do sistema.")
         tela_configuracoes()
 
-    elif menu == "🏦 Contas Bancárias":
-
-        st.title("🏦 Contas Bancárias")
-
-        tela_contas()
+    
