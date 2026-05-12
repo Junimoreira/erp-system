@@ -50,7 +50,12 @@ def tela_clientes():
             nome = st.text_input("Nome")
             telefone = st.text_input("Telefone")
             email = st.text_input("Email")
-            cidade = st.text_input("Cidade")
+
+            cidade = ""
+
+            if "cidade" in listar_clientes().columns:
+
+                cidade = st.text_input("Cidade")
 
             salvar = st.form_submit_button(
                 "💾 Salvar Cliente"
@@ -94,7 +99,7 @@ def tela_clientes():
         else:
 
             clientes = {
-                f"{row['id']} - {row['nome']}": row
+                f"{row.get('id')} - {row.get('nome')}": row
                 for _, row in df.iterrows()
             }
 
@@ -109,23 +114,27 @@ def tela_clientes():
 
                 nome = st.text_input(
                     "Nome",
-                    value=cliente["nome"]
+                    value=cliente.get("nome", "")
                 )
 
                 telefone = st.text_input(
                     "Telefone",
-                    value=cliente["telefone"]
+                    value=cliente.get("telefone", "")
                 )
 
                 email = st.text_input(
                     "Email",
-                    value=cliente["email"]
+                    value=cliente.get("email", "")
                 )
 
-                cidade = st.text_input(
-                    "Cidade",
-                    value=cliente["cidade"]
-                )
+                cidade = ""
+
+                if "cidade" in df.columns:
+
+                    cidade = st.text_input(
+                        "Cidade",
+                        value=cliente.get("cidade", "")
+                    )
 
                 atualizar = st.form_submit_button(
                     "💾 Atualizar Cliente"
@@ -134,7 +143,7 @@ def tela_clientes():
                 if atualizar:
 
                     atualizar_cliente(
-                        cliente["id"],
+                        cliente.get("id"),
                         nome,
                         telefone,
                         email,
@@ -164,7 +173,7 @@ def tela_clientes():
         else:
 
             clientes = {
-                f"{row['id']} - {row['nome']}": row
+                f"{row.get('id')} - {row.get('nome')}": row
                 for _, row in df.iterrows()
             }
 
@@ -176,14 +185,14 @@ def tela_clientes():
             cliente = clientes[cliente_selecionado]
 
             st.warning(
-                f"Tem certeza que deseja excluir o cliente: {cliente['nome']}?"
+                f"Tem certeza que deseja excluir o cliente: {cliente.get('nome')}?"
             )
 
             if st.button("🗑️ Excluir Cliente"):
 
                 try:
 
-                    excluir_cliente(cliente["id"])
+                    excluir_cliente(cliente.get("id"))
 
                     st.success(
                         "Cliente excluído com sucesso!"
