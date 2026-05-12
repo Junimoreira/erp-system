@@ -62,8 +62,9 @@ else:
                 "📦 Produtos",
                 "💰 Financeiro",
                 "🛒 Vendas",
+                "🏦 Contas",
                 "⚙️ Configurações"
-                "🏦 Contas Banco",
+                
             ]
         )
 
@@ -112,9 +113,9 @@ else:
     # =========================
     # CONTAS BANCÁRIAS
     # =========================
-    elif menu == "🏦 Contas Banco":
+    elif menu == "🏦 Contas":
 
-        st.title("🏦 Contas Banco")
+        st.title("🏦 Contas")
 
         tela_contas()
 
