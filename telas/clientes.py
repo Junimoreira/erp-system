@@ -1,136 +1,198 @@
-from database.connection import conectar
-import pandas as pd
+import streamlit as st
+from database.clientes_db import (
+    listar_clientes,
+    cadastrar_cliente,
+    atualizar_cliente,
+    excluir_cliente
+)
 
 
-# ==================================================
-# LISTAR CLIENTES
-# ==================================================
+def tela_clientes():
 
-def listar_clientes():
+    abas = st.tabs([
+        "📋 Listar Clientes",
+        "➕ Novo Cliente",
+        "✏️ Editar Cliente",
+        "🗑️ Excluir Cliente"
+    ])
 
-    conn = conectar()
+    # ==================================================
+    # LISTAR CLIENTES
+    # ==================================================
 
-    query = """
-        SELECT *
-        FROM clientes
-        ORDER BY id DESC
-    """
+    with abas[0]:
 
-    df = pd.read_sql(query, conn)
+        st.subheader("📋 Clientes Cadastrados")
 
-    conn.close()
+        df = listar_clientes()
 
-    return df
+        if df.empty:
 
+            st.info("Nenhum cliente cadastrado.")
 
-# ==================================================
-# CADASTRAR CLIENTE
-# ==================================================
+        else:
 
-def cadastrar_cliente(
-    nome,
-    telefone,
-    email,
-    cidade
-):
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
 
-    conn = conectar()
+    # ==================================================
+    # NOVO CLIENTE
+    # ==================================================
 
-    cursor = conn.cursor()
+    with abas[1]:
 
-    query = """
-        INSERT INTO clientes
-        (
-            nome,
-            telefone,
-            email,
-            cidade
-        )
-        VALUES (%s, %s, %s, %s)
-    """
+        st.subheader("➕ Cadastrar Cliente")
 
-    cursor.execute(
-        query,
-        (
-            nome,
-            telefone,
-            email,
-            cidade
-        )
-    )
+        with st.form("form_cliente"):
 
-    conn.commit()
+            nome = st.text_input("Nome")
+            telefone = st.text_input("Telefone")
+            email = st.text_input("Email")
+            cidade = st.text_input("Cidade")
 
-    cursor.close()
-    conn.close()
+            salvar = st.form_submit_button(
+                "💾 Salvar Cliente"
+            )
 
+            if salvar:
 
-# ==================================================
-# ATUALIZAR CLIENTE
-# ==================================================
+                if nome == "":
 
-def atualizar_cliente(
-    cliente_id,
-    nome,
-    telefone,
-    email,
-    cidade
-):
+                    st.warning("Informe o nome.")
 
-    conn = conectar()
+                else:
 
-    cursor = conn.cursor()
+                    cadastrar_cliente(
+                        nome,
+                        telefone,
+                        email,
+                        cidade
+                    )
 
-    query = """
-        UPDATE clientes
-        SET
-            nome = %s,
-            telefone = %s,
-            email = %s,
-            cidade = %s
-        WHERE id = %s
-    """
+                    st.success(
+                        "Cliente cadastrado com sucesso!"
+                    )
 
-    cursor.execute(
-        query,
-        (
-            nome,
-            telefone,
-            email,
-            cidade,
-            cliente_id
-        )
-    )
+                    st.rerun()
 
-    conn.commit()
+    # ==================================================
+    # EDITAR CLIENTE
+    # ==================================================
 
-    cursor.close()
-    conn.close()
+    with abas[2]:
 
+        st.subheader("✏️ Editar Cliente")
 
-# ==================================================
-# EXCLUIR CLIENTE
-# ==================================================
+        df = listar_clientes()
 
-def excluir_cliente(cliente_id):
+        if df.empty:
 
-    conn = conectar()
+            st.info("Nenhum cliente cadastrado.")
 
-    cursor = conn.cursor()
+        else:
 
-    query = """
-        DELETE FROM clientes
-        WHERE id = %s
-    """
+            clientes = {
+                f"{row['id']} - {row['nome']}": row
+                for _, row in df.iterrows()
+            }
 
-    cursor.execute(
-        query,
-        (
-            cliente_id,
-        )
-    )
+            cliente_selecionado = st.selectbox(
+                "Selecione o cliente",
+                list(clientes.keys())
+            )
 
-    conn.commit()
+            cliente = clientes[cliente_selecionado]
 
-    cursor.close()
-    conn.close()
+            with st.form("form_editar_cliente"):
+
+                nome = st.text_input(
+                    "Nome",
+                    value=cliente["nome"]
+                )
+
+                telefone = st.text_input(
+                    "Telefone",
+                    value=cliente["telefone"]
+                )
+
+                email = st.text_input(
+                    "Email",
+                    value=cliente["email"]
+                )
+
+                cidade = st.text_input(
+                    "Cidade",
+                    value=cliente["cidade"]
+                )
+
+                atualizar = st.form_submit_button(
+                    "💾 Atualizar Cliente"
+                )
+
+                if atualizar:
+
+                    atualizar_cliente(
+                        cliente["id"],
+                        nome,
+                        telefone,
+                        email,
+                        cidade
+                    )
+
+                    st.success(
+                        "Cliente atualizado com sucesso!"
+                    )
+
+                    st.rerun()
+
+    # ==================================================
+    # EXCLUIR CLIENTE
+    # ==================================================
+
+    with abas[3]:
+
+        st.subheader("🗑️ Excluir Cliente")
+
+        df = listar_clientes()
+
+        if df.empty:
+
+            st.info("Nenhum cliente cadastrado.")
+
+        else:
+
+            clientes = {
+                f"{row['id']} - {row['nome']}": row
+                for _, row in df.iterrows()
+            }
+
+            cliente_selecionado = st.selectbox(
+                "Selecione o cliente para excluir",
+                list(clientes.keys())
+            )
+
+            cliente = clientes[cliente_selecionado]
+
+            st.warning(
+                f"Tem certeza que deseja excluir o cliente: {cliente['nome']}?"
+            )
+
+            if st.button("🗑️ Excluir Cliente"):
+
+                try:
+
+                    excluir_cliente(cliente["id"])
+
+                    st.success(
+                        "Cliente excluído com sucesso!"
+                    )
+
+                    st.rerun()
+
+                except Exception:
+
+                    st.error(
+                        "Não é possível excluir este cliente porque ele possui vendas vinculadas."
+                    )
