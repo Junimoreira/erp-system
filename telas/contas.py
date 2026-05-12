@@ -125,8 +125,9 @@ def tela_contas():
             }
 
             conta_selecionada = st.selectbox(
-                "Selecione a conta",
-                list(contas.keys())
+               "Selecione a conta",
+               list(contas.keys()),
+               key="editar_conta"
             )
 
             conta = contas[conta_selecionada]
@@ -208,7 +209,8 @@ def tela_contas():
 
             conta_selecionada = st.selectbox(
                 "Selecione a conta",
-                list(contas.keys())
+                list(contas.keys()),
+                key="excluir_conta"
             )
 
             conta = contas[conta_selecionada]
