@@ -8,6 +8,7 @@ from telas.vendas import tela_vendas
 from telas.configuracoes import tela_configuracoes
 from telas.login import tela_login
 from database.dashboard_db import obter_dashboard
+from telas.contas import tela_contas
 
 
 st.set_page_config(
@@ -62,6 +63,7 @@ else:
                 "💰 Financeiro",
                 "🛒 Vendas",
                 "⚙️ Configurações"
+                "🏦 Contas Bancárias",
             ]
         )
 
@@ -158,3 +160,9 @@ else:
 
         st.write("Configurações do sistema.")
         tela_configuracoes()
+
+    elif menu == "🏦 Contas Bancárias":
+
+        st.title("🏦 Contas Bancárias")
+
+        tela_contas()

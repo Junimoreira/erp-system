@@ -7,3 +7,6 @@ postgresql://bd_erp_system_user:QEEydMjHue8CdduUnbcjOnSdKp7dQSbG@dpg-d7uc7aho3t8
 
 External
 postgresql://bd_erp_system_user:QEEydMjHue8CdduUnbcjOnSdKp7dQSbG@dpg-d7uc7aho3t8c73fao0rg-a.virginia-postgres.render.com/bd_erp_system
+
+PSQL
+render psql dpg-d7uc7aho3t8c73fao0rg-a

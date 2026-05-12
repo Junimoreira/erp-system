@@ -1,18 +1,22 @@
-import psycopg2
 import os
+import psycopg2
 
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def conectar():
+    try:
+        database_url = os.getenv("DATABASE_URL")
 
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT")
-    )
+        print("DATABASE_URL =", database_url)
 
-    return conn
+        conn = psycopg2.connect(
+            database_url,
+            sslmode="require"
+        )
+
+        print("Conexão realizada com sucesso!")
+
+        return conn
+
+    except Exception as e:
+        print("Erro ao conectar:", e)
+        return None
