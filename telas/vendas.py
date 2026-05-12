@@ -15,7 +15,7 @@ from database.vendas_db import (
 
 def tela_vendas():
 
-    st.title("🛒 Vendas")
+    #st.title("🛒 Vendas")
 
     abas = st.tabs([
         "➕ Nova Venda",

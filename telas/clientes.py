@@ -9,8 +9,9 @@ def tela_clientes():
     #st.title("👥 Clientes")
 
     abas = st.tabs([
-        "➕ Novo Cliente",
-        "📋 Listar Clientes"
+    "➕ Novo Cliente",
+    "📋 Clientes",
+    "✏️ Editar Cliente"
     ])
 
     # ==========================================
@@ -110,3 +111,66 @@ def tela_clientes():
         except Exception as e:
 
             st.error(f"Erro: {e}")
+
+# ==================================================
+# EDITAR CLIENTE
+# ==================================================
+
+with abas[2]:
+
+    st.subheader("Editar Cliente")
+
+    df_clientes = listar_clientes()
+
+    if df_clientes.empty:
+
+        st.warning(
+            "Nenhum cliente cadastrado."
+        )
+
+    else:
+
+        cliente_nome = st.selectbox(
+            "Selecione o Cliente",
+            df_clientes["nome"]
+        )
+
+        cliente = df_clientes[
+            df_clientes["nome"] == cliente_nome
+        ].iloc[0]
+
+        nome = st.text_input(
+            "Nome",
+            value=cliente["nome"]
+        )
+
+        telefone = st.text_input(
+            "Telefone",
+            value=cliente["telefone"]
+        )
+
+        email = st.text_input(
+            "Email",
+            value=cliente["email"]
+        )
+
+        cidade = st.text_input(
+            "Cidade",
+            value=cliente["cidade"]
+        )
+
+        if st.button("Salvar Alterações"):
+
+            atualizar_cliente(
+                cliente["id"],
+                nome,
+                telefone,
+                email,
+                cidade
+            )
+
+            st.success(
+                "✅ Cliente atualizado!"
+            )
+
+            st.rerun()
