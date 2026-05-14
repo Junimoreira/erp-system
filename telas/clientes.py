@@ -27,15 +27,10 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-
             st.info("Nenhum cliente cadastrado.")
 
         else:
-
-            st.dataframe(
-                df,
-                use_container_width=True
-            )
+            st.dataframe(df, use_container_width=True)
 
     # ==================================================
     # NOVO CLIENTE
@@ -47,47 +42,25 @@ def tela_clientes():
 
         with st.form("form_cliente"):
 
-           nome = st.text_input(
-               "Nome"
-           )
+            nome = st.text_input("Nome")
+            telefone = st.text_input("Telefone")
+            email = st.text_input("Email")
 
-           telefone = st.text_input(
-               "Telefone"
-           )
-
-           email = st.text_input(
-               "Email"
-           )
-
-           cidade = st.text_input(
-               "Cidade",
-               key="cidade_novo_cliente"
-           )
-            
-
-            salvar = st.form_submit_button(
-                "💾 Salvar Cliente"
+            cidade = st.text_input(
+                "Cidade",
+                key="cidade_novo_cliente"
             )
+
+            salvar = st.form_submit_button("💾 Salvar Cliente")
 
             if salvar:
 
-                if nome == "":
-
+                if nome.strip() == "":
                     st.warning("Informe o nome.")
-
                 else:
+                    cadastrar_cliente(nome, telefone, email, cidade)
 
-                    cadastrar_cliente(
-                        nome,
-                        telefone,
-                        email,
-                        cidade
-                    )
-
-                    st.success(
-                        "Cliente cadastrado com sucesso!"
-                    )
-
+                    st.success("Cliente cadastrado com sucesso!")
                     st.rerun()
 
     # ==================================================
@@ -101,7 +74,6 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-
             st.info("Nenhum cliente cadastrado.")
 
         else:
@@ -138,16 +110,13 @@ def tela_clientes():
                 cidade = ""
 
                 if "cidade" in df.columns:
-
                     cidade = st.text_input(
                         "Cidade",
                         value=cliente.get("cidade", ""),
                         key="cidade_editar_cliente"
                     )
 
-                atualizar = st.form_submit_button(
-                    "💾 Atualizar Cliente"
-                )
+                atualizar = st.form_submit_button("💾 Atualizar Cliente")
 
                 if atualizar:
 
@@ -159,10 +128,7 @@ def tela_clientes():
                         cidade
                     )
 
-                    st.success(
-                        "Cliente atualizado com sucesso!"
-                    )
-
+                    st.success("Cliente atualizado com sucesso!")
                     st.rerun()
 
     # ==================================================
@@ -176,7 +142,6 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-
             st.info("Nenhum cliente cadastrado.")
 
         else:
@@ -200,17 +165,11 @@ def tela_clientes():
             if st.button("🗑️ Excluir Cliente"):
 
                 try:
-
                     excluir_cliente(cliente.get("id"))
-
-                    st.success(
-                        "Cliente excluído com sucesso!"
-                    )
-
+                    st.success("Cliente excluído com sucesso!")
                     st.rerun()
 
                 except Exception:
-
                     st.error(
                         "Não é possível excluir este cliente porque ele possui vendas vinculadas."
                     )
