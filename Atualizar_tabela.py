@@ -8,8 +8,8 @@ def atualizar_tabela():
 
     cursor.execute("""
 
-        ALTER TABLE clientes
-        ADD COLUMN cidade VARCHAR(100);
+        ALTER TABLE produtos
+        ADD CONSTRAINT produtos_codigo_barras_unique UNIQUE (codigo_barras);
 
     """)
 

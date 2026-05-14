@@ -37,13 +37,14 @@ def cadastrar_produto(nome, preco, estoque):
 
     query = """
         INSERT INTO produtos
-        (nome, preco, estoque)
+        (nome, preco, codigo_barras, estoque)
         VALUES (%s, %s, %s)
     """
 
     cursor.execute(query, (
         nome,
         preco,
+        codigo_barras,
         estoque
     ))
 

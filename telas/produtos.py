@@ -20,6 +20,7 @@ def tela_produtos():
         st.subheader("Cadastrar Produto")
 
         nome = st.text_input("Nome do Produto")
+        codigo_barras = st.text_input("Código de Barras")
 
         preco = st.number_input(
             "Preço",
@@ -102,6 +103,7 @@ def tela_produtos():
                     id_produto,
                     novo_nome,
                     novo_preco,
+                    novo_codigo_barras,
                     novo_estoque
                 )
 
