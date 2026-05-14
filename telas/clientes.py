@@ -50,7 +50,7 @@ def tela_clientes():
             nome = st.text_input("Nome")
             telefone = st.text_input("Telefone")
             email = st.text_input("Email")
-
+            cidade = st.text_input("Cidade")
             cidade = ""
 
             if "cidade" in listar_clientes().columns:
