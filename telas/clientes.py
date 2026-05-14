@@ -47,15 +47,23 @@ def tela_clientes():
 
         with st.form("form_cliente"):
 
-            nome = st.text_input("Nome")
-            telefone = st.text_input("Telefone")
-            email = st.text_input("Email")
-            cidade = st.text_input("Cidade")
-            cidade = ""
+           nome = st.text_input(
+               "Nome"
+           )
 
-            if "cidade" in listar_clientes().columns:
+           telefone = st.text_input(
+               "Telefone"
+           )
 
-                cidade = st.text_input("Cidade")
+           email = st.text_input(
+               "Email"
+           )
+
+           cidade = st.text_input(
+               "Cidade",
+               key="cidade_novo_cliente"
+           )
+            
 
             salvar = st.form_submit_button(
                 "💾 Salvar Cliente"
@@ -133,7 +141,8 @@ def tela_clientes():
 
                     cidade = st.text_input(
                         "Cidade",
-                        value=cliente.get("cidade", "")
+                        value=cliente.get("cidade", ""),
+                        key="cidade_editar_cliente"
                     )
 
                 atualizar = st.form_submit_button(
