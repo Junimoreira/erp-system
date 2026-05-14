@@ -1,24 +1,37 @@
-from database.connection import conectar
 import pandas as pd
 
+from database.connection import conectar
 
-# =========================================
-# LISTAR
-# =========================================
-def listar_movimentacoes():
+
+# ==================================================
+# LISTAR CONTAS A RECEBER
+# ==================================================
+
+def listar_contas_receber():
 
     conn = conectar()
 
     query = """
         SELECT
-            id,
-            descricao,
-            valor,
-            tipo,
-            categoria,
-            data_lancamento
-        FROM financeiro
-        ORDER BY id DESC
+
+            cr.id,
+
+            c.nome AS cliente,
+
+            cr.descricao,
+
+            cr.valor,
+
+            cr.vencimento,
+
+            cr.status
+
+        FROM contas_receber cr
+
+        LEFT JOIN clientes c
+            ON cr.cliente_id = c.id
+
+        ORDER BY cr.vencimento
     """
 
     df = pd.read_sql(query, conn)
@@ -28,103 +41,99 @@ def listar_movimentacoes():
     return df
 
 
-# =========================================
-# CADASTRAR
-# =========================================
-def cadastrar_movimentacao(
-    descricao,
-    valor,
-    tipo,
-    categoria,
-    data_lancamento
-):
+# ==================================================
+# RECEBER CONTA
+# ==================================================
+
+def receber_conta(conta_id):
 
     conn = conectar()
     cursor = conn.cursor()
 
-    query = """
-        INSERT INTO financeiro
-        (
-            descricao,
-            valor,
-            tipo,
-            categoria,
-            data_lancamento
+    try:
+
+        # ==========================================
+        # BUSCAR CONTA
+        # ==========================================
+
+        query_busca = """
+            SELECT
+
+                valor,
+                descricao
+
+            FROM contas_receber
+
+            WHERE id = %s
+        """
+
+        cursor.execute(
+            query_busca,
+            (conta_id,)
         )
-        VALUES (%s, %s, %s, %s, %s)
-    """
 
-    cursor.execute(query, (
-        descricao,
-        valor,
-        tipo,
-        categoria,
-        data_lancamento
-    ))
+        conta = cursor.fetchone()
 
-    conn.commit()
+        valor = conta[0]
+        descricao = conta[1]
 
-    cursor.close()
-    conn.close()
+        # ==========================================
+        # ATUALIZAR STATUS
+        # ==========================================
 
+        query_update = """
+            UPDATE contas_receber
+            SET status = 'Pago'
+            WHERE id = %s
+        """
 
-# =========================================
-# EXCLUIR
-# =========================================
-def excluir_movimentacao(id_mov):
+        cursor.execute(
+            query_update,
+            (conta_id,)
+        )
 
-    conn = conectar()
-    cursor = conn.cursor()
+        # ==========================================
+        # LANÇAR NO FLUXO CAIXA
+        # ==========================================
 
-    query = """
-        DELETE FROM financeiro
-        WHERE id = %s
-    """
+        query_fluxo = """
+            INSERT INTO fluxo_caixa (
 
-    cursor.execute(query, (id_mov,))
+                tipo,
+                descricao,
+                valor,
+                origem
 
-    conn.commit()
+            )
+            VALUES (%s, %s, %s, %s)
+        """
 
-    cursor.close()
-    conn.close()
+        cursor.execute(
+            query_fluxo,
+            (
+                "Entrada",
+                descricao,
+                valor,
+                "Recebimento"
+            )
+        )
 
+        conn.commit()
 
-# =========================================
-# ATUALIZAR
-# =========================================
-def atualizar_movimentacao(
-    id_mov,
-    descricao,
-    valor,
-    tipo,
-    categoria,
-    data_lancamento
-):
+        return True
 
-    conn = conectar()
-    cursor = conn.cursor()
+    except Exception as erro:
 
-    query = """
-        UPDATE financeiro
-        SET
-            descricao = %s,
-            valor = %s,
-            tipo = %s,
-            categoria = %s,
-            data_lancamento = %s
-        WHERE id = %s
-    """
+        conn.rollback()
 
-    cursor.execute(query, (
-        descricao,
-        valor,
-        tipo,
-        categoria,
-        data_lancamento,
-        id_mov
-    ))
+        print(
+            "Erro ao receber conta:",
+            erro
+        )
 
-    conn.commit()
+        return False
 
-    cursor.close()
-    conn.close()
+    finally:
+
+        cursor.close()
+        conn.close()

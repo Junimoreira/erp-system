@@ -1,6 +1,8 @@
-from database.connection import conectar
+# database/vendas_db.py
+
 import pandas as pd
-from datetime import date
+
+from database.connection import conectar
 
 
 # ==================================================
@@ -12,7 +14,9 @@ def listar_clientes():
     conn = conectar()
 
     query = """
-        SELECT id, nome
+        SELECT
+            id,
+            nome
         FROM clientes
         ORDER BY nome
     """
@@ -33,7 +37,7 @@ def listar_produtos():
     conn = conectar()
 
     query = """
-        SELECT id, nome, preco, estoque
+        SELECT *
         FROM produtos
         ORDER BY nome
     """
@@ -46,161 +50,196 @@ def listar_produtos():
 
 
 # ==================================================
-# CRIAR VENDA
+# SALVAR VENDA
 # ==================================================
 
-def criar_venda(cliente_id, total):
-
-    conn = conectar()
-    cursor = conn.cursor()
-
-    query = """
-        INSERT INTO vendas (cliente_id, total)
-        VALUES (%s, %s)
-        RETURNING id
-    """
-
-    cursor.execute(
-        query,
-        (
-            int(cliente_id),
-            float(total)
-        )
-    )
-
-    venda_id = cursor.fetchone()[0]
-
-    conn.commit()
-
-    cursor.close()
-    conn.close()
-
-    return venda_id
-
-
-# ==================================================
-# ADICIONAR ITEM VENDA
-# ==================================================
-
-def adicionar_item_venda(
-    venda_id,
-    produto_id,
-    quantidade,
-    preco_unitario,
-    subtotal
+def salvar_venda(
+    cliente_id,
+    valor_total,
+    forma_pagamento,
+    itens
 ):
 
     conn = conectar()
-
     cursor = conn.cursor()
 
-    query = """
-        INSERT INTO itens_venda (
-            venda_id,
-            produto_id,
-            quantidade,
-            preco_unitario,
-            subtotal
+    try:
+
+        # ==========================================
+        # INSERIR VENDA
+        # ==========================================
+
+        query_venda = """
+            INSERT INTO vendas (
+
+                cliente_id,
+                valor_total,
+                forma_pagamento
+
+            )
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """
+
+        cursor.execute(
+            query_venda,
+            (
+                cliente_id,
+                valor_total,
+                forma_pagamento
+            )
         )
-        VALUES (%s, %s, %s, %s, %s)
-    """
 
-    cursor.execute(
-        query,
-        (
-            venda_id,
-            produto_id,
-            quantidade,
-            preco_unitario,
-            subtotal
+        venda_id = cursor.fetchone()[0]
+
+        # ==========================================
+        # INSERIR ITENS
+        # ==========================================
+
+        for item in itens:
+
+            produto_id = item["produto_id"]
+
+            quantidade = item["quantidade"]
+
+            preco = item["preco"]
+
+            subtotal = item["subtotal"]
+
+            query_item = """
+                INSERT INTO itens_venda (
+
+                    venda_id,
+                    produto_id,
+                    quantidade,
+                    preco_unitario,
+                    subtotal
+
+                )
+                VALUES (%s, %s, %s, %s, %s)
+            """
+
+            cursor.execute(
+                query_item,
+                (
+                    venda_id,
+                    produto_id,
+                    quantidade,
+                    preco,
+                    subtotal
+                )
+            )
+
+            # ======================================
+            # BAIXAR ESTOQUE
+            # ======================================
+
+            query_estoque = """
+                UPDATE produtos
+                SET estoque = estoque - %s
+                WHERE id = %s
+            """
+
+            cursor.execute(
+                query_estoque,
+                (
+                    quantidade,
+                    produto_id
+                )
+            )
+
+        # ==========================================
+        # VENDA A PRAZO
+        # ==========================================
+
+        if forma_pagamento == "Prazo":
+
+            query_receber = """
+                INSERT INTO contas_receber (
+
+                    cliente_id,
+                    descricao,
+                    valor,
+                    vencimento,
+                    status
+
+                )
+                VALUES (
+
+                    %s,
+                    %s,
+                    %s,
+                    CURRENT_DATE + INTERVAL '30 days',
+                    %s
+
+                )
+            """
+
+            cursor.execute(
+                query_receber,
+                (
+                    cliente_id,
+                    "Venda a prazo",
+                    valor_total,
+                    "Pendente"
+                )
+            )
+
+        # ==========================================
+        # VENDA À VISTA
+        # ==========================================
+
+        else:
+
+            query_fluxo = """
+                INSERT INTO fluxo_caixa (
+
+                    tipo,
+                    descricao,
+                    valor,
+                    origem
+
+                )
+                VALUES (%s, %s, %s, %s)
+            """
+
+            cursor.execute(
+                query_fluxo,
+                (
+                    "Entrada",
+                    "Venda realizada",
+                    valor_total,
+                    "Venda"
+                )
+            )
+
+        # ==========================================
+        # CONFIRMAR ALTERAÇÕES
+        # ==========================================
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro ao salvar venda:",
+            erro
         )
-    )
 
-    # ==========================================
-    # BAIXAR ESTOQUE
-    # ==========================================
+        return False
 
-    query_estoque = """
-        UPDATE produtos
-        SET estoque = estoque - %s
-        WHERE id = %s
-    """
+    finally:
 
-    cursor.execute(
-        query_estoque,
-        (
-            quantidade,
-            produto_id
-        )
-    )
-
-    conn.commit()
-
-    cursor.close()
-    conn.close()
+        cursor.close()
+        conn.close()
 
 
 # ==================================================
-# LANÇAR FINANCEIRO
-# ==================================================
-
-from datetime import date
-
-def lancar_financeiro_venda(total):
-
-    conn = conectar()
-    cursor = conn.cursor()
-
-    query = """
-        INSERT INTO financeiro
-        (descricao, valor, tipo, data_lancamento)
-        VALUES (%s, %s, %s, %s)
-    """
-
-    cursor.execute(
-        query,
-        (
-            "Venda realizada",
-            float(total),
-            "Entrada",
-            date.today()
-        )
-    )
-
-    conn.commit()
-
-    cursor.close()
-    conn.close()
-
-
-# ==================================================
-# LISTAR VENDAS
-# ==================================================
-
-def listar_vendas():
-
-    conn = conectar()
-
-    query = """
-        SELECT
-            vendas.id,
-            clientes.nome AS cliente,
-            vendas.total,
-            vendas.data
-        FROM vendas
-        LEFT JOIN clientes
-            ON vendas.cliente_id = clientes.id
-        ORDER BY vendas.id DESC
-    """
-
-    df = pd.read_sql(query, conn)
-
-    conn.close()
-
-    return df
-
-# ==================================================
-# HISTÓRICO COMPLETO DE VENDAS
+# HISTÓRICO DE VENDAS
 # ==================================================
 
 def historico_vendas():
@@ -209,23 +248,34 @@ def historico_vendas():
 
     query = """
         SELECT
+
             v.id AS pedido,
+
             c.nome AS cliente,
-            v.data,
+
             p.nome AS produto,
+
             iv.quantidade,
+
             iv.preco_unitario AS valor_unitario,
+
             iv.subtotal,
-            v.total
+
+            v.valor_total AS total,
+
+            v.forma_pagamento,
+
+            v.data_venda
+
         FROM vendas v
 
-        JOIN clientes c
+        LEFT JOIN clientes c
             ON v.cliente_id = c.id
 
-        JOIN itens_venda iv
+        LEFT JOIN itens_venda iv
             ON v.id = iv.venda_id
 
-        JOIN produtos p
+        LEFT JOIN produtos p
             ON iv.produto_id = p.id
 
         ORDER BY v.id DESC

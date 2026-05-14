@@ -6,16 +6,16 @@ import pandas as pd
 from database.vendas_db import (
     listar_clientes,
     listar_produtos,
-    criar_venda,
-    adicionar_item_venda,
-    lancar_financeiro_venda,
+    salvar_venda,
     historico_vendas
 )
 
 
 def tela_vendas():
 
-    #st.title("🛒 Vendas")
+    # ==================================================
+    # ABAS
+    # ==================================================
 
     abas = st.tabs([
         "➕ Nova Venda",
@@ -25,12 +25,17 @@ def tela_vendas():
     # ==================================================
     # NOVA VENDA
     # ==================================================
+
     with abas[0]:
 
         st.subheader("Nova Venda")
 
         clientes = listar_clientes()
         produtos = listar_produtos()
+
+        # ==============================================
+        # VALIDAR CLIENTES
+        # ==============================================
 
         if clientes.empty:
 
@@ -40,6 +45,10 @@ def tela_vendas():
 
             return
 
+        # ==============================================
+        # VALIDAR PRODUTOS
+        # ==============================================
+
         if produtos.empty:
 
             st.warning(
@@ -48,9 +57,13 @@ def tela_vendas():
 
             return
 
-        # ==========================================
+        # ==============================================
         # CLIENTE
-        # ==========================================
+        # ==============================================
+
+                # ==============================================
+        # CLIENTE
+        # ==============================================
 
         cliente_nome = st.selectbox(
             "Cliente",
@@ -62,9 +75,30 @@ def tela_vendas():
             clientes["nome"] == cliente_nome
         ]["id"].values[0]
 
-        # ==========================================
+        # ==============================================
+        # FORMA DE PAGAMENTO
+        # ==============================================
+
+        forma_pagamento = st.selectbox(
+
+            "Forma de Pagamento",
+
+            [
+                "Dinheiro",
+                "PIX",
+                "Cartão",
+                "Prazo"
+            ],
+
+            key="forma_pagamento"
+        )
+
+        # ==============================================
         # CARRINHO
-        # ==========================================
+        # ==============================================
+        # ==============================================
+        # CARRINHO
+        # ==============================================
 
         if "carrinho" not in st.session_state:
 
@@ -99,9 +133,9 @@ def tela_vendas():
             f"Subtotal: R$ {subtotal:,.2f}"
         )
 
-        # ==========================================
+        # ==============================================
         # ADICIONAR AO CARRINHO
-        # ==========================================
+        # ==============================================
 
         if st.button(
             "Adicionar ao Carrinho",
@@ -119,10 +153,14 @@ def tela_vendas():
                 st.session_state.carrinho.append({
 
                     "produto_id": int(produto["id"]),
+
                     "produto": produto["nome"],
-                    "quantidade": quantidade,
-                    "preco_unitario": float(produto["preco"]),
-                    "subtotal": subtotal
+
+                    "quantidade": int(quantidade),
+
+                    "preco": float(produto["preco"]),
+
+                    "subtotal": float(subtotal)
                 })
 
                 st.success(
@@ -131,9 +169,9 @@ def tela_vendas():
 
                 st.rerun()
 
-        # ==========================================
+        # ==============================================
         # EXIBIR CARRINHO
-        # ==========================================
+        # ==============================================
 
         st.divider()
 
@@ -158,41 +196,41 @@ def tela_vendas():
                 f"💰 Total da Venda: R$ {total:,.2f}"
             )
 
-            # ======================================
+            # ==========================================
             # FINALIZAR VENDA
-            # ======================================
+            # ==========================================
 
             if st.button(
                 "Finalizar Venda",
                 key="finalizar_venda"
             ):
 
-                venda_id = criar_venda(
-                    int(cliente_id),
-                    float(total)
+                sucesso = salvar_venda(
+
+                    cliente_id=int(cliente_id),
+
+                    valor_total=float(total),
+
+                    forma_pagamento=forma_pagamento,
+
+                    itens=st.session_state.carrinho
                 )
 
-                for item in st.session_state.carrinho:
+                if sucesso:
 
-                    adicionar_item_venda(
-                        venda_id,
-                        int(item["produto_id"]),
-                        int(item["quantidade"]),
-                        float(item["preco_unitario"]),
-                        float(item["subtotal"])
+                    st.session_state.carrinho = []
+
+                    st.success(
+                        "✅ Venda finalizada!"
                     )
 
-                lancar_financeiro_venda(
-                    float(total)
-                )
+                    st.rerun()
 
-                st.session_state.carrinho = []
+                else:
 
-                st.success(
-                    "✅ Venda finalizada!"
-                )
-
-                st.rerun()
+                    st.error(
+                        "❌ Erro ao finalizar venda."
+                    )
 
         else:
 
@@ -203,6 +241,7 @@ def tela_vendas():
     # ==================================================
     # HISTÓRICO
     # ==================================================
+
     with abas[1]:
 
         st.subheader(
@@ -211,9 +250,9 @@ def tela_vendas():
 
         df = historico_vendas()
 
-        # ==========================================
+        # ==============================================
         # FILTRO
-        # ==========================================
+        # ==============================================
 
         filtro = st.text_input(
             "🔎 Buscar pedido"
@@ -225,29 +264,35 @@ def tela_vendas():
                 df["pedido"].astype(str).str.contains(filtro)
             ]
 
-        # ==========================================
+        # ==============================================
         # FORMATAR MOEDA
-        # ==========================================
+        # ==============================================
 
         if not df.empty:
 
-            df["valor_unitario"] = df[
-                "valor_unitario"
-            ].map(
-                lambda x: f"R$ {x:,.2f}"
-            )
+            if "valor_unitario" in df.columns:
 
-            df["subtotal"] = df[
-                "subtotal"
-            ].map(
-                lambda x: f"R$ {x:,.2f}"
-            )
+                df["valor_unitario"] = df[
+                    "valor_unitario"
+                ].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
 
-            df["total"] = df[
-                "total"
-            ].map(
-                lambda x: f"R$ {x:,.2f}"
-            )
+            if "subtotal" in df.columns:
+
+                df["subtotal"] = df[
+                    "subtotal"
+                ].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
+
+            if "total" in df.columns:
+
+                df["total"] = df[
+                    "total"
+                ].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
 
         st.dataframe(
             df,
