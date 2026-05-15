@@ -28,43 +28,49 @@ def tela_produtos():
 
         st.subheader("📦 Cadastrar Produto")
 
-        nome = st.text_input(
-            "Nome do Produto"
-        )
+        with st.form("form_produto"):
 
-        preco = st.number_input(
-            "Preço",
-            min_value=0.0,
-            format="%.2f"
-        )
+            nome = st.text_input(
+                "Nome do Produto"
+            )
 
-        estoque = st.number_input(
-            "Estoque",
-            min_value=0,
-            step=1
-        )
+            preco = st.number_input(
+                "Preço",
+                min_value=0.0,
+                format="%.2f"
+            )
 
-        if st.button("💾 Cadastrar Produto"):
+            estoque = st.number_input(
+                "Estoque",
+                min_value=0,
+                step=1
+            )
 
-            if nome.strip() == "":
+            salvar = st.form_submit_button(
+                "💾 Cadastrar Produto"
+            )
 
-                st.warning(
-                    "Informe o nome do produto."
-                )
+            if salvar:
 
-            else:
+                if nome.strip() == "":
 
-                cadastrar_produto(
-                    nome,
-                    preco,
-                    estoque
-                )
+                    st.warning(
+                        "Informe o nome do produto."
+                    )
 
-                st.success(
-                    "✅ Produto cadastrado com sucesso!"
-                )
+                else:
 
-                st.rerun()
+                    cadastrar_produto(
+                        nome,
+                        preco,
+                        estoque
+                    )
+
+                    st.success(
+                        "✅ Produto cadastrado com sucesso!"
+                    )
+
+                    st.rerun()
 
     # ==================================================
     # LISTAGEM
