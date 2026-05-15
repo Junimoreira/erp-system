@@ -1,5 +1,3 @@
-# telas/vendas.py
-
 import streamlit as st
 import pandas as pd
 
@@ -10,12 +8,13 @@ from database.vendas_db import (
     historico_vendas
 )
 
+from database.produto_db import buscar_produto_por_codigo
 
+
+# ==================================================
+# TELA VENDAS
+# ==================================================
 def tela_vendas():
-
-    # ==================================================
-    # ABAS
-    # ==================================================
 
     abas = st.tabs([
         "➕ Nova Venda",
@@ -25,46 +24,24 @@ def tela_vendas():
     # ==================================================
     # NOVA VENDA
     # ==================================================
-
     with abas[0]:
 
-        st.subheader("Nova Venda")
+        st.subheader("🛒 Nova Venda")
 
         clientes = listar_clientes()
         produtos = listar_produtos()
 
-        # ==============================================
-        # VALIDAR CLIENTES
-        # ==============================================
-
         if clientes.empty:
-
-            st.warning(
-                "Cadastre clientes primeiro."
-            )
-
+            st.warning("Cadastre clientes primeiro.")
             return
-
-        # ==============================================
-        # VALIDAR PRODUTOS
-        # ==============================================
 
         if produtos.empty:
-
-            st.warning(
-                "Cadastre produtos primeiro."
-            )
-
+            st.warning("Cadastre produtos primeiro.")
             return
 
         # ==============================================
         # CLIENTE
         # ==============================================
-
-                # ==============================================
-        # CLIENTE
-        # ==============================================
-
         cliente_nome = st.selectbox(
             "Cliente",
             clientes["nome"],
@@ -76,48 +53,82 @@ def tela_vendas():
         ]["id"].values[0]
 
         # ==============================================
-        # FORMA DE PAGAMENTO
+        # FORMA PAGAMENTO
         # ==============================================
-
         forma_pagamento = st.selectbox(
-
             "Forma de Pagamento",
-
-            [
-                "Dinheiro",
-                "PIX",
-                "Cartão",
-                "Prazo"
-            ],
-
+            ["Dinheiro", "PIX", "Cartão", "Prazo"],
             key="forma_pagamento"
         )
 
         # ==============================================
         # CARRINHO
         # ==============================================
-        # ==============================================
-        # CARRINHO
-        # ==============================================
-
         if "carrinho" not in st.session_state:
-
             st.session_state.carrinho = []
 
         st.divider()
 
-        st.subheader("Adicionar Produto")
+        # ==================================================
+        # PRODUTO (PDV COM CÓDIGO DE BARRAS)
+        # ==================================================
+        st.subheader("📦 Adicionar Produto")
 
-        produto_nome = st.selectbox(
-            "Produto",
-            produtos["nome"],
-            key="produto_venda"
+        codigo_barras = st.text_input(
+            "📷 Código de Barras (escaneie ou digite)",
+            key="codigo_barras_venda"
         )
 
-        produto = produtos[
-            produtos["nome"] == produto_nome
-        ].iloc[0]
+        produto = None
 
+        produto_id = None
+        produto_nome = None
+        produto_preco = 0
+        produto_estoque = 0
+
+        # ==============================================
+        # BUSCA POR CÓDIGO DE BARRAS
+        # ==============================================
+        if codigo_barras:
+
+            produto = buscar_produto_por_codigo(codigo_barras)
+
+            if produto:
+
+                st.success(f"Produto encontrado: {produto[1]}")
+
+                produto_id = produto[0]
+                produto_nome = produto[1]
+                produto_preco = produto[2]
+                produto_estoque = produto[3]
+
+            else:
+
+                st.error("Produto não encontrado pelo código de barras")
+
+        # ==============================================
+        # FALLBACK MANUAL
+        # ==============================================
+        if not produto_id:
+
+            produto_nome_select = st.selectbox(
+                "Selecione o Produto",
+                produtos["nome"],
+                key="produto_venda"
+            )
+
+            produto = produtos[
+                produtos["nome"] == produto_nome_select
+            ].iloc[0]
+
+            produto_id = produto["id"]
+            produto_nome = produto["nome"]
+            produto_preco = produto["preco"]
+            produto_estoque = produto["estoque"]
+
+        # ==============================================
+        # QUANTIDADE
+        # ==============================================
         quantidade = st.number_input(
             "Quantidade",
             min_value=1,
@@ -125,176 +136,121 @@ def tela_vendas():
             key="quantidade_venda"
         )
 
-        subtotal = (
-            float(produto["preco"]) * quantidade
+        # ==============================================
+        # DESCONTO
+        # ==============================================
+        desconto = st.number_input(
+            "Desconto",
+            min_value=0.0,
+            value=0.0,
+            format="%.2f",
+            key="desconto_venda"
         )
 
-        st.info(
-            f"Subtotal: R$ {subtotal:,.2f}"
-        )
+        subtotal = float(produto_preco) * quantidade
+        valor_final = subtotal - desconto
+
+        if valor_final < 0:
+            valor_final = 0
+
+        st.info(f"💰 Subtotal: R$ {subtotal:,.2f}")
+        st.info(f"🏷️ Valor Final: R$ {valor_final:,.2f}")
 
         # ==============================================
         # ADICIONAR AO CARRINHO
         # ==============================================
+        if st.button("➕ Adicionar ao Carrinho"):
 
-        if st.button(
-            "Adicionar ao Carrinho",
-            key="botao_add_carrinho"
-        ):
+            if quantidade > produto_estoque:
 
-            if quantidade > produto["estoque"]:
-
-                st.error(
-                    "❌ Estoque insuficiente!"
-                )
+                st.error("❌ Estoque insuficiente!")
 
             else:
 
                 st.session_state.carrinho.append({
 
-                    "produto_id": int(produto["id"]),
-
-                    "produto": produto["nome"],
-
+                    "produto_id": int(produto_id),
+                    "produto": produto_nome,
                     "quantidade": int(quantidade),
-
-                    "preco": float(produto["preco"]),
-
-                    "subtotal": float(subtotal)
+                    "preco": float(produto_preco),
+                    "subtotal": float(subtotal),
+                    "desconto": float(desconto),
+                    "valor_final": float(valor_final)
                 })
 
-                st.success(
-                    "✅ Produto adicionado!"
-                )
-
+                st.success("✅ Produto adicionado!")
                 st.rerun()
 
         # ==============================================
-        # EXIBIR CARRINHO
+        # CARRINHO
         # ==============================================
-
         st.divider()
-
-        st.subheader("Carrinho")
+        st.subheader("🛒 Carrinho")
 
         if st.session_state.carrinho:
 
-            df_carrinho = pd.DataFrame(
-                st.session_state.carrinho
-            )
+            df_carrinho = pd.DataFrame(st.session_state.carrinho)
 
-            st.dataframe(
-                df_carrinho,
-                use_container_width=True
-            )
+            st.dataframe(df_carrinho, use_container_width=True)
 
-            total = df_carrinho[
-                "subtotal"
-            ].sum()
+            total = df_carrinho["valor_final"].sum()
+            desconto_total = df_carrinho["desconto"].sum()
 
-            st.success(
-                f"💰 Total da Venda: R$ {total:,.2f}"
-            )
+            st.success(f"💰 Total da Venda: R$ {total:,.2f}")
+            st.info(f"🏷️ Desconto Total: R$ {desconto_total:,.2f}")
 
             # ==========================================
             # FINALIZAR VENDA
             # ==========================================
-
-            if st.button(
-                "Finalizar Venda",
-                key="finalizar_venda"
-            ):
+            if st.button("💾 Finalizar Venda"):
 
                 sucesso = salvar_venda(
 
                     cliente_id=int(cliente_id),
-
                     valor_total=float(total),
-
+                    desconto=float(desconto_total),
+                    valor_final=float(total),
                     forma_pagamento=forma_pagamento,
-
                     itens=st.session_state.carrinho
                 )
 
                 if sucesso:
 
                     st.session_state.carrinho = []
-
-                    st.success(
-                        "✅ Venda finalizada!"
-                    )
-
+                    st.success("✅ Venda finalizada!")
                     st.rerun()
 
                 else:
 
-                    st.error(
-                        "❌ Erro ao finalizar venda."
-                    )
+                    st.error("❌ Erro ao finalizar venda.")
 
         else:
 
-            st.info(
-                "Carrinho vazio."
-            )
+            st.info("Carrinho vazio.")
 
     # ==================================================
     # HISTÓRICO
     # ==================================================
-
     with abas[1]:
 
-        st.subheader(
-            "📋 Histórico de Vendas"
-        )
+        st.subheader("📋 Histórico de Vendas")
 
         df = historico_vendas()
 
-        # ==============================================
-        # FILTRO
-        # ==============================================
-
-        filtro = st.text_input(
-            "🔎 Buscar pedido"
-        )
+        filtro = st.text_input("🔎 Buscar pedido")
 
         if filtro:
-
-            df = df[
-                df["pedido"].astype(str).str.contains(filtro)
-            ]
-
-        # ==============================================
-        # FORMATAR MOEDA
-        # ==============================================
+            df = df[df["pedido"].astype(str).str.contains(filtro)]
 
         if not df.empty:
 
             if "valor_unitario" in df.columns:
-
-                df["valor_unitario"] = df[
-                    "valor_unitario"
-                ].map(
-                    lambda x: f"R$ {x:,.2f}"
-                )
+                df["valor_unitario"] = df["valor_unitario"].map(lambda x: f"R$ {x:,.2f}")
 
             if "subtotal" in df.columns:
+                df["subtotal"] = df["subtotal"].map(lambda x: f"R$ {x:,.2f}")
 
-                df["subtotal"] = df[
-                    "subtotal"
-                ].map(
-                    lambda x: f"R$ {x:,.2f}"
-                )
+            if "valor_final" in df.columns:
+                df["valor_final"] = df["valor_final"].map(lambda x: f"R$ {x:,.2f}")
 
-            if "total" in df.columns:
-
-                df["total"] = df[
-                    "total"
-                ].map(
-                    lambda x: f"R$ {x:,.2f}"
-                )
-
-        st.dataframe(
-            df,
-            use_container_width=True
-        )
+        st.dataframe(df, use_container_width=True)

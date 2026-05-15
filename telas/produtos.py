@@ -11,7 +11,6 @@ from database.produto_db import (
 # ==================================================
 # TELA PRODUTOS
 # ==================================================
-
 def tela_produtos():
 
     abas = st.tabs([
@@ -23,16 +22,15 @@ def tela_produtos():
     # ==================================================
     # NOVO PRODUTO
     # ==================================================
-
     with abas[0]:
 
         st.subheader("📦 Cadastrar Produto")
 
         with st.form("form_produto"):
 
-            nome = st.text_input(
-                "Nome do Produto"
-            )
+            nome = st.text_input("Nome do Produto")
+
+            codigo_barras = st.text_input("Código de Barras")
 
             preco = st.number_input(
                 "Preço",
@@ -46,36 +44,28 @@ def tela_produtos():
                 step=1
             )
 
-            salvar = st.form_submit_button(
-                "💾 Cadastrar Produto"
-            )
+            salvar = st.form_submit_button("💾 Cadastrar Produto")
 
             if salvar:
 
                 if nome.strip() == "":
-
-                    st.warning(
-                        "Informe o nome do produto."
-                    )
+                    st.warning("Informe o nome do produto.")
 
                 else:
 
                     cadastrar_produto(
                         nome,
                         preco,
-                        estoque
+                        estoque,
+                        codigo_barras if codigo_barras else None
                     )
 
-                    st.success(
-                        "✅ Produto cadastrado com sucesso!"
-                    )
-
+                    st.success("✅ Produto cadastrado com sucesso!")
                     st.rerun()
 
     # ==================================================
     # LISTAGEM
     # ==================================================
-
     with abas[1]:
 
         st.subheader("📋 Produtos Cadastrados")
@@ -83,22 +73,14 @@ def tela_produtos():
         df = listar_produtos()
 
         if df.empty:
-
-            st.info(
-                "Nenhum produto cadastrado."
-            )
+            st.info("Nenhum produto cadastrado.")
 
         else:
-
-            st.dataframe(
-                df,
-                use_container_width=True
-            )
+            st.dataframe(df, use_container_width=True)
 
     # ==================================================
     # EDITAR / EXCLUIR PRODUTO
     # ==================================================
-
     with abas[2]:
 
         st.subheader("✏️ Editar Produto")
@@ -106,10 +88,7 @@ def tela_produtos():
         df = listar_produtos()
 
         if df.empty:
-
-            st.info(
-                "Nenhum produto cadastrado."
-            )
+            st.info("Nenhum produto cadastrado.")
 
         else:
 
@@ -123,13 +102,16 @@ def tela_produtos():
                 list(produtos.keys())
             )
 
-            produto = produtos[
-                produto_selecionado
-            ]
+            produto = produtos[produto_selecionado]
 
             novo_nome = st.text_input(
                 "Nome",
                 value=produto["nome"]
+            )
+
+            novo_codigo_barras = st.text_input(
+                "Código de Barras",
+                value=produto["codigo_barras"] if produto["codigo_barras"] else ""
             )
 
             novo_preco = st.number_input(
@@ -149,22 +131,17 @@ def tela_produtos():
             # ==========================================
             # ATUALIZAR
             # ==========================================
-
-            if st.button(
-                "💾 Salvar Alterações"
-            ):
+            if st.button("💾 Salvar Alterações"):
 
                 atualizar_produto(
                     produto["id"],
                     novo_nome,
                     novo_preco,
-                    novo_estoque
+                    novo_estoque,
+                    novo_codigo_barras if novo_codigo_barras else None
                 )
 
-                st.success(
-                    "✅ Produto atualizado!"
-                )
-
+                st.success("✅ Produto atualizado!")
                 st.rerun()
 
             st.divider()
@@ -172,39 +149,22 @@ def tela_produtos():
             # ==========================================
             # EXCLUIR
             # ==========================================
-
-            st.subheader(
-                "🗑️ Excluir Produto"
-            )
+            st.subheader("🗑️ Excluir Produto")
 
             st.warning(
                 f"Tem certeza que deseja excluir o produto: {produto['nome']}?"
             )
 
-            if st.button(
-                "🗑️ Excluir Produto"
-            ):
+            if st.button("🗑️ Excluir Produto"):
 
-                resultado = excluir_produto(
-                    produto["id"]
-                )
+                resultado = excluir_produto(produto["id"])
 
                 if resultado == True:
-
-                    st.success(
-                        "Produto excluído com sucesso!"
-                    )
-
+                    st.success("Produto excluído com sucesso!")
                     st.rerun()
 
                 elif resultado == "possui_vendas":
-
-                    st.error(
-                        "Não é permitido excluir produto com vendas vinculadas."
-                    )
+                    st.error("Não é permitido excluir produto com vendas vinculadas.")
 
                 else:
-
-                    st.error(
-                        "Erro ao excluir produto."
-                    )
+                    st.error("Erro ao excluir produto.")
