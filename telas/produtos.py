@@ -1,10 +1,18 @@
 import streamlit as st
-from database.produto_db import *
 
+from database.produto_db import (
+    listar_produtos,
+    cadastrar_produto,
+    atualizar_produto,
+    excluir_produto
+)
+
+
+# ==================================================
+# TELA PRODUTOS
+# ==================================================
 
 def tela_produtos():
-
-    #st.title("📦 Produtos")
 
     abas = st.tabs([
         "➕ Novo Produto",
@@ -12,15 +20,17 @@ def tela_produtos():
         "✏️ Editar Produto"
     ])
 
-    # ==========================================
+    # ==================================================
     # NOVO PRODUTO
-    # ==========================================
+    # ==================================================
+
     with abas[0]:
 
-        st.subheader("Cadastrar Produto")
+        st.subheader("📦 Cadastrar Produto")
 
-        nome = st.text_input("Nome do Produto")
-        codigo_barras = st.text_input("Código de Barras")
+        nome = st.text_input(
+            "Nome do Produto"
+        )
 
         preco = st.number_input(
             "Preço",
@@ -34,49 +44,82 @@ def tela_produtos():
             step=1
         )
 
-        if st.button("Cadastrar Produto"):
+        if st.button("💾 Cadastrar Produto"):
 
-            cadastrar_produto(
-                nome,
-                preco,
-                estoque
-            )
+            if nome.strip() == "":
 
-            st.success("✅ Produto cadastrado com sucesso!")
+                st.warning(
+                    "Informe o nome do produto."
+                )
 
-            st.rerun()
+            else:
 
-    # ==========================================
+                cadastrar_produto(
+                    nome,
+                    preco,
+                    estoque
+                )
+
+                st.success(
+                    "✅ Produto cadastrado com sucesso!"
+                )
+
+                st.rerun()
+
+    # ==================================================
     # LISTAGEM
-    # ==========================================
+    # ==================================================
+
     with abas[1]:
 
-        st.subheader("Produtos Cadastrados")
+        st.subheader("📋 Produtos Cadastrados")
 
         df = listar_produtos()
 
-        st.dataframe(
-            df,
-            use_container_width=True
-        )
+        if df.empty:
 
-    # ==========================================
-    # EDITAR PRODUTO
-    # ==========================================
-    with abas[2]:
-
-        st.subheader("Editar Produto")
-
-        df = listar_produtos()
-
-        if not df.empty:
-
-            id_produto = st.selectbox(
-                "Selecione o Produto",
-                df["id"]
+            st.info(
+                "Nenhum produto cadastrado."
             )
 
-            produto = df[df["id"] == id_produto].iloc[0]
+        else:
+
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
+
+    # ==================================================
+    # EDITAR / EXCLUIR PRODUTO
+    # ==================================================
+
+    with abas[2]:
+
+        st.subheader("✏️ Editar Produto")
+
+        df = listar_produtos()
+
+        if df.empty:
+
+            st.info(
+                "Nenhum produto cadastrado."
+            )
+
+        else:
+
+            produtos = {
+                f"{row['id']} - {row['nome']}": row
+                for _, row in df.iterrows()
+            }
+
+            produto_selecionado = st.selectbox(
+                "Selecione o Produto",
+                list(produtos.keys())
+            )
+
+            produto = produtos[
+                produto_selecionado
+            ]
 
             novo_nome = st.text_input(
                 "Nome",
@@ -97,47 +140,65 @@ def tela_produtos():
                 step=1
             )
 
-            if st.button("Salvar Alterações"):
+            # ==========================================
+            # ATUALIZAR
+            # ==========================================
+
+            if st.button(
+                "💾 Salvar Alterações"
+            ):
 
                 atualizar_produto(
-                    id_produto,
+                    produto["id"],
                     novo_nome,
                     novo_preco,
-                    novo_codigo_barras,
                     novo_estoque
                 )
 
-                st.success("✅ Produto atualizado!")
+                st.success(
+                    "✅ Produto atualizado!"
+                )
 
                 st.rerun()
 
             st.divider()
 
-           if st.button("🗑️ Excluir Produto"):
+            # ==========================================
+            # EXCLUIR
+            # ==========================================
 
-    resultado = excluir_produto(
-        produto.get("id")
-    )
+            st.subheader(
+                "🗑️ Excluir Produto"
+            )
 
-    if resultado == True:
+            st.warning(
+                f"Tem certeza que deseja excluir o produto: {produto['nome']}?"
+            )
 
-        st.success(
-            "Produto excluído com sucesso!"
-        )
+            if st.button(
+                "🗑️ Excluir Produto"
+            ):
 
-        st.rerun()
+                resultado = excluir_produto(
+                    produto["id"]
+                )
 
-    elif resultado == "possui_vendas":
+                if resultado == True:
 
-        st.error(
-            "Não é permitido excluir produto com vendas vinculadas."
-        )
+                    st.success(
+                        "Produto excluído com sucesso!"
+                    )
 
-    else:
+                    st.rerun()
 
-        st.error(
-            "Erro ao excluir produto."
-        )
-        else:
+                elif resultado == "possui_vendas":
 
-            st.info("Nenhum produto cadastrado.")
+                    st.error(
+                        "Não é permitido excluir produto com vendas vinculadas."
+                    )
+
+                else:
+
+                    st.error(
+                        "Erro ao excluir produto."
+                    )
