@@ -8,8 +8,14 @@ def atualizar_tabela():
 
     cursor.execute("""
 
-        ALTER TABLE produtos
-        ADD CONSTRAINT produtos_codigo_barras_unique UNIQUE (codigo_barras);
+        CREATE TABLE movimentacoes (
+        id SERIAL PRIMARY KEY,
+        tipo VARCHAR(10), -- entrada / saida
+        valor NUMERIC(10,2),
+        descricao TEXT,
+        origem VARCHAR(50),
+        data TIMESTAMP DEFAULT NOW()
+    );
 
     """)
 

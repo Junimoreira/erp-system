@@ -11,7 +11,7 @@ from database.financeiro_db import (
 
 def tela_financeiro():
 
-    st.title("💰 Financeiro")
+    #st.title("💰 Financeiro")
 
     abas = st.tabs([
         "📥 Contas a Receber"

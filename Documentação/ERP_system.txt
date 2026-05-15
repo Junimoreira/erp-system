@@ -1,0 +1,1290 @@
+from database.connection import conectar
+import pandas as pd
+
+
+# ==================================================
+# LISTAR CLIENTES
+# ==================================================
+
+def listar_clientes():
+
+    conn = conectar()
+
+    query = """
+        SELECT *
+        FROM clientes
+        ORDER BY id DESC
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# ==================================================
+# CADASTRAR CLIENTE
+# ==================================================
+
+def cadastrar_cliente(
+    nome,
+    telefone,
+    email,
+    cidade
+):
+
+    conn = conectar()
+
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO clientes
+        (
+            nome,
+            telefone,
+            email,
+            cidade
+        )
+        VALUES (%s, %s, %s, %s)
+    """
+
+    cursor.execute(
+        query,
+        (
+            nome,
+            telefone,
+            email,
+            cidade
+        )
+    )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# ==================================================
+# ATUALIZAR CLIENTE
+# ==================================================
+
+def atualizar_cliente(
+    cliente_id,
+    nome,
+    telefone,
+    email,
+    cidade
+):
+
+    conn = conectar()
+
+    cursor = conn.cursor()
+
+    query = """
+        UPDATE clientes
+        SET
+            nome = %s,
+            telefone = %s,
+            email = %s,
+            cidade = %s
+        WHERE id = %s
+    """
+
+    cursor.execute(
+        query,
+        (
+            nome,
+            telefone,
+            email,
+            cidade,
+            cliente_id
+        )
+    )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# ==================================================
+# EXCLUIR CLIENTE
+# ==================================================
+
+def excluir_cliente(cliente_id):
+
+    conn = conectar()
+
+    cursor = conn.cursor()
+
+    query = """
+        DELETE FROM clientes
+        WHERE id = %s
+    """
+
+    cursor.execute(
+        query,
+        (
+            cliente_id,
+        )
+    )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+
+
+from database.connection import conectar
+import pandas as pd
+
+
+# ==================================================
+# LISTAR CONTAS
+# ==================================================
+
+def listar_contas():
+
+    conn = conectar()
+
+    query = """
+        SELECT *
+        FROM contas_bancarias
+        ORDER BY id DESC
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# ==================================================
+# CADASTRAR CONTA
+# ==================================================
+
+def cadastrar_conta(
+    banco,
+    agencia,
+    conta,
+    tipo_conta,
+    saldo
+):
+
+    conn = conectar()
+
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO contas_bancarias
+        (
+            banco,
+            agencia,
+            conta,
+            tipo_conta,
+            saldo
+        )
+        VALUES (%s, %s, %s, %s, %s)
+    """
+
+    cursor.execute(
+        query,
+        (
+            banco,
+            agencia,
+            conta,
+            tipo_conta,
+            saldo
+        )
+    )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# ==================================================
+# ATUALIZAR CONTA
+# ==================================================
+
+def atualizar_conta(
+    conta_id,
+    banco,
+    agencia,
+    conta,
+    tipo_conta,
+    saldo
+):
+
+    conn = conectar()
+
+    cursor = conn.cursor()
+
+    query = """
+        UPDATE contas_bancarias
+        SET
+            banco = %s,
+            agencia = %s,
+            conta = %s,
+            tipo_conta = %s,
+            saldo = %s
+        WHERE id = %s
+    """
+
+    cursor.execute(
+        query,
+        (
+            banco,
+            agencia,
+            conta,
+            tipo_conta,
+            saldo,
+            conta_id
+        )
+    )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# ==================================================
+# EXCLUIR CONTA
+# ==================================================
+
+def excluir_conta(conta_id):
+
+    conn = conectar()
+
+    cursor = conn.cursor()
+
+    query = """
+        DELETE FROM contas_bancarias
+        WHERE id = %s
+    """
+
+    cursor.execute(
+        query,
+        (
+            conta_id,
+        )
+    )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+def obter_dashboard():
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    # CLIENTES
+    cursor.execute("SELECT COUNT(*) FROM clientes")
+    total_clientes = cursor.fetchone()[0]
+
+    # PRODUTOS
+    cursor.execute("SELECT COUNT(*) FROM produtos")
+    total_produtos = cursor.fetchone()[0]
+
+    # ENTRADAS
+    cursor.execute("""
+        SELECT COALESCE(SUM(valor), 0)
+        FROM fluxo_caixa
+        WHERE tipo = 'Entrada'
+    """)
+    entradas = float(cursor.fetchone()[0])
+
+    # SAÍDAS
+    cursor.execute("""
+        SELECT COALESCE(SUM(valor), 0)
+        FROM fluxo_caixa
+        WHERE tipo = 'Saída'
+    """)
+    saidas = float(cursor.fetchone()[0])
+
+    saldo = entradas - saidas
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "clientes": total_clientes,
+        "produtos": total_produtos,
+        "entradas": entradas,
+        "saidas": saidas,
+        "saldo": saldo
+    }
+
+
+
+import pandas as pd
+
+from database.connection import conectar
+
+
+# ==================================================
+# LISTAR CONTAS A RECEBER
+# ==================================================
+
+def listar_contas_receber():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+
+            cr.id,
+
+            c.nome AS cliente,
+
+            cr.descricao,
+
+            cr.valor,
+
+            cr.vencimento,
+
+            cr.status
+
+        FROM contas_receber cr
+
+        LEFT JOIN clientes c
+            ON cr.cliente_id = c.id
+
+        ORDER BY cr.vencimento
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# ==================================================
+# RECEBER CONTA
+# ==================================================
+
+def receber_conta(conta_id):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        # ==========================================
+        # BUSCAR CONTA
+        # ==========================================
+
+        query_busca = """
+            SELECT
+
+                valor,
+                descricao
+
+            FROM contas_receber
+
+            WHERE id = %s
+        """
+
+        cursor.execute(
+            query_busca,
+            (conta_id,)
+        )
+
+        conta = cursor.fetchone()
+
+        valor = conta[0]
+        descricao = conta[1]
+
+        # ==========================================
+        # ATUALIZAR STATUS
+        # ==========================================
+
+        query_update = """
+            UPDATE contas_receber
+            SET status = 'Pago'
+            WHERE id = %s
+        """
+
+        cursor.execute(
+            query_update,
+            (conta_id,)
+        )
+
+        # ==========================================
+        # LANÇAR NO FLUXO CAIXA
+        # ==========================================
+
+        query_fluxo = """
+            INSERT INTO fluxo_caixa (
+
+                tipo,
+                descricao,
+                valor,
+                origem
+
+            )
+            VALUES (%s, %s, %s, %s)
+        """
+
+        cursor.execute(
+            query_fluxo,
+            (
+                "Entrada",
+                descricao,
+                valor,
+                "Recebimento"
+            )
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro ao receber conta:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+
+def listar_produtos():
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT
+            id,
+            nome,
+            preco,
+            estoque,
+            criado_em
+        FROM produtos
+        ORDER BY id DESC
+    """
+
+    cursor.execute(query)
+
+    dados = cursor.fetchall()
+
+    colunas = [
+        "ID",
+        "Nome",
+        "Preço",
+        "Estoque",
+        "Criado em"
+    ]
+
+    import pandas as pd
+
+    df = pd.DataFrame(dados, columns=colunas)
+
+    cursor.close()
+    conn.close()
+
+    return df
+
+
+
+from database.connection import conectar
+import pandas as pd
+
+
+# =====================================
+# LISTAR PRODUTOS
+# =====================================
+def listar_produtos():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+            id,
+            nome,
+            preco,
+            estoque,
+            criado_em
+        FROM produtos
+        ORDER BY id DESC
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# =====================================
+# CADASTRAR PRODUTO
+# =====================================
+def cadastrar_produto(nome, preco, estoque):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO produtos
+        (nome, preco, codigo_barras, estoque)
+        VALUES (%s, %s, %s)
+    """
+
+    cursor.execute(query, (
+        nome,
+        preco,
+        codigo_barras,
+        estoque
+    ))
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# =====================================
+# EXCLUIR PRODUTO
+# =====================================
+def excluir_produto(id_produto):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    query = """
+        DELETE FROM produtos
+        WHERE id = %s
+    """
+
+    cursor.execute(query, (id_produto,))
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# =====================================
+# ATUALIZAR PRODUTO
+# =====================================
+def atualizar_produto(id_produto, nome, preco, estoque):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    query = """
+        UPDATE produtos
+        SET
+            nome = %s,
+            preco = %s,
+            estoque = %s
+        WHERE id = %s
+    """
+
+    cursor.execute(query, (
+        nome,
+        preco,
+        estoque,
+        id_produto
+    ))
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+
+# database/vendas_db.py
+
+import pandas as pd
+
+from database.connection import conectar
+
+
+# ==================================================
+# LISTAR CLIENTES
+# ==================================================
+
+def listar_clientes():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+            id,
+            nome
+        FROM clientes
+        ORDER BY nome
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# ==================================================
+# LISTAR PRODUTOS
+# ==================================================
+
+def listar_produtos():
+
+    conn = conectar()
+
+    query = """
+        SELECT *
+        FROM produtos
+        ORDER BY nome
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# ==================================================
+# SALVAR VENDA
+# ==================================================
+
+def salvar_venda(
+    cliente_id,
+    valor_total,
+    forma_pagamento,
+    itens
+):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        # ==========================================
+        # INSERIR VENDA
+        # ==========================================
+
+        query_venda = """
+            INSERT INTO vendas (
+
+                cliente_id,
+                valor_total,
+                forma_pagamento
+
+            )
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """
+
+        cursor.execute(
+            query_venda,
+            (
+                cliente_id,
+                valor_total,
+                forma_pagamento
+            )
+        )
+
+        venda_id = cursor.fetchone()[0]
+
+        # ==========================================
+        # INSERIR ITENS
+        # ==========================================
+
+        for item in itens:
+
+            produto_id = item["produto_id"]
+
+            quantidade = item["quantidade"]
+
+            preco = item["preco"]
+
+            subtotal = item["subtotal"]
+
+            query_item = """
+                INSERT INTO itens_venda (
+
+                    venda_id,
+                    produto_id,
+                    quantidade,
+                    preco_unitario,
+                    subtotal
+
+                )
+                VALUES (%s, %s, %s, %s, %s)
+            """
+
+            cursor.execute(
+                query_item,
+                (
+                    venda_id,
+                    produto_id,
+                    quantidade,
+                    preco,
+                    subtotal
+                )
+            )
+
+            # ======================================
+            # BAIXAR ESTOQUE
+            # ======================================
+
+            query_estoque = """
+                UPDATE produtos
+                SET estoque = estoque - %s
+                WHERE id = %s
+            """
+
+            cursor.execute(
+                query_estoque,
+                (
+                    quantidade,
+                    produto_id
+                )
+            )
+
+        # ==========================================
+        # VENDA A PRAZO
+        # ==========================================
+
+        if forma_pagamento == "Prazo":
+
+            query_receber = """
+                INSERT INTO contas_receber (
+
+                    cliente_id,
+                    descricao,
+                    valor,
+                    vencimento,
+                    status
+
+                )
+                VALUES (
+
+                    %s,
+                    %s,
+                    %s,
+                    CURRENT_DATE + INTERVAL '30 days',
+                    %s
+
+                )
+            """
+
+            cursor.execute(
+                query_receber,
+                (
+                    cliente_id,
+                    "Venda a prazo",
+                    valor_total,
+                    "Pendente"
+                )
+            )
+
+        # ==========================================
+        # VENDA À VISTA
+        # ==========================================
+
+        else:
+
+            query_fluxo = """
+                INSERT INTO fluxo_caixa (
+
+                    tipo,
+                    descricao,
+                    valor,
+                    origem
+
+                )
+                VALUES (%s, %s, %s, %s)
+            """
+
+            cursor.execute(
+                query_fluxo,
+                (
+                    "Entrada",
+                    "Venda realizada",
+                    valor_total,
+                    "Venda"
+                )
+            )
+
+        # ==========================================
+        # CONFIRMAR ALTERAÇÕES
+        # ==========================================
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro ao salvar venda:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# HISTÓRICO DE VENDAS
+# ==================================================
+
+def historico_vendas():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+
+            v.id AS pedido,
+
+            c.nome AS cliente,
+
+            p.nome AS produto,
+
+            iv.quantidade,
+
+            iv.preco_unitario AS valor_unitario,
+
+            iv.subtotal,
+
+            v.valor_total AS total,
+
+            v.forma_pagamento,
+
+            v.data_venda
+
+        FROM vendas v
+
+        LEFT JOIN clientes c
+            ON v.cliente_id = c.id
+
+        LEFT JOIN itens_venda iv
+            ON v.id = iv.venda_id
+
+        LEFT JOIN produtos p
+            ON iv.produto_id = p.id
+
+        ORDER BY v.id DESC
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+import streamlit as st
+
+#from telas.dashboard import tela_dashboard
+from telas.clientes import tela_clientes
+from telas.produtos import tela_produtos
+from telas.financeiro import tela_financeiro
+from telas.vendas import tela_vendas
+from telas.configuracoes import tela_configuracoes
+from telas.login import tela_login
+from database.dashboard_db import obter_dashboard
+from telas.contas import tela_contas
+
+
+st.set_page_config(
+    page_title="ERP Empresarial",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+col1, col2 = st.columns(2)
+use_container_width=True
+
+# =========================
+# SESSÃO
+# =========================
+
+if "logado" not in st.session_state:
+    st.session_state["logado"] = False
+
+if "usuario" not in st.session_state:
+    st.session_state["usuario"] = ""
+
+# =========================
+# LOGIN
+# =========================
+
+if not st.session_state["logado"]:
+
+    tela_login()
+
+# =========================
+# SISTEMA
+# =========================
+
+else:
+
+    # SIDEBAR
+
+    with st.sidebar:
+
+        st.success(
+            f"👤 {st.session_state['usuario']}"
+        )
+
+        st.divider()
+
+        menu = st.radio(
+            "Menu",
+            [
+                "🏠 Dashboard",
+                "👥 Clientes",
+                "📦 Produtos",
+                "💰 Financeiro",
+                "🛒 Vendas",
+                "🏦 Contas",
+                "⚙️ Configurações"
+                
+            ]
+        )
+
+        st.divider()
+
+        if st.button("🚪 Sair"):
+
+            st.session_state["logado"] = False
+            st.session_state["usuario"] = ""
+
+            st.rerun()
+
+    # =========================
+    # DASHBOARD
+    # =========================
+
+    if menu == "🏠 Dashboard":
+
+        st.title("🚀 ERP Empresarial")
+
+        dados = obter_dashboard()
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric(
+        "💰 Entradas",
+        f"R$ {dados['entradas']:,.2f}"
+    )
+
+        col2.metric(
+        "👥 Clientes",
+        dados["clientes"]
+    )
+
+        col3.metric(
+        "📦 Produtos",
+        dados["produtos"]
+    )
+
+        col4.metric(
+        "🏦 Saldo",
+        f"R$ {dados['saldo']:,.2f}"
+    )
+
+
+    # =========================
+    # CONTAS BANCÁRIAS
+    # =========================
+    elif menu == "🏦 Contas":
+
+        st.title("🏦 Contas")
+
+        tela_contas()
+
+    # =========================
+    # CLIENTES
+    # =========================
+
+    elif menu == "👥 Clientes":
+
+        st.title("👥 Clientes")
+        #from telas.clientes import tela_clientes
+        tela_clientes()
+    # =========================
+    # PRODUTOS
+    # =========================
+
+    elif menu == "📦 Produtos":
+
+        st.title("📦 Produtos")
+
+        #st.write("Tela de produtos.")
+        tela_produtos()
+
+    # =========================
+    # FINANCEIRO
+    # =========================
+
+    elif menu == "💰 Financeiro":
+
+        st.title("💰 Financeiro")
+
+        #st.write("Tela financeira.")
+        tela_financeiro()
+
+    # =========================
+    # VENDAS
+    # =========================
+
+    elif menu == "🛒 Vendas":
+
+        st.title("🛒 Vendas")
+
+        #st.write("Tela de vendas.")
+        tela_vendas()
+
+    # =========================
+    # CONFIGURAÇÕES
+    # =========================
+
+    elif menu == "⚙️ Configurações":
+
+        st.title("⚙️ Configurações")
+
+        st.write("Configurações do sistema.")
+        tela_configuracoes()
+
+    
+
+
+import streamlit as st
+import pandas as pd
+from database.vendas_db import *
+
+
+def tela_vendas():
+
+    st.title("🛒 Vendas")
+
+    abas = st.tabs([
+        "➕ Nova Venda",
+        "📋 Histórico"
+    ])
+
+    # ==================================================
+    # NOVA VENDA
+    # ==================================================
+    with abas[0]:
+
+        st.subheader("Nova Venda")
+
+        clientes = listar_clientes()
+
+        produtos = listar_produtos()
+
+        if clientes.empty:
+
+            st.warning("Cadastre clientes primeiro.")
+
+            return
+
+        if produtos.empty:
+
+            st.warning("Cadastre produtos primeiro.")
+
+            return
+
+        # ==========================================
+        # CLIENTE
+        # ==========================================
+
+        cliente_nome = st.selectbox(
+            "Cliente",
+            clientes["nome"],
+            key="cliente_venda"
+        )
+
+        cliente_id = clientes[
+            clientes["nome"] == cliente_nome
+        ]["id"].values[0]
+
+        # ==========================================
+        # CARRINHO
+        # ==========================================
+
+        if "carrinho" not in st.session_state:
+
+            st.session_state.carrinho = []
+
+        st.divider()
+
+        st.subheader("Adicionar Produto")
+
+        produto_nome = st.selectbox(
+            "Produto",
+            produtos["nome"],
+            key="produto_venda"
+        )
+
+        produto = produtos[
+            produtos["nome"] == produto_nome
+        ].iloc[0]
+
+        quantidade = st.number_input(
+            "Quantidade",
+            min_value=1,
+            step=1,
+            key="quantidade_venda"
+        )
+
+        subtotal = (
+            float(produto["preco"]) * quantidade
+        )
+
+        st.info(
+            f"Subtotal: R$ {subtotal:,.2f}"
+        )
+
+        if st.button(
+            "Adicionar ao Carrinho",
+            key="botao_add_carrinho"
+        ):
+
+            if quantidade > produto["estoque"]:
+
+                st.error(
+                    "❌ Estoque insuficiente!"
+                )
+
+            else:
+
+                st.session_state.carrinho.append({
+                    "produto_id": int(produto["id"]),
+                    "produto": produto["nome"],
+                    "quantidade": quantidade,
+                    "preco_unitario": float(produto["preco"]),
+                    "subtotal": subtotal
+                })
+
+                st.success(
+                    "✅ Produto adicionado!"
+                )
+
+                st.rerun()
+
+        # ==========================================
+        # EXIBIR CARRINHO
+        # ==========================================
+
+        st.divider()
+
+        st.subheader("Carrinho")
+
+        if st.session_state.carrinho:
+
+            df_carrinho = pd.DataFrame(
+                st.session_state.carrinho
+            )
+
+            st.dataframe(
+                df_carrinho,
+                use_container_width=True
+            )
+
+            total = df_carrinho[
+                "subtotal"
+            ].sum()
+
+            st.success(
+                f"💰 Total da Venda: R$ {total:,.2f}"
+            )
+
+            # ======================================
+            # FINALIZAR VENDA
+            # ======================================
+
+            if st.button(
+                "Finalizar Venda",
+                key="finalizar_venda"
+            ):
+
+                venda_id = criar_venda(
+                    cliente_id,
+                    total
+                )
+
+                for item in st.session_state.carrinho:
+
+                    adicionar_item_venda(
+                        venda_id,
+                        item["produto_id"],
+                        item["quantidade"],
+                        item["preco_unitario"],
+                        item["subtotal"]
+                    )
+
+                lancar_financeiro_venda(total)
+
+                st.session_state.carrinho = []
+
+                st.success(
+                    "✅ Venda finalizada!"
+                )
+
+                st.rerun()
+
+        else:
+
+            st.info(
+                "Carrinho vazio."
+            )
+
+    # ==================================================
+    # HISTÓRICO
+    # ==================================================
+    with abas[1]:
+
+        st.subheader("Histórico de Vendas")
+
+        df = listar_vendas()
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+
+
+streamlit
+psycopg2-binary
+python-dotenv
+bcrypt
+pandas
+
+
+
