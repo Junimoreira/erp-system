@@ -12,11 +12,9 @@ from telas.contas import tela_contas
 from telas.movimentacoes import tela_movimentacoes
 from telas.contas_pagar import tela_contas_pagar
 from telas.contas_receber import tela_contas_receber
+from telas.dashboard import tela_dashboard
+from telas.despesas import tela_despesas
 
-# =========================
-# DATABASE
-# =========================
-from database.dashboard_db import obter_dashboard
 
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
@@ -63,6 +61,7 @@ else:
                 "📦 Produtos",
                 "💰 Movimentações",
                 "🛒 Vendas",
+                "💸 Despesas",
                 "🏦 Contas",
                 "📤 Contas a Pagar",
                 "📥 Contas a Receber",
@@ -82,16 +81,7 @@ else:
     # =========================
     if menu == "🏠 Dashboard":
 
-        st.title("🚀 ERP Empresarial")
-
-        dados = obter_dashboard()
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        col1.metric("💰 Entradas", f"R$ {dados['entradas']:,.2f}")
-        col2.metric("👥 Clientes", dados["clientes"])
-        col3.metric("📦 Produtos", dados["produtos"])
-        col4.metric("🏦 Saldo", f"R$ {dados['saldo']:,.2f}")
+        tela_dashboard()
 
     # =========================
     # CLIENTES
@@ -135,8 +125,12 @@ else:
     elif menu == "📥 Contas a Receber":
         tela_contas_receber()
 
-
-
+    #==========================
+    # DESPESAS
+    #==========================
+    elif menu == "💸 Despesas":
+        tela_despesas()
+    
 
     # =========================
     # CONFIGURAÇÕES

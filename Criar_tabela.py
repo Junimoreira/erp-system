@@ -1,30 +1,43 @@
 from database.connection import conectar
 
 
-def atualizar_tabela():
+def criar_tabela():
 
     conn = conectar()
+
     cursor = conn.cursor()
 
     cursor.execute("""
 
-        CREATE TABLE movimentacoes (
-        id SERIAL PRIMARY KEY,
-        tipo VARCHAR(10), -- entrada / saida
-        valor NUMERIC(10,2),
-        descricao TEXT,
-        origem VARCHAR(50),
-        data TIMESTAMP DEFAULT NOW()
-    );
+        CREATE TABLE IF NOT EXISTS despesas (
+
+            id SERIAL PRIMARY KEY,
+
+            descricao VARCHAR(200) NOT NULL,
+
+            tipo VARCHAR(20) NOT NULL,
+
+            valor NUMERIC(10,2) NOT NULL,
+
+            vencimento DATE,
+
+            status VARCHAR(20) DEFAULT 'Pendente',
+
+            observacoes TEXT,
+
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+        );
 
     """)
 
     conn.commit()
 
     cursor.close()
+
     conn.close()
 
-    print("Coluna adicionada!")
+    print("Tabela despesas criada com sucesso!")
 
 
-atualizar_tabela()
+criar_tabela()
