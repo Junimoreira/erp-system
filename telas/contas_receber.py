@@ -1,70 +1,166 @@
-# telas/contas_receber.py
-
 import streamlit as st
 import pandas as pd
 
-from database.financeiro_db import (
-    listar_contas_receber,
-    receber_conta
-)
+from database.connection import conectar
 
+
+# ==================================================
+# LISTAR CONTAS
+# ==================================================
+
+def listar_contas_receber():
+
+    conn = conectar()
+
+    query = """
+        SELECT
+            cr.id,
+            c.nome AS cliente,
+            cr.descricao,
+            cr.valor,
+            cr.vencimento,
+            cr.status
+        FROM contas_receber cr
+        LEFT JOIN clientes c
+            ON cr.cliente_id = c.id
+        ORDER BY cr.vencimento
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# ==================================================
+# RECEBER CONTA
+# ==================================================
+
+def receber_conta(conta_id):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        # ==========================================
+        # BUSCAR DADOS
+        # ==========================================
+        cursor.execute("""
+            SELECT descricao, valor
+            FROM contas_receber
+            WHERE id = %s
+        """, (conta_id,))
+
+        conta = cursor.fetchone()
+
+        if not conta:
+            return False
+
+        descricao, valor = conta
+
+        # ==========================================
+        # ATUALIZAR STATUS
+        # ==========================================
+        cursor.execute("""
+            UPDATE contas_receber
+            SET status = 'Pago'
+            WHERE id = %s
+        """, (conta_id,))
+
+        # ==========================================
+        # GERAR MOVIMENTAÇÃO
+        # ==========================================
+        cursor.execute("""
+            INSERT INTO movimentacoes (
+                tipo,
+                valor,
+                descricao,
+                origem
+            )
+            VALUES (%s, %s, %s, %s)
+        """, (
+            "entrada",
+            valor,
+            f"Recebimento: {descricao}",
+            "Contas a Receber"
+        ))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print("Erro ao receber conta:", erro)
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# TELA PRINCIPAL
+# ==================================================
 
 def tela_contas_receber():
 
     st.title("📥 Contas a Receber")
 
-    # ==================================================
-    # CARREGAR DADOS
-    # ==================================================
-
     df = listar_contas_receber()
 
-    # ==================================================
+    # ==============================================
     # FILTROS
-    # ==================================================
+    # ==============================================
 
-    st.subheader("Filtros")
+    col1, col2 = st.columns(2)
 
-    status_filtro = st.selectbox(
+    with col1:
 
-        "Status",
+        status = st.selectbox(
+            "Status",
+            [
+                "Todos",
+                "Pendente",
+                "Pago"
+            ]
+        )
 
-        [
-            "Todos",
-            "Pendente",
-            "Pago"
-        ],
+    with col2:
 
-        key="filtro_status_receber"
-    )
+        busca = st.text_input(
+            "Buscar Cliente"
+        )
 
-    cliente_filtro = st.text_input(
-        "Buscar Cliente"
-    )
-
-    # ==================================================
+    # ==============================================
     # APLICAR FILTROS
-    # ==================================================
+    # ==============================================
 
-    if status_filtro != "Todos":
+    if status != "Todos":
 
         df = df[
-            df["status"] == status_filtro
+            df["status"] == status
         ]
 
-    if cliente_filtro:
+    if busca:
 
         df = df[
             df["cliente"].str.contains(
-                cliente_filtro,
+                busca,
                 case=False,
                 na=False
             )
         ]
 
-    # ==================================================
+    # ==============================================
     # VALIDAR
-    # ==================================================
+    # ==============================================
 
     if df.empty:
 
@@ -74,9 +170,9 @@ def tela_contas_receber():
 
         return
 
-    # ==================================================
+    # ==============================================
     # FORMATAR
-    # ==================================================
+    # ==============================================
 
     df_exibir = df.copy()
 
@@ -86,20 +182,14 @@ def tela_contas_receber():
         lambda x: f"R$ {x:,.2f}"
     )
 
-    st.divider()
-
-    st.subheader(
-        "Lista de Contas"
-    )
-
     st.dataframe(
         df_exibir,
         use_container_width=True
     )
 
-    # ==================================================
-    # CONTAS PENDENTES
-    # ==================================================
+    # ==============================================
+    # RECEBER CONTA
+    # ==============================================
 
     pendentes = df[
         df["status"] == "Pendente"
@@ -113,31 +203,27 @@ def tela_contas_receber():
 
         return
 
-    # ==================================================
-    # RECEBER CONTA
-    # ==================================================
-
     st.divider()
 
     st.subheader(
-        "Receber Conta"
+        "💰 Receber Conta"
     )
 
-    conta_id = st.selectbox(
+    contas = {
 
-        "Selecione a Conta",
+        f"{row['id']} - {row['cliente']}": row
 
-        pendentes["id"],
+        for _, row in pendentes.iterrows()
+    }
 
-        key="select_receber_conta"
+    conta_sel = st.selectbox(
+        "Selecione a conta",
+        list(contas.keys())
     )
 
-    conta = pendentes[
-        pendentes["id"] == conta_id
-    ].iloc[0]
+    conta = contas[conta_sel]
 
-    st.info(
-        f"""
+    st.info(f"""
 Cliente: {conta['cliente']}
 
 Descrição: {conta['descricao']}
@@ -145,26 +231,14 @@ Descrição: {conta['descricao']}
 Valor: R$ {conta['valor']:,.2f}
 
 Vencimento: {conta['vencimento']}
-        """
-    )
+    """)
 
-    # ==================================================
-    # BOTÃO RECEBER
-    # ==================================================
+    if st.button("✅ Confirmar Recebimento"):
 
-    if st.button(
-        "✅ Confirmar Recebimento",
-        key="botao_receber_conta"
-    ):
-
-        sucesso = receber_conta(
-            int(conta_id)
-        )
-
-        if sucesso:
+        if receber_conta(conta["id"]):
 
             st.success(
-                "✅ Conta recebida com sucesso!"
+                "Conta recebida com sucesso!"
             )
 
             st.rerun()
@@ -172,5 +246,5 @@ Vencimento: {conta['vencimento']}
         else:
 
             st.error(
-                "❌ Erro ao receber conta."
+                "Erro ao receber conta."
             )

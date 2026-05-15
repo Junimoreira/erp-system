@@ -11,6 +11,7 @@ from telas.login import tela_login
 from telas.contas import tela_contas
 from telas.movimentacoes import tela_movimentacoes
 from telas.contas_pagar import tela_contas_pagar
+from telas.contas_receber import tela_contas_receber
 
 # =========================
 # DATABASE
@@ -63,7 +64,8 @@ else:
                 "💰 Movimentações",
                 "🛒 Vendas",
                 "🏦 Contas",
-                "Contas a Pagar",
+                "📤 Contas a Pagar",
+                "📥 Contas a Receber",
                 "⚙️ Configurações"
             ]
         )
@@ -124,8 +126,17 @@ else:
     #===========================
     # CONTAS A PAGAR
     #===========================
-    elif menu == "Contas a Pagar":   # 👈 NOVO LINK
+    elif menu == "📤 Contas a Pagar":   # 👈 NOVO LINK
         tela_contas_pagar()
+
+    #==========================
+    # CONTAS A RECEBER
+    #==========================
+    elif menu == "📥 Contas a Receber":
+        tela_contas_receber()
+
+
+
 
     # =========================
     # CONFIGURAÇÕES
