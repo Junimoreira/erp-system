@@ -113,14 +113,31 @@ def tela_produtos():
 
             st.divider()
 
-            if st.button("🗑️ Excluir Produto"):
+           if st.button("🗑️ Excluir Produto"):
 
-                excluir_produto(id_produto)
+    resultado = excluir_produto(
+        produto.get("id")
+    )
 
-                st.success("Produto excluído!")
+    if resultado == True:
 
-                st.rerun()
+        st.success(
+            "Produto excluído com sucesso!"
+        )
 
+        st.rerun()
+
+    elif resultado == "possui_vendas":
+
+        st.error(
+            "Não é permitido excluir produto com vendas vinculadas."
+        )
+
+    else:
+
+        st.error(
+            "Erro ao excluir produto."
+        )
         else:
 
             st.info("Nenhum produto cadastrado.")

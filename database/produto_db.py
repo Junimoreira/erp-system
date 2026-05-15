@@ -30,23 +30,35 @@ def listar_produtos():
 # =====================================
 # CADASTRAR PRODUTO
 # =====================================
-def cadastrar_produto(nome, preco, estoque):
+
+def cadastrar_produto(
+    nome,
+    preco,
+    estoque
+):
 
     conn = conectar()
+
     cursor = conn.cursor()
 
     query = """
         INSERT INTO produtos
-        (nome, preco, codigo_barras, estoque)
+        (
+            nome,
+            preco,
+            estoque
+        )
         VALUES (%s, %s, %s)
     """
 
-    cursor.execute(query, (
-        nome,
-        preco,
-        codigo_barras,
-        estoque
-    ))
+    cursor.execute(
+        query,
+        (
+            nome,
+            preco,
+            estoque
+        )
+    )
 
     conn.commit()
 
@@ -54,25 +66,66 @@ def cadastrar_produto(nome, preco, estoque):
     conn.close()
 
 
-# =====================================
+# ==================================================
 # EXCLUIR PRODUTO
-# =====================================
-def excluir_produto(id_produto):
+# ==================================================
+
+def excluir_produto(produto_id):
 
     conn = conectar()
+
     cursor = conn.cursor()
 
-    query = """
-        DELETE FROM produtos
-        WHERE id = %s
-    """
+    try:
 
-    cursor.execute(query, (id_produto,))
+        # ==========================================
+        # VERIFICA SE PRODUTO POSSUI VENDAS
+        # ==========================================
 
-    conn.commit()
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM itens_venda
+            WHERE produto_id = %s
+        """, (produto_id,))
 
-    cursor.close()
-    conn.close()
+        total_vendas = cursor.fetchone()[0]
+
+        # ==========================================
+        # BLOQUEIA EXCLUSÃO
+        # ==========================================
+
+        if total_vendas > 0:
+
+            return "possui_vendas"
+
+        # ==========================================
+        # EXCLUI PRODUTO
+        # ==========================================
+
+        cursor.execute("""
+            DELETE FROM produtos
+            WHERE id = %s
+        """, (produto_id,))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro ao excluir produto:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
 
 
 # =====================================
