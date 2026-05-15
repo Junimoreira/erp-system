@@ -1,4 +1,5 @@
 import streamlit as st
+
 from database.clientes_db import (
     listar_clientes,
     cadastrar_cliente,
@@ -6,6 +7,10 @@ from database.clientes_db import (
     excluir_cliente
 )
 
+
+# ==================================================
+# TELA CLIENTES
+# ==================================================
 
 def tela_clientes():
 
@@ -27,10 +32,17 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-            st.info("Nenhum cliente cadastrado.")
+
+            st.info(
+                "Nenhum cliente cadastrado."
+            )
 
         else:
-            st.dataframe(df, use_container_width=True)
+
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
 
     # ==================================================
     # NOVO CLIENTE
@@ -43,24 +55,45 @@ def tela_clientes():
         with st.form("form_cliente"):
 
             nome = st.text_input("Nome")
-            telefone = st.text_input("Telefone")
-            email = st.text_input("Email")
+
+            telefone = st.text_input(
+                "Telefone"
+            )
+
+            email = st.text_input(
+                "Email"
+            )
 
             cidade = st.text_input(
                 "Cidade",
                 key="cidade_novo_cliente"
             )
 
-            salvar = st.form_submit_button("💾 Salvar Cliente")
+            salvar = st.form_submit_button(
+                "💾 Salvar Cliente"
+            )
 
             if salvar:
 
                 if nome.strip() == "":
-                    st.warning("Informe o nome.")
-                else:
-                    cadastrar_cliente(nome, telefone, email, cidade)
 
-                    st.success("Cliente cadastrado com sucesso!")
+                    st.warning(
+                        "Informe o nome."
+                    )
+
+                else:
+
+                    cadastrar_cliente(
+                        nome,
+                        telefone,
+                        email,
+                        cidade
+                    )
+
+                    st.success(
+                        "Cliente cadastrado com sucesso!"
+                    )
+
                     st.rerun()
 
     # ==================================================
@@ -74,7 +107,10 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-            st.info("Nenhum cliente cadastrado.")
+
+            st.info(
+                "Nenhum cliente cadastrado."
+            )
 
         else:
 
@@ -88,35 +124,54 @@ def tela_clientes():
                 list(clientes.keys())
             )
 
-            cliente = clientes[cliente_selecionado]
+            cliente = clientes[
+                cliente_selecionado
+            ]
 
-            with st.form("form_editar_cliente"):
+            with st.form(
+                "form_editar_cliente"
+            ):
 
                 nome = st.text_input(
                     "Nome",
-                    value=cliente.get("nome", "")
+                    value=cliente.get(
+                        "nome",
+                        ""
+                    )
                 )
 
                 telefone = st.text_input(
                     "Telefone",
-                    value=cliente.get("telefone", "")
+                    value=cliente.get(
+                        "telefone",
+                        ""
+                    )
                 )
 
                 email = st.text_input(
                     "Email",
-                    value=cliente.get("email", "")
+                    value=cliente.get(
+                        "email",
+                        ""
+                    )
                 )
 
                 cidade = ""
 
                 if "cidade" in df.columns:
+
                     cidade = st.text_input(
                         "Cidade",
-                        value=cliente.get("cidade", ""),
+                        value=cliente.get(
+                            "cidade",
+                            ""
+                        ),
                         key="cidade_editar_cliente"
                     )
 
-                atualizar = st.form_submit_button("💾 Atualizar Cliente")
+                atualizar = st.form_submit_button(
+                    "💾 Atualizar Cliente"
+                )
 
                 if atualizar:
 
@@ -128,7 +183,10 @@ def tela_clientes():
                         cidade
                     )
 
-                    st.success("Cliente atualizado com sucesso!")
+                    st.success(
+                        "Cliente atualizado com sucesso!"
+                    )
+
                     st.rerun()
 
     # ==================================================
@@ -142,7 +200,10 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-            st.info("Nenhum cliente cadastrado.")
+
+            st.info(
+                "Nenhum cliente cadastrado."
+            )
 
         else:
 
@@ -156,20 +217,38 @@ def tela_clientes():
                 list(clientes.keys())
             )
 
-            cliente = clientes[cliente_selecionado]
+            cliente = clientes[
+                cliente_selecionado
+            ]
 
             st.warning(
                 f"Tem certeza que deseja excluir o cliente: {cliente.get('nome')}?"
             )
 
-            if st.button("🗑️ Excluir Cliente"):
+            if st.button(
+                "🗑️ Excluir Cliente"
+            ):
 
-                try:
-                    excluir_cliente(cliente.get("id"))
-                    st.success("Cliente excluído com sucesso!")
+                resultado = excluir_cliente(
+                    cliente.get("id")
+                )
+
+                if resultado == True:
+
+                    st.success(
+                        "Cliente excluído com sucesso!"
+                    )
+
                     st.rerun()
 
-                except Exception:
+                elif resultado == "possui_vendas":
+
                     st.error(
-                        "Não é possível excluir este cliente porque ele possui vendas vinculadas."
+                        "Não é possível excluir cliente com vendas vinculadas."
+                    )
+
+                else:
+
+                    st.error(
+                        "Erro ao excluir cliente."
                     )

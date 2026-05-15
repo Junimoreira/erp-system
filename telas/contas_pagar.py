@@ -25,6 +25,7 @@ def listar_contas_pagar():
     """
 
     df = pd.read_sql(query, conn)
+
     conn.close()
 
     return df
@@ -34,7 +35,12 @@ def listar_contas_pagar():
 # CADASTRAR CONTA
 # ==================================================
 
-def cadastrar_conta_pagar(descricao, valor, vencimento, observacoes):
+def cadastrar_conta_pagar(
+    descricao,
+    valor,
+    vencimento,
+    observacoes
+):
 
     conn = conectar()
     cursor = conn.cursor()
@@ -58,20 +64,123 @@ def cadastrar_conta_pagar(descricao, valor, vencimento, observacoes):
         ))
 
         conn.commit()
+
         return True
 
     except Exception as erro:
+
         conn.rollback()
         print("Erro ao cadastrar conta:", erro)
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
 
 # ==================================================
-# PAGAR CONTA (GERA MOVIMENTAÇÃO)
+# ATUALIZAR CONTA
+# ==================================================
+
+def atualizar_conta_pagar(
+    conta_id,
+    descricao,
+    valor,
+    vencimento,
+    observacoes
+):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            UPDATE contas_pagar
+            SET
+                descricao = %s,
+                valor = %s,
+                vencimento = %s,
+                observacoes = %s
+            WHERE id = %s
+        """, (
+            descricao,
+            valor,
+            vencimento,
+            observacoes,
+            conta_id
+        ))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+        print("Erro ao atualizar conta:", erro)
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# EXCLUIR CONTA
+# ==================================================
+
+def excluir_conta_pagar(conta_id):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            SELECT status
+            FROM contas_pagar
+            WHERE id = %s
+        """, (conta_id,))
+
+        conta = cursor.fetchone()
+
+        if not conta:
+            return False
+
+        status = conta[0]
+
+        if status == "Pago":
+            return "Pago"
+
+        cursor.execute("""
+            DELETE FROM contas_pagar
+            WHERE id = %s
+        """, (conta_id,))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+        print("Erro ao excluir conta:", erro)
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# PAGAR CONTA
 # ==================================================
 
 def pagar_conta(conta_id):
@@ -81,7 +190,6 @@ def pagar_conta(conta_id):
 
     try:
 
-        # Buscar conta
         cursor.execute("""
             SELECT descricao, valor
             FROM contas_pagar
@@ -95,14 +203,12 @@ def pagar_conta(conta_id):
 
         descricao, valor = conta
 
-        # Atualizar status
         cursor.execute("""
             UPDATE contas_pagar
             SET status = 'Pago'
             WHERE id = %s
         """, (conta_id,))
 
-        # Criar movimentação de saída
         cursor.execute("""
             INSERT INTO movimentacoes (
                 tipo,
@@ -114,17 +220,24 @@ def pagar_conta(conta_id):
                 %s,
                 %s
             )
-        """, (f"Conta a Pagar: {descricao}", valor))
+        """, (
+            f"Conta a Pagar: {descricao}",
+            valor
+        ))
 
         conn.commit()
+
         return True
 
     except Exception as erro:
+
         conn.rollback()
         print("Erro ao pagar conta:", erro)
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
@@ -145,7 +258,7 @@ def tela_contas_pagar():
     ])
 
     # ==================================================
-    # ABA 1 - CADASTRO
+    # ABA 1 - NOVA CONTA
     # ==================================================
 
     with abas[0]:
@@ -157,46 +270,153 @@ def tela_contas_pagar():
             col1, col2 = st.columns(2)
 
             with col1:
-                descricao = st.text_input("Descrição")
+
+                descricao = st.text_input(
+                    "Descrição"
+                )
 
             with col2:
+
                 valor = st.number_input(
                     "Valor",
                     min_value=0.0,
                     format="%.2f"
                 )
 
-            vencimento = st.date_input("Vencimento")
+            vencimento = st.date_input(
+                "Vencimento"
+            )
 
-            observacoes = st.text_area("Observações")
+            observacoes = st.text_area(
+                "Observações"
+            )
 
-            salvar = st.form_submit_button("💾 Salvar Conta")
+            salvar = st.form_submit_button(
+                "💾 Salvar Conta"
+            )
 
             if salvar:
 
-                if cadastrar_conta_pagar(
+                sucesso = cadastrar_conta_pagar(
                     descricao,
                     valor,
                     vencimento,
                     observacoes
-                ):
-                    st.success("Conta cadastrada com sucesso!")
+                )
+
+                if sucesso:
+
+                    st.success(
+                        "Conta cadastrada com sucesso!"
+                    )
+
                     st.rerun()
+
                 else:
-                    st.error("Erro ao cadastrar conta.")
 
-    #=============================================
-    #atualizar tabelas
-    #=============================================
-    def excluir_conta_pagar(conta_id):
-
-    conn = conectar()
-    cursor = conn.cursor()
-
-    try:
+                    st.error(
+                        "Erro ao cadastrar conta."
+                    )
 
     # ==================================================
-    # EDITAR
+    # ABA 2 - LISTA
+    # ==================================================
+
+    with abas[1]:
+
+        st.subheader("Lista de Contas")
+
+        df = listar_contas_pagar()
+
+        filtro = st.selectbox(
+            "Filtrar Status",
+            ["Todos", "Pendente", "Pago"]
+        )
+
+        if filtro != "Todos":
+
+            df = df[df["status"] == filtro]
+
+        if df.empty:
+
+            st.info(
+                "Nenhuma conta encontrada."
+            )
+
+        else:
+
+            df_exibir = df.copy()
+
+            df_exibir["valor"] = df_exibir[
+                "valor"
+            ].map(
+                lambda x: f"R$ {x:,.2f}"
+            )
+
+            st.dataframe(
+                df_exibir,
+                use_container_width=True
+            )
+
+            # ==========================================
+            # PAGAR CONTA
+            # ==========================================
+
+            pendentes = df[
+                df["status"] == "Pendente"
+            ]
+
+            if not pendentes.empty:
+
+                st.divider()
+
+                st.subheader(
+                    "💸 Pagar Conta"
+                )
+
+                contas_dict = {
+                    f"{row['id']} - {row['descricao']}": row
+                    for _, row in pendentes.iterrows()
+                }
+
+                conta_sel = st.selectbox(
+                    "Selecione a conta",
+                    list(contas_dict.keys()),
+                    key="pagar_conta"
+                )
+
+                conta = contas_dict[conta_sel]
+
+                st.info(f"""
+📌 Descrição: {conta['descricao']}
+💰 Valor: R$ {conta['valor']:,.2f}
+📅 Vencimento: {conta['vencimento']}
+                """)
+
+                if st.button(
+                    "💸 Confirmar Pagamento"
+                ):
+
+                    sucesso = pagar_conta(
+                        conta["id"]
+                    )
+
+                    if sucesso:
+
+                        st.success(
+                            "Conta paga com sucesso!"
+                        )
+
+                        st.rerun()
+
+                    else:
+
+                        st.error(
+                            "Erro ao pagar conta."
+                        )
+
+    # ==================================================
+    # ABA 3 - EDITAR
     # ==================================================
 
     with abas[2]:
@@ -207,210 +427,135 @@ def tela_contas_pagar():
 
         if df.empty:
 
-        st.info("Nenhuma conta cadastrada.")
-
-    else:
-
-        contas = {
-            f"{row['id']} - {row['descricao']}": row
-            for _, row in df.iterrows()
-        }
-
-        conta_sel = st.selectbox(
-            "Selecione a conta",
-            list(contas.keys()),
-            key="editar_conta_pagar"
-        )
-
-        conta = contas[conta_sel]
-
-        with st.form("form_editar_pagar"):
-
-            descricao = st.text_input(
-                "Descrição",
-                value=conta["descricao"]
+            st.info(
+                "Nenhuma conta cadastrada."
             )
 
-            valor = st.number_input(
-                "Valor",
-                value=float(conta["valor"]),
-                format="%.2f"
-            )
+        else:
 
-            vencimento = st.date_input(
-                "Vencimento",
-                value=conta["vencimento"]
-            )
-
-            observacoes = st.text_area(
-                "Observações",
-                value=conta["observacoes"]
-            )
-
-            salvar = st.form_submit_button(
-                "💾 Atualizar"
-            )
-
-            if salvar:
-
-                sucesso = atualizar_conta_pagar(
-                    conta["id"],
-                    descricao,
-                    valor,
-                    vencimento,
-                    observacoes
-                )
-
-                if sucesso:
-
-                    st.success("Conta atualizada!")
-                    st.rerun()
-
-                else:
-
-                    st.error("Erro ao atualizar.")
-
-        # ======================================
-        # VALIDAR STATUS
-        # ======================================
-        cursor.execute("""
-            SELECT status
-            FROM contas_pagar
-            WHERE id = %s
-        """, (conta_id,))
-
-        conta = cursor.fetchone()
-
-        if not conta:
-            return False
-
-        if conta[0] == "Pago":
-            return "pago"
-
-        # ==================================================
-        # EXCLUIR
-        # ==================================================
-
-    with abas[3]:
-
-    st.subheader("🗑️ Excluir Conta")
-
-    df = listar_contas_pagar()
-
-    if df.empty:
-
-        st.info("Nenhuma conta cadastrada.")
-
-    else:
-
-        contas = {
-            f"{row['id']} - {row['descricao']}": row
-            for _, row in df.iterrows()
-        }
-
-        conta_sel = st.selectbox(
-            "Selecione a conta",
-            list(contas.keys()),
-            key="excluir_conta_pagar"
-        )
-
-        conta = contas[conta_sel]
-
-        st.warning(
-            f"Excluir conta: {conta['descricao']}?"
-        )
-
-        if st.button("🗑️ Confirmar Exclusão"):
-
-            resultado = excluir_conta_pagar(
-                conta["id"]
-            )
-
-            if resultado == True:
-
-                st.success("Conta excluída!")
-                st.rerun()
-
-            elif resultado == "Recebido":
-
-                st.error(
-                    "Não é permitido excluir conta paga."
-                )
-
-            else:
-
-                st.error("Erro ao excluir.")
-
-    # ==================================================
-    # ABA 2 - LISTAGEM
-    # ==================================================
-
-    with abas[1]:
-
-        st.subheader("Lista de Contas")
-
-        df = listar_contas_pagar()
-
-        # ==========================================
-        # FILTRO
-        # ==========================================
-
-        filtro = st.selectbox(
-            "Filtrar status",
-            ["Todos", "Pendente", "Pago"]
-        )
-
-        if filtro != "Todos":
-            df = df[df["status"] == filtro]
-
-        if df.empty:
-            st.info("Nenhuma conta encontrada.")
-            return
-
-        # ==========================================
-        # FORMATAÇÃO VISUAL
-        # ==========================================
-
-        df_exibir = df.copy()
-        df_exibir["valor"] = df_exibir["valor"].map(lambda x: f"R$ {x:,.2f}")
-
-        st.dataframe(df_exibir, use_container_width=True)
-
-        # ==========================================
-        # AÇÃO: PAGAR CONTA
-        # ==========================================
-
-        pendentes = df[df["status"] == "Pendente"]
-
-        if not pendentes.empty:
-
-            st.divider()
-            st.subheader("💸 Pagar Conta")
-
-            contas_dict = {
+            contas = {
                 f"{row['id']} - {row['descricao']}": row
-                for _, row in pendentes.iterrows()
+                for _, row in df.iterrows()
             }
 
             conta_sel = st.selectbox(
                 "Selecione a conta",
-                list(contas_dict.keys())
+                list(contas.keys()),
+                key="editar_conta"
             )
 
-            conta = contas_dict[conta_sel]
+            conta = contas[conta_sel]
 
-            st.info(f"""
-            📌 Descrição: {conta['descricao']}
-            💰 Valor: R$ {conta['valor']:,.2f}
-            📅 Vencimento: {conta['vencimento']}
-            """)
+            with st.form("form_editar_conta"):
 
-            if st.button("💸 Confirmar Pagamento"):
+                descricao = st.text_input(
+                    "Descrição",
+                    value=conta["descricao"]
+                )
 
-                if pagar_conta(conta["id"]):
+                valor = st.number_input(
+                    "Valor",
+                    value=float(conta["valor"]),
+                    format="%.2f"
+                )
 
-                    st.success("Conta paga com sucesso!")
+                vencimento = st.date_input(
+                    "Vencimento",
+                    value=conta["vencimento"]
+                )
+
+                observacoes = st.text_area(
+                    "Observações",
+                    value=conta["observacoes"]
+                )
+
+                salvar = st.form_submit_button(
+                    "💾 Atualizar"
+                )
+
+                if salvar:
+
+                    sucesso = atualizar_conta_pagar(
+                        conta["id"],
+                        descricao,
+                        valor,
+                        vencimento,
+                        observacoes
+                    )
+
+                    if sucesso:
+
+                        st.success(
+                            "Conta atualizada!"
+                        )
+
+                        st.rerun()
+
+                    else:
+
+                        st.error(
+                            "Erro ao atualizar."
+                        )
+
+    # ==================================================
+    # ABA 4 - EXCLUIR
+    # ==================================================
+
+    with abas[3]:
+
+        st.subheader("🗑️ Excluir Conta")
+
+        df = listar_contas_pagar()
+
+        if df.empty:
+
+            st.info(
+                "Nenhuma conta cadastrada."
+            )
+
+        else:
+
+            contas = {
+                f"{row['id']} - {row['descricao']}": row
+                for _, row in df.iterrows()
+            }
+
+            conta_sel = st.selectbox(
+                "Selecione a conta",
+                list(contas.keys()),
+                key="excluir_conta"
+            )
+
+            conta = contas[conta_sel]
+
+            st.warning(
+                f"Excluir conta: {conta['descricao']} ?"
+            )
+
+            if st.button(
+                "🗑️ Confirmar Exclusão"
+            ):
+
+                resultado = excluir_conta_pagar(
+                    conta["id"]
+                )
+
+                if resultado == True:
+
+                    st.success(
+                        "Conta excluída!"
+                    )
+
                     st.rerun()
 
+                elif resultado == "Pago":
+
+                    st.error(
+                        "Não é permitido excluir conta paga."
+                    )
+
                 else:
-                    st.error("Erro ao processar pagamento.")
+
+                    st.error(
+                        "Erro ao excluir conta."
+                    )

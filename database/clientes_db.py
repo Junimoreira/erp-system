@@ -118,19 +118,53 @@ def excluir_cliente(cliente_id):
 
     cursor = conn.cursor()
 
-    query = """
-        DELETE FROM clientes
-        WHERE id = %s
-    """
+    try:
 
-    cursor.execute(
-        query,
-        (
-            cliente_id,
+        # ==========================================
+        # VERIFICA SE CLIENTE POSSUI VENDAS
+        # ==========================================
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM vendas
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+
+        total_vendas = cursor.fetchone()[0]
+
+        # ==========================================
+        # BLOQUEIA EXCLUSÃO
+        # ==========================================
+
+        if total_vendas > 0:
+
+            return "possui_vendas"
+
+        # ==========================================
+        # EXCLUI CLIENTE
+        # ==========================================
+
+        cursor.execute("""
+            DELETE FROM clientes
+            WHERE id = %s
+        """, (cliente_id,))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro ao excluir cliente:",
+            erro
         )
-    )
 
-    conn.commit()
+        return False
 
-    cursor.close()
-    conn.close()
+    finally:
+
+        cursor.close()
+        conn.close()
