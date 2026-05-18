@@ -1,43 +1,50 @@
 from database.connection import conectar
 
 
-def criar_tabela():
+try:
 
     conn = conectar()
-
     cursor = conn.cursor()
 
     cursor.execute("""
 
-        CREATE TABLE IF NOT EXISTS despesas (
+        CREATE TABLE IF NOT EXISTS caixa (
 
             id SERIAL PRIMARY KEY,
 
-            descricao VARCHAR(200) NOT NULL,
+            usuario VARCHAR(100),
 
-            tipo VARCHAR(20) NOT NULL,
+            data_abertura TIMESTAMP,
 
-            valor NUMERIC(10,2) NOT NULL,
+            data_fechamento TIMESTAMP,
 
-            vencimento DATE,
+            saldo_inicial NUMERIC(10,2),
 
-            status VARCHAR(20) DEFAULT 'Pendente',
+            total_entradas NUMERIC(10,2),
 
-            observacoes TEXT,
+            total_saidas NUMERIC(10,2),
 
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            saldo_final NUMERIC(10,2),
 
-        );
+            valor_conferido NUMERIC(10,2),
+
+            diferenca NUMERIC(10,2),
+
+            status VARCHAR(20)
+
+        )
 
     """)
 
     conn.commit()
 
+    print("✅ Tabela caixa criada com sucesso!")
+
+except Exception as erro:
+
+    print("❌ Erro:", erro)
+
+finally:
+
     cursor.close()
-
     conn.close()
-
-    print("Tabela despesas criada com sucesso!")
-
-
-criar_tabela()

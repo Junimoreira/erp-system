@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 
+from datetime import datetime
+
 from database.vendas_db import (
     listar_clientes,
     listar_produtos,
@@ -38,6 +40,15 @@ def tela_vendas():
         if produtos.empty:
             st.warning("Cadastre produtos primeiro.")
             return
+
+        # ==============================================
+        # DATA DA VENDA
+        # ==============================================
+        data_venda = st.date_input(
+            "📅 Data da Venda",
+            value=datetime.today(),
+            key="data_venda"
+        )
 
         # ==============================================
         # CLIENTE
@@ -211,6 +222,7 @@ def tela_vendas():
                     desconto=float(desconto_total),
                     valor_final=float(total),
                     forma_pagamento=forma_pagamento,
+                    data_venda=data_venda,
                     itens=st.session_state.carrinho
                 )
 
@@ -237,20 +249,69 @@ def tela_vendas():
 
         df = historico_vendas()
 
+        # ==============================================
+        # FILTRO POR DATA
+        # ==============================================
+        col1, col2 = st.columns(2)
+
+        with col1:
+            data_inicio = st.date_input(
+                "Data Inicial",
+                value=datetime.today(),
+                key="data_inicio"
+            )
+
+        with col2:
+            data_fim = st.date_input(
+                "Data Final",
+                value=datetime.today(),
+                key="data_fim"
+            )
+
+        # ==============================================
+        # FILTRO PEDIDO
+        # ==============================================
         filtro = st.text_input("🔎 Buscar pedido")
 
-        if filtro:
+        # ==============================================
+        # FILTRO DATA
+        # ==============================================
+        if not df.empty and "data_venda" in df.columns:
+
+            df["data_venda"] = pd.to_datetime(df["data_venda"])
+
+            df = df[
+                (df["data_venda"].dt.date >= data_inicio) &
+                (df["data_venda"].dt.date <= data_fim)
+            ]
+
+        # ==============================================
+        # FILTRO PEDIDO
+        # ==============================================
+        if filtro and "pedido" in df.columns:
             df = df[df["pedido"].astype(str).str.contains(filtro)]
 
+        # ==============================================
+        # FORMATAÇÃO
+        # ==============================================
         if not df.empty:
 
+            if "data_venda" in df.columns:
+                df["data_venda"] = df["data_venda"].dt.strftime("%d/%m/%Y")
+
             if "valor_unitario" in df.columns:
-                df["valor_unitario"] = df["valor_unitario"].map(lambda x: f"R$ {x:,.2f}")
+                df["valor_unitario"] = df["valor_unitario"].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
 
             if "subtotal" in df.columns:
-                df["subtotal"] = df["subtotal"].map(lambda x: f"R$ {x:,.2f}")
+                df["subtotal"] = df["subtotal"].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
 
             if "valor_final" in df.columns:
-                df["valor_final"] = df["valor_final"].map(lambda x: f"R$ {x:,.2f}")
+                df["valor_final"] = df["valor_final"].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
 
         st.dataframe(df, use_container_width=True)

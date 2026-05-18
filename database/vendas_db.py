@@ -12,7 +12,9 @@ def listar_clientes():
     conn = conectar()
 
     query = """
-        SELECT id, nome
+        SELECT
+            id,
+            nome
         FROM clientes
         ORDER BY nome
     """
@@ -31,7 +33,8 @@ def listar_produtos():
     conn = conectar()
 
     query = """
-        SELECT *
+        SELECT
+            *
         FROM produtos
         ORDER BY nome
     """
@@ -45,7 +48,15 @@ def listar_produtos():
 # ==================================================
 # SALVAR VENDA
 # ==================================================
-def salvar_venda(cliente_id, valor_total, forma_pagamento, itens):
+def salvar_venda(
+    cliente_id,
+    valor_total,
+    desconto,
+    valor_final,
+    forma_pagamento,
+    data_venda,
+    itens
+):
 
     conn = conectar()
     cursor = conn.cursor()
@@ -56,15 +67,29 @@ def salvar_venda(cliente_id, valor_total, forma_pagamento, itens):
         # INSERIR VENDA
         # ==========================================
         cursor.execute("""
-            INSERT INTO vendas (cliente_id, valor_total, forma_pagamento)
-            VALUES (%s, %s, %s)
+            INSERT INTO vendas (
+                cliente_id,
+                valor_total,
+                desconto,
+                valor_final,
+                forma_pagamento,
+                data_venda
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (cliente_id, valor_total, forma_pagamento))
+        """, (
+            cliente_id,
+            valor_total,
+            desconto,
+            valor_final,
+            forma_pagamento,
+            data_venda
+        ))
 
         venda_id = cursor.fetchone()[0]
 
         # ==========================================
-        # ITENS + ESTOQUE
+        # ITENS DA VENDA
         # ==========================================
         for item in itens:
 
@@ -85,6 +110,9 @@ def salvar_venda(cliente_id, valor_total, forma_pagamento, itens):
                 item["subtotal"]
             ))
 
+            # ======================================
+            # BAIXA ESTOQUE
+            # ======================================
             cursor.execute("""
                 UPDATE produtos
                 SET estoque = estoque - %s
@@ -95,7 +123,7 @@ def salvar_venda(cliente_id, valor_total, forma_pagamento, itens):
             ))
 
         # ==========================================
-        # CONTAS A PRAZO
+        # CONTAS A RECEBER
         # ==========================================
         if forma_pagamento == "Prazo":
 
@@ -116,13 +144,13 @@ def salvar_venda(cliente_id, valor_total, forma_pagamento, itens):
                 )
             """, (
                 cliente_id,
-                "Venda a prazo",
-                valor_total,
+                f"Venda #{venda_id}",
+                valor_final,
                 "Pendente"
             ))
 
         # ==========================================
-        # VENDA À VISTA → MOVIMENTAÇÕES (NOVO PADRÃO)
+        # MOVIMENTAÇÃO FINANCEIRA
         # ==========================================
         else:
 
@@ -131,25 +159,30 @@ def salvar_venda(cliente_id, valor_total, forma_pagamento, itens):
                     tipo,
                     valor,
                     descricao,
-                    origem
+                    origem,
+                    data_movimentacao
                 )
-                VALUES (%s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s)
             """, (
                 "entrada",
-                valor_total,
-                "Venda realizada",
-                "Venda"
+                valor_final,
+                f"Venda #{venda_id}",
+                "Venda",
+                data_venda
             ))
 
         conn.commit()
         return True
 
     except Exception as erro:
+
         conn.rollback()
         print("Erro ao salvar venda:", erro)
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
@@ -163,23 +196,42 @@ def historico_vendas():
 
     query = """
         SELECT
+
             v.id AS pedido,
+            v.data_venda,
+
             c.nome AS cliente,
+
             p.nome AS produto,
+
             iv.quantidade,
-            iv.preco_unitario,
+
+            iv.preco_unitario AS valor_unitario,
+
             iv.subtotal,
-            v.valor_total,
-            v.forma_pagamento,
-            v.data_venda
+
+            v.desconto,
+
+            v.valor_final,
+
+            v.forma_pagamento
+
         FROM vendas v
-        LEFT JOIN clientes c ON v.cliente_id = c.id
-        LEFT JOIN itens_venda iv ON v.id = iv.venda_id
-        LEFT JOIN produtos p ON iv.produto_id = p.id
+
+        LEFT JOIN clientes c
+            ON v.cliente_id = c.id
+
+        LEFT JOIN itens_venda iv
+            ON v.id = iv.venda_id
+
+        LEFT JOIN produtos p
+            ON iv.produto_id = p.id
+
         ORDER BY v.id DESC
     """
 
     df = pd.read_sql(query, conn)
 
     conn.close()
+
     return df

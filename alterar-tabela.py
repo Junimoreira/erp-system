@@ -4,39 +4,23 @@ from database.connection import conectar
 try:
 
     conn = conectar()
-
     cursor = conn.cursor()
 
-    # ==================================================
-    # ADICIONA CAMPO DESCONTO
-    # ==================================================
-
     cursor.execute("""
-        ALTER TABLE vendas
-        ADD COLUMN desconto NUMERIC(10,2) DEFAULT 0
-    """)
-
-    # ==================================================
-    # ADICIONA CAMPO VALOR FINAL
-    # ==================================================
-
-    cursor.execute("""
-        ALTER TABLE vendas
-        ADD COLUMN valor_final NUMERIC(10,2)
+        ALTER TABLE movimentacoes
+        ADD COLUMN IF NOT EXISTS data_movimentacao
+        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     """)
 
     conn.commit()
 
-    print(
-        "✅ Colunas adicionadas com sucesso!"
-    )
-
-    cursor.close()
-    conn.close()
+    print("✅ Tabela movimentacoes atualizada!")
 
 except Exception as erro:
 
-    print(
-        "❌ Erro:",
-        erro
-    )
+    print("❌ Erro:", erro)
+
+finally:
+
+    cursor.close()
+    conn.close()

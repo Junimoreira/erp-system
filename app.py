@@ -14,6 +14,7 @@ from telas.contas_pagar import tela_contas_pagar
 from telas.contas_receber import tela_contas_receber
 from telas.dashboard import tela_dashboard
 from telas.despesas import tela_despesas
+from telas.caixa import tela_caixa
 
 
 # =========================
@@ -57,6 +58,7 @@ else:
             "Menu",
             [
                 "🏠 Dashboard",
+                "💰 Caixa",
                 "👥 Clientes",
                 "📦 Produtos",
                 "💰 Movimentações",
@@ -130,6 +132,11 @@ else:
     #==========================
     elif menu == "💸 Despesas":
         tela_despesas()
+    #=========================
+    #CAIXA
+    #=========================
+    elif menu == "💰 Caixa":
+        tela_caixa()
     
 
     # =========================
