@@ -1,3 +1,5 @@
+# database/produto_db.py
+
 from database.connection import conectar
 import pandas as pd
 
@@ -13,11 +15,33 @@ def listar_produtos():
         SELECT
             id,
             nome,
-            preco,
-            estoque,
+            sku,
+            referencia,
+            marca,
+            categoria,
+
             codigo_barras,
-            criado_em
+
+            unidade,
+            ncm,
+            cest,
+            cfop_padrao,
+
+            custo,
+            preco,
+            margem_lucro,
+
+            estoque,
+            estoque_minimo,
+            localizacao,
+
+            ativo,
+            observacoes,
+
+            data_cadastro
+
         FROM produtos
+
         ORDER BY id DESC
     """
 
@@ -31,30 +55,107 @@ def listar_produtos():
 # =====================================
 # CADASTRAR PRODUTO
 # =====================================
-def cadastrar_produto(nome, preco, estoque, codigo_barras):
+def cadastrar_produto(
+
+    nome,
+    preco,
+    estoque,
+    codigo_barras,
+
+    sku,
+    referencia,
+    marca,
+    categoria,
+
+    unidade,
+    ncm,
+    cest,
+    cfop_padrao,
+
+    custo,
+    margem_lucro,
+
+    estoque_minimo,
+    localizacao,
+
+    ativo,
+    observacoes
+):
 
     conn = conectar()
     cursor = conn.cursor()
 
     query = """
-        INSERT INTO produtos
-        (
+        INSERT INTO produtos (
+
             nome,
             preco,
             estoque,
-            codigo_barras
+            codigo_barras,
+
+            sku,
+            referencia,
+            marca,
+            categoria,
+
+            unidade,
+            ncm,
+            cest,
+            cfop_padrao,
+
+            custo,
+            margem_lucro,
+
+            estoque_minimo,
+            localizacao,
+
+            ativo,
+            observacoes
+
         )
-        VALUES (%s, %s, %s, %s)
+
+        VALUES (
+
+            %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s,
+            %s, %s,
+            %s, %s
+
+        )
     """
 
     cursor.execute(query, (
+
         nome,
         preco,
         estoque,
-        codigo_barras
+        codigo_barras,
+
+        sku,
+        referencia,
+        marca,
+        categoria,
+
+        unidade,
+        ncm,
+        cest,
+        cfop_padrao,
+
+        custo,
+        margem_lucro,
+
+        estoque_minimo,
+        localizacao,
+
+        ativo,
+        observacoes
+
     ))
 
     conn.commit()
+
     cursor.close()
     conn.close()
 
@@ -62,30 +163,105 @@ def cadastrar_produto(nome, preco, estoque, codigo_barras):
 # =====================================
 # ATUALIZAR PRODUTO
 # =====================================
-def atualizar_produto(id_produto, nome, preco, estoque, codigo_barras):
+def atualizar_produto(
+
+    id_produto,
+
+    nome,
+    preco,
+    estoque,
+
+    codigo_barras,
+
+    sku,
+    referencia,
+    marca,
+    categoria,
+
+    unidade,
+    ncm,
+    cest,
+    cfop_padrao,
+
+    custo,
+    margem_lucro,
+
+    estoque_minimo,
+    localizacao,
+
+    ativo,
+    observacoes
+):
 
     conn = conectar()
     cursor = conn.cursor()
 
     query = """
         UPDATE produtos
+
         SET
+
             nome = %s,
             preco = %s,
             estoque = %s,
-            codigo_barras = %s
+
+            codigo_barras = %s,
+
+            sku = %s,
+            referencia = %s,
+            marca = %s,
+            categoria = %s,
+
+            unidade = %s,
+            ncm = %s,
+            cest = %s,
+            cfop_padrao = %s,
+
+            custo = %s,
+            margem_lucro = %s,
+
+            estoque_minimo = %s,
+            localizacao = %s,
+
+            ativo = %s,
+            observacoes = %s
+
         WHERE id = %s
     """
 
     cursor.execute(query, (
+
         nome,
         preco,
         estoque,
+
         codigo_barras,
+
+        sku,
+        referencia,
+        marca,
+        categoria,
+
+        unidade,
+        ncm,
+        cest,
+        cfop_padrao,
+
+        custo,
+        margem_lucro,
+
+        estoque_minimo,
+        localizacao,
+
+        ativo,
+        observacoes,
+
         id_produto
+
     ))
 
     conn.commit()
+
     cursor.close()
     conn.close()
 
@@ -109,6 +285,7 @@ def excluir_produto(produto_id):
         total_vendas = cursor.fetchone()[0]
 
         if total_vendas > 0:
+
             return "possui_vendas"
 
         cursor.execute("""
@@ -117,12 +294,15 @@ def excluir_produto(produto_id):
         """, (produto_id,))
 
         conn.commit()
+
         return True
 
     except Exception as erro:
 
         conn.rollback()
+
         print("Erro ao excluir produto:", erro)
+
         return False
 
     finally:
@@ -141,17 +321,26 @@ def buscar_produto_por_codigo(codigo_barras):
 
     query = """
         SELECT
+
             id,
             nome,
             preco,
             estoque,
-            codigo_barras
+            codigo_barras,
+
+            custo,
+            unidade,
+            ncm
+
         FROM produtos
+
         WHERE codigo_barras = %s
+
         LIMIT 1
     """
 
     cursor.execute(query, (codigo_barras,))
+
     produto = cursor.fetchone()
 
     cursor.close()
