@@ -1,5 +1,3 @@
-# telas/produtos.py
-
 import streamlit as st
 import pandas as pd
 
@@ -9,6 +7,8 @@ from database.produto_db import (
     atualizar_produto,
     excluir_produto
 )
+
+from utils.preco_produto import calcular_preco_venda
 
 
 # ==================================================
@@ -40,48 +40,24 @@ def tela_produtos():
 
             with col1:
 
-                nome = st.text_input(
-                    "Nome do Produto"
-                )
-
-                codigo_barras = st.text_input(
-                    "Código de Barras"
-                )
-
-                sku = st.text_input(
-                    "SKU"
-                )
-
-                referencia = st.text_input(
-                    "Referência"
-                )
-
-                marca = st.text_input(
-                    "Marca"
-                )
+                nome = st.text_input("Nome do Produto")
+                codigo_barras = st.text_input("Código de Barras")
+                sku = st.text_input("SKU")
+                referencia = st.text_input("Referência")
+                marca = st.text_input("Marca")
 
             with col2:
 
-                categoria = st.text_input(
-                    "Categoria"
-                )
+                categoria = st.text_input("Categoria")
 
                 unidade = st.selectbox(
                     "Unidade",
                     ["UN", "KG", "CX", "PC", "LT"]
                 )
 
-                ncm = st.text_input(
-                    "NCM"
-                )
-
-                cest = st.text_input(
-                    "CEST"
-                )
-
-                cfop_padrao = st.text_input(
-                    "CFOP Padrão"
-                )
+                ncm = st.text_input("NCM")
+                cest = st.text_input("CEST")
+                cfop_padrao = st.text_input("CFOP Padrão")
 
             st.divider()
 
@@ -93,18 +69,39 @@ def tela_produtos():
             col3, col4, col5 = st.columns(3)
 
             with col3:
-
                 custo = st.number_input(
                     "Custo",
                     min_value=0.0,
                     format="%.2f"
                 )
 
-            with col4:
+            # ==========================================
+            # PREÇO AUTOMÁTICO (ERP)
+            # ==========================================
+            preco_automatico = calcular_preco_venda(custo)
+
+            usar_preco_manual = st.checkbox(
+                "Definir preço manualmente?",
+                value=False
+            )
+
+            if usar_preco_manual:
 
                 preco = st.number_input(
-                    "Preço Venda",
+                    "Preço Venda (Manual)",
                     min_value=0.0,
+                    value=preco_automatico,
+                    format="%.2f"
+                )
+
+            else:
+
+                preco = preco_automatico
+
+                st.number_input(
+                    "Preço Venda (Automático)",
+                    value=preco,
+                    disabled=True,
                     format="%.2f"
                 )
 
@@ -113,6 +110,7 @@ def tela_produtos():
                 margem_lucro = st.number_input(
                     "Margem Lucro %",
                     min_value=0.0,
+                    value=0.0,
                     format="%.2f"
                 )
 
@@ -141,27 +139,18 @@ def tela_produtos():
                     format="%.3f"
                 )
 
-            localizacao = st.text_input(
-                "Localização"
-            )
+            localizacao = st.text_input("Localização")
 
             st.divider()
 
             # ==========================================
             # OBSERVAÇÕES
             # ==========================================
-            observacoes = st.text_area(
-                "Observações"
-            )
+            observacoes = st.text_area("Observações")
 
-            ativo = st.checkbox(
-                "Produto Ativo",
-                value=True
-            )
+            ativo = st.checkbox("Produto Ativo", value=True)
 
-            salvar = st.form_submit_button(
-                "💾 Cadastrar Produto"
-            )
+            salvar = st.form_submit_button("💾 Cadastrar Produto")
 
             # ==========================================
             # SALVAR
@@ -170,9 +159,7 @@ def tela_produtos():
 
                 if nome.strip() == "":
 
-                    st.warning(
-                        "Informe o nome do produto."
-                    )
+                    st.warning("Informe o nome do produto.")
 
                 else:
 
@@ -203,10 +190,7 @@ def tela_produtos():
                         observacoes=observacoes
                     )
 
-                    st.success(
-                        "✅ Produto cadastrado com sucesso!"
-                    )
-
+                    st.success("✅ Produto cadastrado com sucesso!")
                     st.rerun()
 
     # ==================================================
@@ -219,20 +203,12 @@ def tela_produtos():
         df = listar_produtos()
 
         if df.empty:
-
-            st.info(
-                "Nenhum produto cadastrado."
-            )
-
+            st.info("Nenhum produto cadastrado.")
         else:
-
-            st.dataframe(
-                df,
-                use_container_width=True
-            )
+            st.dataframe(df, use_container_width=True)
 
     # ==================================================
-    # EDITAR / EXCLUIR PRODUTO
+    # EDITAR / EXCLUIR
     # ==================================================
     with abas[2]:
 
@@ -242,9 +218,7 @@ def tela_produtos():
 
         if df.empty:
 
-            st.info(
-                "Nenhum produto cadastrado."
-            )
+            st.info("Nenhum produto cadastrado.")
 
         else:
 
@@ -253,79 +227,37 @@ def tela_produtos():
                 for _, row in df.iterrows()
             }
 
-            produto_selecionado = st.selectbox(
+            selecionado = st.selectbox(
                 "Selecione o Produto",
                 list(produtos.keys())
             )
 
-            produto = produtos[produto_selecionado]
+            produto = produtos[selecionado]
 
-            # ==========================================
-            # BÁSICO
-            # ==========================================
             st.markdown("### 📦 Dados Básicos")
 
             col1, col2 = st.columns(2)
 
             with col1:
 
-                novo_nome = st.text_input(
-                    "Nome",
-                    value=produto["nome"]
-                )
-
-                novo_codigo_barras = st.text_input(
-                    "Código de Barras",
-                    value=produto["codigo_barras"] if produto["codigo_barras"] else ""
-                )
-
-                novo_sku = st.text_input(
-                    "SKU",
-                    value=produto["sku"] if "sku" in produto else ""
-                )
-
-                nova_referencia = st.text_input(
-                    "Referência",
-                    value=produto["referencia"] if "referencia" in produto else ""
-                )
-
-                nova_marca = st.text_input(
-                    "Marca",
-                    value=produto["marca"] if "marca" in produto else ""
-                )
+                novo_nome = st.text_input("Nome", value=produto["nome"])
+                novo_codigo = st.text_input("Código de Barras", value=produto.get("codigo_barras", ""))
+                novo_sku = st.text_input("SKU", value=produto.get("sku", ""))
+                nova_ref = st.text_input("Referência", value=produto.get("referencia", ""))
+                nova_marca = st.text_input("Marca", value=produto.get("marca", ""))
 
             with col2:
 
-                nova_categoria = st.text_input(
-                    "Categoria",
-                    value=produto["categoria"] if "categoria" in produto else ""
-                )
+                nova_categoria = st.text_input("Categoria", value=produto.get("categoria", ""))
 
-                nova_unidade = st.text_input(
-                    "Unidade",
-                    value=produto["unidade"] if "unidade" in produto else "UN"
-                )
+                nova_unidade = st.text_input("Unidade", value=produto.get("unidade", "UN"))
 
-                novo_ncm = st.text_input(
-                    "NCM",
-                    value=produto["ncm"] if "ncm" in produto else ""
-                )
-
-                novo_cest = st.text_input(
-                    "CEST",
-                    value=produto["cest"] if "cest" in produto else ""
-                )
-
-                novo_cfop = st.text_input(
-                    "CFOP",
-                    value=produto["cfop_padrao"] if "cfop_padrao" in produto else ""
-                )
+                novo_ncm = st.text_input("NCM", value=produto.get("ncm", ""))
+                novo_cest = st.text_input("CEST", value=produto.get("cest", ""))
+                novo_cfop = st.text_input("CFOP", value=produto.get("cfop_padrao", ""))
 
             st.divider()
 
-            # ==========================================
-            # FINANCEIRO
-            # ==========================================
             st.markdown("### 💰 Financeiro")
 
             col3, col4, col5 = st.columns(3)
@@ -335,33 +267,31 @@ def tela_produtos():
                 novo_custo = st.number_input(
                     "Custo",
                     min_value=0.0,
-                    value=float(produto["custo"]) if "custo" in produto else 0.0,
+                    value=float(produto.get("custo", 0.0)),
                     format="%.2f"
                 )
 
-            with col4:
+            # recalcula preço automaticamente
+            preco_auto = calcular_preco_venda(novo_custo)
 
-                novo_preco = st.number_input(
-                    "Preço",
-                    min_value=0.0,
-                    value=float(produto["preco"]),
-                    format="%.2f"
-                )
+            novo_preco = st.number_input(
+                "Preço (automático)",
+                value=preco_auto,
+                disabled=True,
+                format="%.2f"
+            )
 
             with col5:
 
                 nova_margem = st.number_input(
                     "Margem %",
                     min_value=0.0,
-                    value=float(produto["margem_lucro"]) if "margem_lucro" in produto else 0.0,
+                    value=float(produto.get("margem_lucro", 0.0)),
                     format="%.2f"
                 )
 
             st.divider()
 
-            # ==========================================
-            # ESTOQUE
-            # ==========================================
             st.markdown("### 📦 Estoque")
 
             col6, col7 = st.columns(2)
@@ -371,39 +301,36 @@ def tela_produtos():
                 novo_estoque = st.number_input(
                     "Estoque",
                     min_value=0.0,
-                    value=float(produto["estoque"]),
+                    value=float(produto.get("estoque", 0.0)),
                     format="%.3f"
                 )
 
             with col7:
 
-                novo_estoque_minimo = st.number_input(
+                novo_estoque_min = st.number_input(
                     "Estoque Mínimo",
                     min_value=0.0,
-                    value=float(produto["estoque_minimo"]) if "estoque_minimo" in produto else 0.0,
+                    value=float(produto.get("estoque_minimo", 0.0)),
                     format="%.3f"
                 )
 
             nova_localizacao = st.text_input(
                 "Localização",
-                value=produto["localizacao"] if "localizacao" in produto else ""
+                value=produto.get("localizacao", "")
             )
 
             observacoes = st.text_area(
                 "Observações",
-                value=produto["observacoes"] if "observacoes" in produto else ""
+                value=produto.get("observacoes", "")
             )
 
             ativo = st.checkbox(
-                "Produto Ativo",
-                value=bool(produto["ativo"]) if "ativo" in produto else True
+                "Ativo",
+                value=bool(produto.get("ativo", True))
             )
 
             st.divider()
 
-            # ==========================================
-            # ATUALIZAR
-            # ==========================================
             if st.button("💾 Salvar Alterações"):
 
                 atualizar_produto(
@@ -414,10 +341,10 @@ def tela_produtos():
                     novo_preco,
                     novo_estoque,
 
-                    novo_codigo_barras,
+                    novo_codigo,
 
                     novo_sku,
-                    nova_referencia,
+                    nova_ref,
                     nova_marca,
                     nova_categoria,
 
@@ -429,52 +356,32 @@ def tela_produtos():
                     novo_custo,
                     nova_margem,
 
-                    novo_estoque_minimo,
+                    novo_estoque_min,
                     nova_localizacao,
 
                     ativo,
                     observacoes
                 )
 
-                st.success(
-                    "✅ Produto atualizado!"
-                )
-
+                st.success("✅ Produto atualizado!")
                 st.rerun()
 
             st.divider()
 
-            # ==========================================
-            # EXCLUIR
-            # ==========================================
             st.subheader("🗑️ Excluir Produto")
 
-            st.warning(
-                f"Tem certeza que deseja excluir o produto: {produto['nome']}?"
-            )
+            st.warning(f"Excluir: {produto['nome']}")
 
-            if st.button("🗑️ Excluir Produto"):
+            if st.button("🗑️ Excluir"):
 
-                resultado = excluir_produto(
-                    produto["id"]
-                )
+                resultado = excluir_produto(produto["id"])
 
                 if resultado == True:
-
-                    st.success(
-                        "Produto excluído com sucesso!"
-                    )
-
+                    st.success("Produto excluído!")
                     st.rerun()
 
                 elif resultado == "possui_vendas":
-
-                    st.error(
-                        "Não é permitido excluir produto com vendas vinculadas."
-                    )
+                    st.error("Produto possui vendas vinculadas!")
 
                 else:
-
-                    st.error(
-                        "Erro ao excluir produto."
-                    )
+                    st.error("Erro ao excluir produto.")

@@ -7,14 +7,13 @@ try:
     cursor = conn.cursor()
 
     cursor.execute("""
-        ALTER TABLE movimentacoes
-        ADD COLUMN IF NOT EXISTS data_movimentacao
-        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+       ALTER TABLE configuracoes_financeiras
+ADD COLUMN desconto_maximo NUMERIC DEFAULT 0;
     """)
 
     conn.commit()
 
-    print("✅ Tabela movimentacoes atualizada!")
+    print("✅ Tabela Configuracoes_finacneiras atualizada!")
 
 except Exception as erro:
 

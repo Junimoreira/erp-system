@@ -8,37 +8,23 @@ try:
 
     cursor.execute("""
 
-        CREATE TABLE IF NOT EXISTS caixa (
+        CREATE TABLE IF NOT EXISTS empresa (
+    id SERIAL PRIMARY KEY,
+    nome TEXT,
+    cnpj TEXT,
+    telefone TEXT,
+    endereco TEXT,
+    email TEXT,
+    logo BYTEA
+);
 
-            id SERIAL PRIMARY KEY,
-
-            usuario VARCHAR(100),
-
-            data_abertura TIMESTAMP,
-
-            data_fechamento TIMESTAMP,
-
-            saldo_inicial NUMERIC(10,2),
-
-            total_entradas NUMERIC(10,2),
-
-            total_saidas NUMERIC(10,2),
-
-            saldo_final NUMERIC(10,2),
-
-            valor_conferido NUMERIC(10,2),
-
-            diferenca NUMERIC(10,2),
-
-            status VARCHAR(20)
-
-        )
+        
 
     """)
 
     conn.commit()
 
-    print("✅ Tabela caixa criada com sucesso!")
+    print("✅ Tabela empresa criada com sucesso!")
 
 except Exception as erro:
 
