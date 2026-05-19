@@ -1,5 +1,3 @@
-# database/movimentacoes_db.py
-
 import pandas as pd
 from database.connection import conectar
 
@@ -14,13 +12,6 @@ def registrar_movimentacao(
     origem,
     data_movimentacao
 ):
-    """
-    tipo:
-        entrada | saida
-
-    origem:
-        venda, compra, ajuste, recebimento etc.
-    """
 
     conn = conectar()
     cursor = conn.cursor()
@@ -79,15 +70,10 @@ def listar_movimentacoes():
         SELECT
 
             id,
-
             tipo,
-
             valor,
-
             descricao,
-
             origem,
-
             data_movimentacao
 
         FROM movimentacoes
@@ -103,6 +89,98 @@ def listar_movimentacoes():
 
 
 # ==================================================
+# ATUALIZAR MOVIMENTAÇÃO
+# ==================================================
+def atualizar_movimentacao(
+    id_movimentacao,
+    tipo,
+    valor,
+    descricao,
+    origem
+):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+
+            UPDATE movimentacoes
+
+            SET
+                tipo = %s,
+                valor = %s,
+                descricao = %s,
+                origem = %s
+
+            WHERE id = %s
+
+        """, (
+
+            tipo,
+            valor,
+            descricao,
+            origem,
+            id_movimentacao
+
+        ))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print("Erro ao atualizar movimentação:", erro)
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# EXCLUIR MOVIMENTAÇÃO
+# ==================================================
+def excluir_movimentacao(id_movimentacao):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+
+            DELETE FROM movimentacoes
+
+            WHERE id = %s
+
+        """, (id_movimentacao,))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print("Erro ao excluir movimentação:", erro)
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
 # RESUMO FINANCEIRO
 # ==================================================
 def resumo_movimentacoes():
@@ -112,9 +190,6 @@ def resumo_movimentacoes():
 
     try:
 
-        # ==========================================
-        # ENTRADAS
-        # ==========================================
         cursor.execute("""
 
             SELECT COALESCE(SUM(valor), 0)
@@ -127,9 +202,6 @@ def resumo_movimentacoes():
 
         entradas = float(cursor.fetchone()[0])
 
-        # ==========================================
-        # SAÍDAS
-        # ==========================================
         cursor.execute("""
 
             SELECT COALESCE(SUM(valor), 0)
@@ -142,9 +214,6 @@ def resumo_movimentacoes():
 
         saidas = float(cursor.fetchone()[0])
 
-        # ==========================================
-        # SALDO
-        # ==========================================
         saldo = entradas - saidas
 
         return {
@@ -171,9 +240,6 @@ def resumo_por_periodo(data_inicio, data_fim):
 
     try:
 
-        # ==========================================
-        # ENTRADAS
-        # ==========================================
         cursor.execute("""
 
             SELECT COALESCE(SUM(valor), 0)
@@ -194,9 +260,6 @@ def resumo_por_periodo(data_inicio, data_fim):
 
         entradas = float(cursor.fetchone()[0])
 
-        # ==========================================
-        # SAÍDAS
-        # ==========================================
         cursor.execute("""
 
             SELECT COALESCE(SUM(valor), 0)

@@ -4,7 +4,12 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-from database.movimentacoes_db import registrar_movimentacao
+from database.movimentacoes_db import (
+    registrar_movimentacao,
+    listar_movimentacoes,
+    atualizar_movimentacao,
+    excluir_movimentacao
+)
 
 from database.caixa_db import (
     verificar_caixa_aberto,
@@ -37,14 +42,10 @@ def tela_caixa():
         # ==================================================
         caixa = verificar_caixa_aberto()
 
-        # ==================================================
-        # TRATAMENTO SE VIER DATAFRAME
-        # ==================================================
         caixa_aberto = False
 
         if caixa is not None:
 
-            # Se for DataFrame
             if isinstance(caixa, pd.DataFrame):
 
                 if not caixa.empty:
@@ -52,12 +53,10 @@ def tela_caixa():
                     caixa = caixa.iloc[0]
                     caixa_aberto = True
 
-            # Se for Series
             elif isinstance(caixa, pd.Series):
 
                 caixa_aberto = True
 
-            # Se for dict
             elif isinstance(caixa, dict):
 
                 if len(caixa) > 0:
@@ -74,15 +73,20 @@ def tela_caixa():
                 "Valor Inicial",
                 min_value=0.0,
                 value=0.0,
-                format="%.2f"
+                format="%.2f",
+                key="valor_inicial_caixa"
             )
 
             usuario = st.text_input(
                 "Operador",
-                value="Administrador"
+                value="Administrador",
+                key="operador_caixa"
             )
 
-            if st.button("🚀 Abrir Caixa"):
+            if st.button(
+                "🚀 Abrir Caixa",
+                key="btn_abrir_caixa"
+            ):
 
                 sucesso = abrir_caixa(
                     usuario=usuario,
@@ -109,8 +113,8 @@ def tela_caixa():
 
             resumo = resumo_caixa(caixa_id)
 
-            # Segurança caso resumo venha vazio
             if resumo is None:
+
                 resumo = {
                     "entradas": 0,
                     "saidas": 0
@@ -119,7 +123,9 @@ def tela_caixa():
             entradas = resumo.get("entradas", 0)
             saidas = resumo.get("saidas", 0)
 
-            saldo_inicial = caixa.get("saldo_inicial", 0)
+            saldo_inicial = float(
+                caixa.get("saldo_inicial", 0)
+            )
 
             saldo_atual = (
                 saldo_inicial
@@ -166,33 +172,166 @@ def tela_caixa():
 
             if df is not None and not df.empty:
 
-                df = df.copy()
+                df_exibir = df.copy()
 
-                if "valor" in df.columns:
+                if "valor" in df_exibir.columns:
 
-                    df["valor"] = df["valor"].apply(
+                    df_exibir["valor"] = df_exibir[
+                        "valor"
+                    ].apply(
                         lambda x: f"R$ {float(x):,.2f}"
                     )
 
-                if "data_movimentacao" in df.columns:
+                if "data_movimentacao" in df_exibir.columns:
 
-                    df["data_movimentacao"] = pd.to_datetime(
-                        df["data_movimentacao"],
+                    df_exibir["data_movimentacao"] = pd.to_datetime(
+                        df_exibir["data_movimentacao"],
                         errors="coerce"
                     )
 
-                    df["data_movimentacao"] = df[
+                    df_exibir["data_movimentacao"] = df_exibir[
                         "data_movimentacao"
                     ].dt.strftime("%d/%m/%Y %H:%M")
 
                 st.dataframe(
-                    df,
+                    df_exibir,
                     use_container_width=True
                 )
 
+                # ==================================================
+                # EDITAR / EXCLUIR
+                # ==================================================
+                st.divider()
+
+                st.subheader(
+                    "✏️ Editar / Excluir Movimentação"
+                )
+
+                movs = listar_movimentacoes()
+
+                if movs is not None and not movs.empty:
+
+                    opcoes = {
+                        f"{row['id']} - {row['descricao']}": row
+                        for _, row in movs.iterrows()
+                    }
+
+                    selecionado = st.selectbox(
+                        "Selecione a movimentação",
+                        list(opcoes.keys()),
+                        key="select_movimentacao"
+                    )
+
+                    mov = opcoes[selecionado]
+
+                    novo_tipo = st.selectbox(
+                        "Tipo",
+                        ["entrada", "saida"],
+                        index=0 if mov["tipo"] == "entrada" else 1,
+                        key="editar_movimentacao_tipo"
+                    )
+
+                    novo_valor = st.number_input(
+                        "Valor da Movimentação",
+                        min_value=0.0,
+                        value=float(mov["valor"]),
+                        format="%.2f",
+                        key="editar_movimentacao_valor"
+                    )
+
+                    nova_descricao = st.text_input(
+                        "Descrição da Movimentação",
+                        value=mov["descricao"]
+                        if mov["descricao"]
+                        else "",
+                        key="editar_movimentacao_descricao"
+                    )
+
+                    lista_origens = [
+                        "Sangria",
+                        "Reforço",
+                        "Despesa",
+                        "Ajuste"
+                    ]
+
+                    origem_atual = (
+                        mov["origem"]
+                        if mov["origem"] in lista_origens
+                        else "Ajuste"
+                    )
+
+                    nova_origem = st.selectbox(
+                        "Origem",
+                        lista_origens,
+                        index=lista_origens.index(
+                            origem_atual
+                        ),
+                        key="editar_movimentacao_origem"
+                    )
+
+                    col_ed1, col_ed2 = st.columns(2)
+
+                    with col_ed1:
+
+                        if st.button(
+                            "💾 Atualizar Movimentação",
+                            key="btn_atualizar_mov"
+                        ):
+
+                            sucesso = atualizar_movimentacao(
+
+                                mov["id"],
+                                novo_tipo,
+                                novo_valor,
+                                nova_descricao,
+                                nova_origem
+
+                            )
+
+                            if sucesso:
+
+                                st.success(
+                                    "✅ Movimentação atualizada!"
+                                )
+
+                                st.rerun()
+
+                            else:
+
+                                st.error(
+                                    "❌ Erro ao atualizar."
+                                )
+
+                    with col_ed2:
+
+                        if st.button(
+                            "🗑️ Excluir Movimentação",
+                            key="btn_excluir_mov"
+                        ):
+
+                            sucesso = excluir_movimentacao(
+                                mov["id"]
+                            )
+
+                            if sucesso:
+
+                                st.success(
+                                    "✅ Movimentação excluída!"
+                                )
+
+                                st.rerun()
+
+                            else:
+
+                                st.error(
+                                    "❌ Erro ao excluir."
+                                )
+
             else:
 
-                st.info("Nenhuma movimentação registrada.")
+                st.info(
+                    "Nenhuma movimentação registrada."
+                )
 
             st.divider()
 
@@ -205,34 +344,41 @@ def tela_caixa():
                 "Valor Conferido no Caixa",
                 min_value=0.0,
                 value=float(saldo_atual),
-                format="%.2f"
+                format="%.2f",
+                key="valor_conferido_caixa"
             )
 
-            diferenca = valor_conferido - saldo_atual
+            diferenca = (
+                valor_conferido - saldo_atual
+            )
 
-            # ==================================================
-            # DIFERENÇA
-            # ==================================================
             if diferenca == 0:
 
-                st.success("✅ Caixa conferido sem diferenças.")
+                st.success(
+                    "✅ Caixa conferido sem diferenças."
+                )
 
             elif diferenca > 0:
 
                 st.warning(
-                    f"⚠️ Sobra no caixa: R$ {diferenca:,.2f}"
+                    f"⚠️ Sobra no caixa: "
+                    f"R$ {diferenca:,.2f}"
                 )
 
             else:
 
                 st.error(
-                    f"❌ Falta no caixa: R$ {abs(diferenca):,.2f}"
+                    f"❌ Falta no caixa: "
+                    f"R$ {abs(diferenca):,.2f}"
                 )
 
             # ==================================================
             # FECHAR CAIXA
             # ==================================================
-            if st.button("💾 Fechar Caixa"):
+            if st.button(
+                "💾 Fechar Caixa",
+                key="btn_fechar_caixa"
+            ):
 
                 sucesso = fechar_caixa(
                     caixa_id=caixa_id,
@@ -245,12 +391,17 @@ def tela_caixa():
 
                 if sucesso:
 
-                    st.success("✅ Caixa fechado com sucesso!")
+                    st.success(
+                        "✅ Caixa fechado com sucesso!"
+                    )
+
                     st.rerun()
 
                 else:
 
-                    st.error("❌ Erro ao fechar caixa.")
+                    st.error(
+                        "❌ Erro ao fechar caixa."
+                    )
 
     # ==================================================
     # ABA MOVIMENTAR CAIXA
@@ -261,18 +412,21 @@ def tela_caixa():
 
         tipo = st.selectbox(
             "Tipo",
-            ["entrada", "saida"]
+            ["entrada", "saida"],
+            key="nova_movimentacao_tipo"
         )
 
         valor = st.number_input(
             "Valor",
             min_value=0.0,
             value=0.0,
-            format="%.2f"
+            format="%.2f",
+            key="nova_movimentacao_valor"
         )
 
         descricao = st.text_input(
-            "Descrição"
+            "Descrição",
+            key="nova_movimentacao_descricao"
         )
 
         origem = st.selectbox(
@@ -282,14 +436,20 @@ def tela_caixa():
                 "Reforço",
                 "Despesa",
                 "Ajuste"
-            ]
+            ],
+            key="nova_movimentacao_origem"
         )
 
-        if st.button("💾 Registrar Movimentação"):
+        if st.button(
+            "💾 Registrar Movimentação",
+            key="btn_registrar_movimentacao"
+        ):
 
             if valor <= 0:
 
-                st.warning("Informe um valor maior que zero.")
+                st.warning(
+                    "Informe um valor maior que zero."
+                )
 
             else:
 
@@ -305,9 +465,14 @@ def tela_caixa():
 
                 if sucesso:
 
-                    st.success("✅ Movimentação registrada!")
+                    st.success(
+                        "✅ Movimentação registrada!"
+                    )
+
                     st.rerun()
 
                 else:
 
-                    st.error("❌ Erro ao registrar.")
+                    st.error(
+                        "❌ Erro ao registrar."
+                    )
