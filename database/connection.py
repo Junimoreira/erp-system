@@ -11,6 +11,12 @@ def conectar():
 
         database_url = os.getenv("DATABASE_URL")
 
+        if not database_url:
+
+            raise Exception(
+                "DATABASE_URL não encontrada."
+            )
+
         conn = psycopg2.connect(database_url)
 
         return conn

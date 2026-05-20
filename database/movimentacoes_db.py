@@ -6,6 +6,7 @@ from database.connection import conectar
 # REGISTRAR MOVIMENTAÇÃO
 # ==================================================
 def registrar_movimentacao(
+    caixa_id,
     tipo,
     valor,
     descricao,
@@ -14,13 +15,22 @@ def registrar_movimentacao(
 ):
 
     conn = conectar()
+
+    if conn is None:
+        return False
+
     cursor = conn.cursor()
 
     try:
 
+        caixa_id = int(caixa_id)
+
+        valor = float(valor)
+
         query = """
             INSERT INTO movimentacoes (
 
+                caixa_id,
                 tipo,
                 valor,
                 descricao,
@@ -28,11 +38,12 @@ def registrar_movimentacao(
                 data_movimentacao
 
             )
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """
 
         cursor.execute(query, (
 
+            caixa_id,
             tipo,
             valor,
             descricao,
@@ -66,26 +77,40 @@ def listar_movimentacoes():
 
     conn = conectar()
 
-    query = """
-        SELECT
+    if conn is None:
+        return pd.DataFrame()
 
-            id,
-            tipo,
-            valor,
-            descricao,
-            origem,
-            data_movimentacao
+    try:
 
-        FROM movimentacoes
+        query = """
+            SELECT
 
-        ORDER BY data_movimentacao DESC
-    """
+                id,
+                caixa_id,
+                tipo,
+                valor,
+                descricao,
+                origem,
+                data_movimentacao
 
-    df = pd.read_sql(query, conn)
+            FROM movimentacoes
 
-    conn.close()
+            ORDER BY data_movimentacao DESC
+        """
 
-    return df
+        df = pd.read_sql(query, conn)
+
+        return df
+
+    except Exception as erro:
+
+        print("Erro ao listar movimentações:", erro)
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()
 
 
 # ==================================================
@@ -100,9 +125,17 @@ def atualizar_movimentacao(
 ):
 
     conn = conectar()
+
+    if conn is None:
+        return False
+
     cursor = conn.cursor()
 
     try:
+
+        id_movimentacao = int(id_movimentacao)
+
+        valor = float(valor)
 
         cursor.execute("""
 
@@ -150,9 +183,15 @@ def atualizar_movimentacao(
 def excluir_movimentacao(id_movimentacao):
 
     conn = conectar()
+
+    if conn is None:
+        return False
+
     cursor = conn.cursor()
 
     try:
+
+        id_movimentacao = int(id_movimentacao)
 
         cursor.execute("""
 
@@ -186,6 +225,16 @@ def excluir_movimentacao(id_movimentacao):
 def resumo_movimentacoes():
 
     conn = conectar()
+
+    if conn is None:
+        return {
+
+            "entradas": 0,
+            "saidas": 0,
+            "saldo": 0
+
+        }
+
     cursor = conn.cursor()
 
     try:
@@ -236,6 +285,16 @@ def resumo_movimentacoes():
 def resumo_por_periodo(data_inicio, data_fim):
 
     conn = conectar()
+
+    if conn is None:
+        return {
+
+            "entradas": 0,
+            "saidas": 0,
+            "saldo": 0
+
+        }
+
     cursor = conn.cursor()
 
     try:

@@ -9,22 +9,35 @@ def verificar_caixa_aberto():
 
     conn = conectar()
 
-    query = """
-        SELECT *
-        FROM caixa
-        WHERE status = 'aberto'
-        ORDER BY id DESC
-        LIMIT 1
-    """
+    if conn is None:
+        return None
 
-    df = pd.read_sql(query, conn)
+    try:
 
-    conn.close()
+        query = """
+            SELECT *
+            FROM caixa
+            WHERE status = 'aberto'
+            ORDER BY id DESC
+            LIMIT 1
+        """
 
-    if not df.empty:
-        return df.iloc[0]
+        df = pd.read_sql(query, conn)
 
-    return None
+        if not df.empty:
+            return df.iloc[0]
+
+        return None
+
+    except Exception as erro:
+
+        print("Erro ao verificar caixa:", erro)
+
+        return None
+
+    finally:
+
+        conn.close()
 
 
 # ==================================================
@@ -33,9 +46,15 @@ def verificar_caixa_aberto():
 def abrir_caixa(usuario, saldo_inicial):
 
     conn = conectar()
+
+    if conn is None:
+        return False
+
     cursor = conn.cursor()
 
     try:
+
+        saldo_inicial = float(saldo_inicial)
 
         cursor.execute("""
             INSERT INTO caixa (
@@ -95,25 +114,37 @@ def abrir_caixa(usuario, saldo_inicial):
 def resumo_caixa(caixa_id):
 
     conn = conectar()
+
+    if conn is None:
+        return None
+
     cursor = conn.cursor()
 
     try:
 
+        caixa_id = int(caixa_id)
+
+        # ==================================================
         # ENTRADAS
+        # ==================================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM movimentacoes
             WHERE tipo = 'entrada'
-        """)
+            AND caixa_id = %s
+        """, (caixa_id,))
 
         entradas = float(cursor.fetchone()[0])
 
+        # ==================================================
         # SAÍDAS
+        # ==================================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM movimentacoes
             WHERE tipo = 'saida'
-        """)
+            AND caixa_id = %s
+        """, (caixa_id,))
 
         saidas = float(cursor.fetchone()[0])
 
@@ -121,6 +152,17 @@ def resumo_caixa(caixa_id):
 
             "entradas": entradas,
             "saidas": saidas
+
+        }
+
+    except Exception as erro:
+
+        print("Erro no resumo do caixa:", erro)
+
+        return {
+
+            "entradas": 0,
+            "saidas": 0
 
         }
 
@@ -143,9 +185,24 @@ def fechar_caixa(
 ):
 
     conn = conectar()
+
+    if conn is None:
+        return False
+
     cursor = conn.cursor()
 
     try:
+
+        caixa_id = int(caixa_id)
+
+        total_entradas = float(total_entradas)
+        total_saidas = float(total_saidas)
+
+        saldo_final = float(saldo_final)
+
+        valor_conferido = float(valor_conferido)
+
+        diferenca = float(diferenca)
 
         cursor.execute("""
             UPDATE caixa
@@ -190,28 +247,49 @@ def fechar_caixa(
 
 
 # ==================================================
-# LISTAR MOVIMENTAÇÕES
+# LISTAR MOVIMENTAÇÕES DO CAIXA
 # ==================================================
-def listar_movimentacoes_caixa():
+def listar_movimentacoes_caixa(caixa_id):
 
     conn = conectar()
 
-    query = """
-        SELECT
+    if conn is None:
+        return pd.DataFrame()
 
-            tipo,
-            valor,
-            descricao,
-            origem,
-            data_movimentacao
+    try:
 
-        FROM movimentacoes
+        caixa_id = int(caixa_id)
 
-        ORDER BY data_movimentacao DESC
-    """
+        query = """
+            SELECT
 
-    df = pd.read_sql(query, conn)
+                tipo,
+                valor,
+                descricao,
+                origem,
+                data_movimentacao
 
-    conn.close()
+            FROM movimentacoes
 
-    return df
+            WHERE caixa_id = %s
+
+            ORDER BY data_movimentacao DESC
+        """
+
+        df = pd.read_sql(
+            query,
+            conn,
+            params=(caixa_id,)
+        )
+
+        return df
+
+    except Exception as erro:
+
+        print("Erro ao listar movimentações:", erro)
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()

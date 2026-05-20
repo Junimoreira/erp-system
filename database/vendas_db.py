@@ -1,7 +1,13 @@
 # database/vendas_db.py
 
 import pandas as pd
+from datetime import datetime
+
 from database.connection import conectar
+
+from database.caixa_db import (
+    verificar_caixa_aberto
+)
 
 
 # ==================================================
@@ -11,18 +17,32 @@ def listar_clientes():
 
     conn = conectar()
 
-    query = """
-        SELECT
-            id,
-            nome
-        FROM clientes
-        ORDER BY nome
-    """
+    if conn is None:
+        return pd.DataFrame()
 
-    df = pd.read_sql(query, conn)
+    try:
 
-    conn.close()
-    return df
+        query = """
+            SELECT
+                id,
+                nome
+            FROM clientes
+            ORDER BY nome
+        """
+
+        df = pd.read_sql(query, conn)
+
+        return df
+
+    except Exception as erro:
+
+        print("Erro ao listar clientes:", erro)
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()
 
 
 # ==================================================
@@ -32,17 +52,31 @@ def listar_produtos():
 
     conn = conectar()
 
-    query = """
-        SELECT
-            *
-        FROM produtos
-        ORDER BY nome
-    """
+    if conn is None:
+        return pd.DataFrame()
 
-    df = pd.read_sql(query, conn)
+    try:
 
-    conn.close()
-    return df
+        query = """
+            SELECT
+                *
+            FROM produtos
+            ORDER BY nome
+        """
+
+        df = pd.read_sql(query, conn)
+
+        return df
+
+    except Exception as erro:
+
+        print("Erro ao listar produtos:", erro)
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()
 
 
 # ==================================================
@@ -59,55 +93,83 @@ def salvar_venda(
 ):
 
     conn = conectar()
+
+    if conn is None:
+        return False
+
     cursor = conn.cursor()
 
     try:
+
+        valor_total = float(valor_total)
+        desconto = float(desconto)
+        valor_final = float(valor_final)
 
         # ==========================================
         # INSERIR VENDA
         # ==========================================
         cursor.execute("""
             INSERT INTO vendas (
+
                 cliente_id,
                 valor_total,
                 desconto,
                 valor_final,
                 forma_pagamento,
                 data_venda
+
             )
             VALUES (%s, %s, %s, %s, %s, %s)
+
             RETURNING id
         """, (
+
             cliente_id,
             valor_total,
             desconto,
             valor_final,
             forma_pagamento,
             data_venda
+
         ))
 
-        venda_id = cursor.fetchone()[0]
+        venda_id = int(cursor.fetchone()[0])
 
         # ==========================================
         # ITENS DA VENDA
         # ==========================================
         for item in itens:
 
+            quantidade = float(item["quantidade"])
+
+            preco = float(item["preco"])
+
+            subtotal = float(item["subtotal"])
+
+            produto_id = int(item["produto_id"])
+
+            # ======================================
+            # ITEM VENDA
+            # ======================================
             cursor.execute("""
                 INSERT INTO itens_venda (
+
                     venda_id,
                     produto_id,
                     quantidade,
                     preco_unitario,
                     subtotal
+
                 )
                 VALUES (%s, %s, %s, %s, %s)
             """, (
+
                 venda_id,
-                item["produto_id"],
-                item["quantidade"],
-                item["preco"],
-                item["subtotal"]
+                produto_id,
+                quantidade,
+                preco,
+                subtotal
+
             ))
 
             # ======================================
@@ -115,11 +177,15 @@ def salvar_venda(
             # ======================================
             cursor.execute("""
                 UPDATE produtos
+
                 SET estoque = estoque - %s
+
                 WHERE id = %s
             """, (
-                item["quantidade"],
-                item["produto_id"]
+
+                quantidade,
+                produto_id
+
             ))
 
         # ==========================================
@@ -129,54 +195,74 @@ def salvar_venda(
 
             cursor.execute("""
                 INSERT INTO contas_receber (
+
                     cliente_id,
                     descricao,
                     valor,
                     vencimento,
                     status
+
                 )
                 VALUES (
+
                     %s,
                     %s,
                     %s,
                     CURRENT_DATE + INTERVAL '30 days',
                     %s
+
                 )
             """, (
+
                 cliente_id,
                 f"Venda #{venda_id}",
                 valor_final,
                 "Pendente"
+
             ))
 
         # ==========================================
-        # MOVIMENTAÇÃO FINANCEIRA
+        # ENTRADA AUTOMÁTICA NO CAIXA
         # ==========================================
         else:
 
-            cursor.execute("""
-                INSERT INTO movimentacoes (
-                    tipo,
-                    valor,
-                    descricao,
-                    origem,
-                    data_movimentacao
-                )
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                "entrada",
-                valor_final,
-                f"Venda #{venda_id}",
-                "Venda",
-                data_venda
-            ))
+            caixa = verificar_caixa_aberto()
+
+            if caixa is not None:
+
+                caixa_id = int(caixa["id"])
+
+                cursor.execute("""
+                    INSERT INTO movimentacoes (
+
+                        caixa_id,
+                        tipo,
+                        valor,
+                        descricao,
+                        origem,
+                        data_movimentacao
+
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+
+                    caixa_id,
+                    "entrada",
+                    valor_final,
+                    f"Venda #{venda_id}",
+                    "Venda",
+                    datetime.now()
+
+                ))
 
         conn.commit()
+
         return True
 
     except Exception as erro:
 
         conn.rollback()
+
         print("Erro ao salvar venda:", erro)
 
         return False
@@ -194,44 +280,58 @@ def historico_vendas():
 
     conn = conectar()
 
-    query = """
-        SELECT
+    if conn is None:
+        return pd.DataFrame()
 
-            v.id AS pedido,
-            v.data_venda,
+    try:
 
-            c.nome AS cliente,
+        query = """
+            SELECT
 
-            p.nome AS produto,
+                v.id AS pedido,
 
-            iv.quantidade,
+                v.data_venda,
 
-            iv.preco_unitario AS valor_unitario,
+                c.nome AS cliente,
 
-            iv.subtotal,
+                p.nome AS produto,
 
-            v.desconto,
+                iv.quantidade,
 
-            v.valor_final,
+                iv.preco_unitario AS valor_unitario,
 
-            v.forma_pagamento
+                iv.subtotal,
 
-        FROM vendas v
+                v.desconto,
 
-        LEFT JOIN clientes c
-            ON v.cliente_id = c.id
+                v.valor_final,
 
-        LEFT JOIN itens_venda iv
-            ON v.id = iv.venda_id
+                v.forma_pagamento
 
-        LEFT JOIN produtos p
-            ON iv.produto_id = p.id
+            FROM vendas v
 
-        ORDER BY v.id DESC
-    """
+            LEFT JOIN clientes c
+                ON v.cliente_id = c.id
 
-    df = pd.read_sql(query, conn)
+            LEFT JOIN itens_venda iv
+                ON v.id = iv.venda_id
 
-    conn.close()
+            LEFT JOIN produtos p
+                ON iv.produto_id = p.id
 
-    return df
+            ORDER BY v.id DESC
+        """
+
+        df = pd.read_sql(query, conn)
+
+        return df
+
+    except Exception as erro:
+
+        print("Erro no histórico:", erro)
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()

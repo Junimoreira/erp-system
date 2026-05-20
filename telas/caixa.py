@@ -90,7 +90,7 @@ def tela_caixa():
 
                 sucesso = abrir_caixa(
                     usuario=usuario,
-                    saldo_inicial=valor_inicial
+                    saldo_inicial=float(valor_inicial)
                 )
 
                 if sucesso:
@@ -107,7 +107,7 @@ def tela_caixa():
         # ==================================================
         else:
 
-            caixa_id = caixa["id"]
+            caixa_id = int(caixa["id"])
 
             st.success("🟢 Caixa Aberto")
 
@@ -120,8 +120,13 @@ def tela_caixa():
                     "saidas": 0
                 }
 
-            entradas = resumo.get("entradas", 0)
-            saidas = resumo.get("saidas", 0)
+            entradas = float(
+                resumo.get("entradas", 0)
+            )
+
+            saidas = float(
+                resumo.get("saidas", 0)
+            )
 
             saldo_inicial = float(
                 caixa.get("saldo_inicial", 0)
@@ -133,6 +138,9 @@ def tela_caixa():
                 - saidas
             )
 
+            # ==================================================
+            # MÉTRICAS
+            # ==================================================
             col1, col2, col3 = st.columns(3)
 
             with col1:
@@ -168,12 +176,17 @@ def tela_caixa():
             # ==================================================
             st.subheader("📋 Movimentações")
 
-            df = listar_movimentacoes_caixa()
+            df = listar_movimentacoes_caixa(
+                caixa_id
+            )
 
             if df is not None and not df.empty:
 
                 df_exibir = df.copy()
 
+                # ==================================================
+                # FORMATA VALORES
+                # ==================================================
                 if "valor" in df_exibir.columns:
 
                     df_exibir["valor"] = df_exibir[
@@ -182,6 +195,9 @@ def tela_caixa():
                         lambda x: f"R$ {float(x):,.2f}"
                     )
 
+                # ==================================================
+                # FORMATA DATAS
+                # ==================================================
                 if "data_movimentacao" in df_exibir.columns:
 
                     df_exibir["data_movimentacao"] = pd.to_datetime(
@@ -195,7 +211,7 @@ def tela_caixa():
 
                 st.dataframe(
                     df_exibir,
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 # ==================================================
@@ -271,6 +287,9 @@ def tela_caixa():
 
                     col_ed1, col_ed2 = st.columns(2)
 
+                    # ==================================================
+                    # ATUALIZAR
+                    # ==================================================
                     with col_ed1:
 
                         if st.button(
@@ -280,9 +299,9 @@ def tela_caixa():
 
                             sucesso = atualizar_movimentacao(
 
-                                mov["id"],
+                                int(mov["id"]),
                                 novo_tipo,
-                                novo_valor,
+                                float(novo_valor),
                                 nova_descricao,
                                 nova_origem
 
@@ -302,6 +321,9 @@ def tela_caixa():
                                     "❌ Erro ao atualizar."
                                 )
 
+                    # ==================================================
+                    # EXCLUIR
+                    # ==================================================
                     with col_ed2:
 
                         if st.button(
@@ -310,7 +332,7 @@ def tela_caixa():
                         ):
 
                             sucesso = excluir_movimentacao(
-                                mov["id"]
+                                int(mov["id"])
                             )
 
                             if sucesso:
@@ -349,7 +371,8 @@ def tela_caixa():
             )
 
             diferenca = (
-                valor_conferido - saldo_atual
+                float(valor_conferido)
+                - float(saldo_atual)
             )
 
             if diferenca == 0:
@@ -381,12 +404,12 @@ def tela_caixa():
             ):
 
                 sucesso = fechar_caixa(
-                    caixa_id=caixa_id,
-                    total_entradas=entradas,
-                    total_saidas=saidas,
-                    saldo_final=saldo_atual,
-                    valor_conferido=valor_conferido,
-                    diferenca=diferenca
+                    caixa_id=int(caixa_id),
+                    total_entradas=float(entradas),
+                    total_saidas=float(saidas),
+                    saldo_final=float(saldo_atual),
+                    valor_conferido=float(valor_conferido),
+                    diferenca=float(diferenca)
                 )
 
                 if sucesso:
@@ -409,6 +432,18 @@ def tela_caixa():
     with abas[1]:
 
         st.subheader("➕ Nova Movimentação")
+
+        caixa = verificar_caixa_aberto()
+
+        if caixa is None:
+
+            st.warning(
+                "Abra um caixa antes de registrar movimentações."
+            )
+
+            return
+
+        caixa_id = int(caixa["id"])
 
         tipo = st.selectbox(
             "Tipo",
@@ -455,8 +490,9 @@ def tela_caixa():
 
                 sucesso = registrar_movimentacao(
 
+                    caixa_id=int(caixa_id),
                     tipo=tipo,
-                    valor=valor,
+                    valor=float(valor),
                     descricao=descricao,
                     origem=origem,
                     data_movimentacao=datetime.now()
