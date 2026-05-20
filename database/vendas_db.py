@@ -189,7 +189,7 @@ def salvar_venda(
             ))
 
         # ==========================================
-        # CONTAS A RECEBER
+        # VENDA A PRAZO
         # ==========================================
         if forma_pagamento == "Prazo":
 
@@ -222,9 +222,9 @@ def salvar_venda(
             ))
 
         # ==========================================
-        # ENTRADA AUTOMÁTICA NO CAIXA
+        # DINHEIRO = ENTRA NO CAIXA
         # ==========================================
-        else:
+        elif forma_pagamento == "Dinheiro":
 
             caixa = verificar_caixa_aberto()
 
@@ -249,11 +249,63 @@ def salvar_venda(
                     caixa_id,
                     "entrada",
                     valor_final,
-                    f"Venda #{venda_id}",
-                    "Venda",
+                    f"Venda Dinheiro #{venda_id}",
+                    "Caixa",
                     datetime.now()
 
                 ))
+
+        # ==========================================
+        # PIX = CONTA BANCÁRIA
+        # ==========================================
+        elif forma_pagamento == "PIX":
+
+            cursor.execute("""
+                INSERT INTO movimentacoes (
+
+                    tipo,
+                    valor,
+                    descricao,
+                    origem,
+                    data_movimentacao
+
+                )
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+
+                "entrada",
+                valor_final,
+                f"Venda PIX #{venda_id}",
+                "Banco PIX",
+                datetime.now()
+
+            ))
+
+        # ==========================================
+        # CARTÃO = CONTA BANCÁRIA
+        # ==========================================
+        elif forma_pagamento == "Cartão":
+
+            cursor.execute("""
+                INSERT INTO movimentacoes (
+
+                    tipo,
+                    valor,
+                    descricao,
+                    origem,
+                    data_movimentacao
+
+                )
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+
+                "entrada",
+                valor_final,
+                f"Venda Cartão #{venda_id}",
+                "Cartão",
+                datetime.now()
+
+            ))
 
         conn.commit()
 
