@@ -1,5 +1,27 @@
 import streamlit as st
 
+
+# =========================
+# CONFIGURAÇÃO DA PÁGINA
+# =========================
+st.set_page_config(
+    page_title="ERP Verde Infância",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+
+# =========================
+# CSS GLOBAL
+# =========================
+with open("styles/styles.css", encoding="utf-8") as f:
+
+    st.markdown(
+        f"<style>{f.read()}</style>",
+        unsafe_allow_html=True
+    )
+
+
 # =========================
 # TELAS
 # =========================
@@ -18,15 +40,6 @@ from telas.caixa import tela_caixa
 
 
 # =========================
-# CONFIGURAÇÃO DA PÁGINA
-# =========================
-st.set_page_config(
-    page_title="ERP Empresarial",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# =========================
 # SESSÃO
 # =========================
 if "logado" not in st.session_state:
@@ -35,11 +48,14 @@ if "logado" not in st.session_state:
 if "usuario" not in st.session_state:
     st.session_state["usuario"] = ""
 
+
 # =========================
 # LOGIN
 # =========================
 if not st.session_state["logado"]:
+
     tela_login()
+
 
 # =========================
 # SISTEMA PRINCIPAL
@@ -51,9 +67,32 @@ else:
     # =========================
     with st.sidebar:
 
-        st.success(f"👤 {st.session_state['usuario']}")
+        # =========================
+        # LOGO
+        # =========================
+        st.image(
+            "assets/Logo.png",
+            width=180
+        )
+
+        st.markdown(
+            """
+            <div class="sidebar-title">
+                ERP Verde Infância
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.success(
+            f"👤 {st.session_state['usuario']}"
+        )
+
         st.divider()
 
+        # =========================
+        # MENU
+        # =========================
         menu = st.radio(
             "Menu",
             [
@@ -73,9 +112,14 @@ else:
 
         st.divider()
 
+        # =========================
+        # SAIR
+        # =========================
         if st.button("🚪 Sair"):
+
             st.session_state["logado"] = False
             st.session_state["usuario"] = ""
+
             st.rerun()
 
     # =========================
@@ -86,61 +130,71 @@ else:
         tela_dashboard()
 
     # =========================
+    # CAIXA
+    # =========================
+    elif menu == "💰 Caixa":
+
+        tela_caixa()
+
+    # =========================
     # CLIENTES
     # =========================
     elif menu == "👥 Clientes":
+
         tela_clientes()
 
     # =========================
     # PRODUTOS
     # =========================
     elif menu == "📦 Produtos":
+
         tela_produtos()
 
     # =========================
     # MOVIMENTAÇÕES
     # =========================
     elif menu == "💰 Movimentações":
+
         tela_movimentacoes()
 
     # =========================
     # VENDAS
     # =========================
     elif menu == "🛒 Vendas":
+
         tela_vendas()
+
+    # =========================
+    # DESPESAS
+    # =========================
+    elif menu == "💸 Despesas":
+
+        tela_despesas()
 
     # =========================
     # CONTAS
     # =========================
     elif menu == "🏦 Contas":
+
         tela_contas()
 
-    #===========================
+    # =========================
     # CONTAS A PAGAR
-    #===========================
-    elif menu == "📤 Contas a Pagar":   # 👈 NOVO LINK
+    # =========================
+    elif menu == "📤 Contas a Pagar":
+
         tela_contas_pagar()
 
-    #==========================
+    # =========================
     # CONTAS A RECEBER
-    #==========================
+    # =========================
     elif menu == "📥 Contas a Receber":
-        tela_contas_receber()
 
-    #==========================
-    # DESPESAS
-    #==========================
-    elif menu == "💸 Despesas":
-        tela_despesas()
-    #=========================
-    #CAIXA
-    #=========================
-    elif menu == "💰 Caixa":
-        tela_caixa()
-    
+        tela_contas_receber()
 
     # =========================
     # CONFIGURAÇÕES
     # =========================
     elif menu == "⚙️ Configurações":
+
         tela_configuracoes()
