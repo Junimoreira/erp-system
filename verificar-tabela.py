@@ -12,18 +12,9 @@ try:
     # ==================================================
 
     cursor.execute("""
-        ALTER TABLE vendas
-        ADD COLUMN desconto NUMERIC(10,2) DEFAULT 0
+        SELECT FROM USUARIOS
     """)
 
-    # ==================================================
-    # ADICIONA CAMPO VALOR FINAL
-    # ==================================================
-
-    cursor.execute("""
-        ALTER TABLE vendas
-        ADD COLUMN valor_final NUMERIC(10,2)
-    """)
 
     conn.commit()
 

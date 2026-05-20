@@ -4,6 +4,9 @@ import bcrypt
 from database.connection import conectar
 
 
+# ==================================================
+# TELA LOGIN
+# ==================================================
 def tela_login():
 
     st.markdown("""
@@ -88,6 +91,7 @@ def tela_login():
     .stButton > button:hover {
 
         background: #36b61f;
+
         color: white;
     }
 
@@ -96,61 +100,151 @@ def tela_login():
 
     st.markdown("""
     <div class="login-box">
-    <div class="titulo">
-        ERP <span class="verde">Empresarial</span>
-    </div>
 
-    <div class="subtitulo">
-        Faça login para acessar o sistema
-    </div>
+        <div class="titulo">
+            ERP <span class="verde">Verde Infância</span>
+        </div>
+
+        <div class="subtitulo">
+            Faça login para acessar o sistema
+        </div>
+
     </div>
     """, unsafe_allow_html=True)
 
     usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
+
+    senha = st.text_input(
+        "Senha",
+        type="password"
+    )
 
     if st.button("Entrar no Sistema"):
 
         try:
 
             conn = conectar()
+
+            if conn is None:
+
+                st.error(
+                    "Erro ao conectar com banco de dados."
+                )
+
+                return
+
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT id, nome, senha
+
+                SELECT
+
+                    id,
+                    nome,
+                    senha,
+                    perfil,
+
+                    pode_dashboard,
+                    pode_caixa,
+                    pode_clientes,
+                    pode_produtos,
+                    pode_vendas,
+                    pode_financeiro,
+                    pode_contas_pagar,
+                    pode_contas_receber,
+                    pode_despesas,
+                    pode_configuracoes
+
                 FROM usuarios
+
                 WHERE usuario = %s
+
                 AND ativo = TRUE
+
             """, (usuario,))
 
             dados = cur.fetchone()
 
             if dados:
 
-                user_id, nome, senha_hash = dados
+                (
+                    user_id,
+                    nome,
+                    senha_hash,
+                    perfil,
+
+                    pode_dashboard,
+                    pode_caixa,
+                    pode_clientes,
+                    pode_produtos,
+                    pode_vendas,
+                    pode_financeiro,
+                    pode_contas_pagar,
+                    pode_contas_receber,
+                    pode_despesas,
+                    pode_configuracoes
+
+                ) = dados
 
                 if bcrypt.checkpw(
+
                     senha.encode(),
                     senha_hash.encode()
+
                 ):
 
+                    # ======================================
+                    # SESSÃO
+                    # ======================================
                     st.session_state["logado"] = True
+
                     st.session_state["usuario"] = nome
 
-                    st.success("Login realizado!")
+                    st.session_state["perfil"] = perfil
+
+                    st.session_state["usuario_id"] = user_id
+
+                    # ======================================
+                    # PERMISSÕES
+                    # ======================================
+                    st.session_state["pode_dashboard"] = pode_dashboard
+
+                    st.session_state["pode_caixa"] = pode_caixa
+
+                    st.session_state["pode_clientes"] = pode_clientes
+
+                    st.session_state["pode_produtos"] = pode_produtos
+
+                    st.session_state["pode_vendas"] = pode_vendas
+
+                    st.session_state["pode_financeiro"] = pode_financeiro
+
+                    st.session_state["pode_contas_pagar"] = pode_contas_pagar
+
+                    st.session_state["pode_contas_receber"] = pode_contas_receber
+
+                    st.session_state["pode_despesas"] = pode_despesas
+
+                    st.session_state["pode_configuracoes"] = pode_configuracoes
+
+                    st.success("✅ Login realizado!")
 
                     st.rerun()
 
                 else:
-                    st.error("Senha inválida")
+
+                    st.error("❌ Senha inválida")
 
             else:
-                st.error("Usuário não encontrado")
+
+                st.error("❌ Usuário não encontrado")
 
             cur.close()
+
             conn.close()
 
-        except Exception as e:
-            st.error(f"Erro: {e}")
+        except Exception as erro:
+
+            st.error(f"Erro: {erro}")
 
     st.markdown("</div>", unsafe_allow_html=True)
