@@ -2,7 +2,7 @@ import streamlit as st
 
 
 # =========================
-# CONFIGURAÇÃO DA PÁGINA (TEM QUE SER PRIMEIRO)
+# CONFIGURAÇÃO
 # =========================
 st.set_page_config(
     page_title="ERP Verde Infância",
@@ -24,6 +24,8 @@ except:
 # =========================
 # IMPORTAÇÃO DAS TELAS
 # =========================
+from telas.painel_admin_permissoes import tela_painel_permissoes
+
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.vendas import tela_vendas
@@ -39,7 +41,7 @@ from telas.caixa import tela_caixa
 
 
 # =========================
-# SESSÃO INICIAL
+# SESSÃO
 # =========================
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
@@ -54,24 +56,56 @@ if not st.session_state["logado"]:
 
 
 # =========================
-# SUPER USUÁRIO (REGRA DE OURO)
+# SUPER USUÁRIO
+# =========================
+#perfil = st.session_state.get("perfil")
+
+#if perfil in ["admin", "diretor"]:
+ #   st.session_state["abrir_caixa"] = True
+  #  st.session_state["cadastrar_cliente"] = True
+    #st.session_state["cadastrar_produto"] = True
+    #st.session_state["realizar_venda"] = True
+    #st.session_state["ver_financeiro"] = True
+    #st.session_state["contas_pagar"] = True
+    #st.session_state["configuracoes"] = True
+    #st.session_state["usuarios"] = True
+
+    if st.session_state.get("usuarios"):
+        menu_opcoes.append("🔐 Permissões")
+
+
+
+# =========================
+# PERMISSÕES PADRÃO (EVITA BUGS)
+# =========================
+permissoes_padrao = [
+    "abrir_caixa",
+    "cadastrar_cliente",
+    "cadastrar_produto",
+    "realizar_venda",
+    "ver_financeiro",
+    "contas_pagar",
+    "configuracoes",
+    "usuarios"
+]
+
+for p in permissoes_padrao:
+    if p not in st.session_state:
+        st.session_state[p] = False
+
+
+# =========================
+# SUPER USUÁRIO (ADMIN/DIRETOR)
 # =========================
 perfil = st.session_state.get("perfil")
 
 if perfil in ["admin", "diretor"]:
-    st.session_state["abrir_caixa"] = True
-    st.session_state["fechar_caixa"] = True
-    st.session_state["realizar_venda"] = True
-    st.session_state["cadastrar_cliente"] = True
-    st.session_state["cadastrar_produto"] = True
-    st.session_state["ver_financeiro"] = True
-    st.session_state["contas_pagar"] = True
-    st.session_state["configuracoes"] = True
-    st.session_state["usuarios"] = True
+    for p in permissoes_padrao:
+        st.session_state[p] = True
 
 
 # =========================
-# MENU BASE (COM PERMISSÕES REAIS DO BANCO)
+# MENU BASE (CORRETO)
 # =========================
 menu_opcoes = []
 
@@ -105,10 +139,15 @@ if st.session_state.get("configuracoes"):
     menu_opcoes.append("⚙️ Configurações")
 
 
+# 🔥 MENU ADMIN (CORRETO — AQUI ESTAVA O ERRO)
+if perfil in ["admin", "diretor"]:
+    menu_opcoes.append("🔐 Permissões")
+
+
 # =========================
 # PROTEÇÃO MENU VAZIO
 # =========================
-if not menu_opcoes:
+if len(menu_opcoes) <= 1:
     st.error("⛔ Usuário sem permissões liberadas.")
     st.stop()
 
@@ -189,6 +228,9 @@ elif menu == "📤 Contas a Pagar":
 elif menu == "📥 Contas a Receber":
     bloquear("ver_financeiro")
     tela_contas_receber()
+
+elif menu == "🔐 Permissões":
+    tela_painel_permissoes()
 
 elif menu == "⚙️ Configurações":
     bloquear("configuracoes")
