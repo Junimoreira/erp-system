@@ -1,250 +1,137 @@
 import streamlit as st
 import bcrypt
-
 from database.connection import conectar
 
 
-# ==================================================
-# TELA LOGIN
-# ==================================================
+# =====================================
+# BUSCAR USUÁRIO NO BANCO
+# =====================================
+def autenticar_usuario(usuario, senha):
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            id,
+            nome,
+            usuario,
+            senha,
+            perfil,
+            ativo,
+
+            abrir_caixa,
+            fechar_caixa,
+            realizar_venda,
+            cadastrar_cliente,
+            ver_financeiro,
+            contas_pagar,
+            configuracoes,
+            usuarios,
+            cadastrar_produto
+
+        FROM usuarios
+        WHERE usuario = %s
+        LIMIT 1
+    """, (usuario,))
+
+    row = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if not row:
+        return None
+
+    dados = {
+        "id": row[0],
+        "nome": row[1],
+        "usuario": row[2],
+        "senha": row[3],
+        "perfil": row[4],
+        "ativo": row[5],
+
+        "abrir_caixa": row[6],
+        "fechar_caixa": row[7],
+        "realizar_venda": row[8],
+        "cadastrar_cliente": row[9],
+        "ver_financeiro": row[10],
+        "contas_pagar": row[11],
+        "configuracoes": row[12],
+        "usuarios": row[13],
+        "cadastrar_produto": row[14],
+    }
+
+    return dados
+
+
+# =====================================
+# LOGIN
+# =====================================
 def tela_login():
 
     st.markdown("""
-    <style>
-
-    .stApp {
-        background: linear-gradient(
-            135deg,
-            #0f1117 0%,
-            #111827 50%,
-            #0b0f14 100%
-        );
-    }
-
-    .login-box {
-
-        background: rgba(17, 24, 39, 0.92);
-
-        padding: 40px;
-
-        border-radius: 20px;
-
-        border: 1px solid rgba(255,255,255,0.08);
-
-        box-shadow:
-            0 0 30px rgba(68,214,44,0.15);
-
-        max-width: 420px;
-
-        margin: auto;
-
-        margin-top: 80px;
-    }
-
-    .titulo {
-        text-align: center;
-        font-size: 38px;
-        font-weight: bold;
-        color: white;
-    }
-
-    .subtitulo {
-        text-align: center;
-        color: #9ca3af;
-        margin-bottom: 30px;
-    }
-
-    .verde {
-        color: #44d62c;
-    }
-
-    .stTextInput > div > div > input {
-
-        background-color: #111827;
-
-        color: white;
-
-        border: 1px solid #374151;
-
-        border-radius: 10px;
-    }
-
-    .stButton > button {
-
-        width: 100%;
-
-        background: #44d62c;
-
-        color: black;
-
-        font-weight: bold;
-
-        border: none;
-
-        padding: 14px;
-
-        border-radius: 10px;
-
-        transition: 0.3s;
-    }
-
-    .stButton > button:hover {
-
-        background: #36b61f;
-
-        color: white;
-    }
-
-    </style>
+        <style>
+        .login-box {
+            background-color: #0f172a;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 400px;
+            margin: auto;
+            margin-top: 100px;
+        }
+        </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="login-box">
-
-        <div class="titulo">
-            ERP <span class="verde">Verde Infância</span>
-        </div>
-
-        <div class="subtitulo">
-            Faça login para acessar o sistema
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
+    st.title("🔐 ERP - Login")
 
     usuario = st.text_input("Usuário")
+    senha = st.text_input("Senha", type="password")
 
-    senha = st.text_input(
-        "Senha",
-        type="password"
-    )
+    if st.button("Entrar"):
 
-    if st.button("Entrar no Sistema"):
+        dados = autenticar_usuario(usuario, senha)
 
-        try:
+        if not dados:
+            st.error("Usuário não encontrado.")
+            return
 
-            conn = conectar()
+        if not dados["ativo"]:
+            st.error("Usuário desativado.")
+            return
 
-            if conn is None:
+        # =====================================
+        # VALIDAÇÃO DE SENHA (bcrypt)
+        # =====================================
+        if not bcrypt.checkpw(senha.encode(), dados["senha"].encode()):
+            st.error("Senha inválida.")
+            return
 
-                st.error(
-                    "Erro ao conectar com banco de dados."
-                )
+        # =====================================
+        # REGRA DE SUPER USUÁRIO
+        # =====================================
+        is_admin = dados["perfil"] in ["admin", "diretor"]
 
-                return
+        # =====================================
+        # SET SESSION STATE (MOTOR DO ERP)
+        # =====================================
+        st.session_state["logado"] = True
+        st.session_state["id"] = dados["id"]
+        st.session_state["usuario"] = dados["usuario"]
+        st.session_state["nome"] = dados["nome"]
+        st.session_state["perfil"] = dados["perfil"]
 
-            cur = conn.cursor()
+        # permissões banco
+        st.session_state["abrir_caixa"] = True if is_admin else dados["abrir_caixa"]
+        st.session_state["fechar_caixa"] = True if is_admin else dados["fechar_caixa"]
+        st.session_state["realizar_venda"] = True if is_admin else dados["realizar_venda"]
+        st.session_state["cadastrar_cliente"] = True if is_admin else dados["cadastrar_cliente"]
+        st.session_state["ver_financeiro"] = True if is_admin else dados["ver_financeiro"]
+        st.session_state["contas_pagar"] = True if is_admin else dados["contas_pagar"]
+        st.session_state["configuracoes"] = True if is_admin else dados["configuracoes"]
+        st.session_state["usuarios"] = True if is_admin else dados["usuarios"]
+        st.session_state["cadastrar_produto"] = True if is_admin else dados["cadastrar_produto"]
 
-            cur.execute("""
+        st.success(f"Bem-vindo, {dados['nome']}!")
 
-                SELECT
-
-                    id,
-                    nome,
-                    senha,
-                    perfil,
-
-                    pode_dashboard,
-                    pode_caixa,
-                    pode_clientes,
-                    pode_produtos,
-                    pode_vendas,
-                    pode_financeiro,
-                    pode_contas_pagar,
-                    pode_contas_receber,
-                    pode_despesas,
-                    pode_configuracoes
-
-                FROM usuarios
-
-                WHERE usuario = %s
-
-                AND ativo = TRUE
-
-            """, (usuario,))
-
-            dados = cur.fetchone()
-
-            if dados:
-
-                (
-                    user_id,
-                    nome,
-                    senha_hash,
-                    perfil,
-
-                    pode_dashboard,
-                    pode_caixa,
-                    pode_clientes,
-                    pode_produtos,
-                    pode_vendas,
-                    pode_financeiro,
-                    pode_contas_pagar,
-                    pode_contas_receber,
-                    pode_despesas,
-                    pode_configuracoes
-
-                ) = dados
-
-                if bcrypt.checkpw(
-
-                    senha.encode(),
-                    senha_hash.encode()
-
-                ):
-
-                    # ======================================
-                    # SESSÃO
-                    # ======================================
-                    st.session_state["logado"] = True
-
-                    st.session_state["usuario"] = nome
-
-                    st.session_state["perfil"] = perfil
-
-                    st.session_state["usuario_id"] = user_id
-
-                    # ======================================
-                    # PERMISSÕES
-                    # ======================================
-                    st.session_state["pode_dashboard"] = pode_dashboard
-
-                    st.session_state["pode_caixa"] = pode_caixa
-
-                    st.session_state["pode_clientes"] = pode_clientes
-
-                    st.session_state["pode_produtos"] = pode_produtos
-
-                    st.session_state["pode_vendas"] = pode_vendas
-
-                    st.session_state["pode_financeiro"] = pode_financeiro
-
-                    st.session_state["pode_contas_pagar"] = pode_contas_pagar
-
-                    st.session_state["pode_contas_receber"] = pode_contas_receber
-
-                    st.session_state["pode_despesas"] = pode_despesas
-
-                    st.session_state["pode_configuracoes"] = pode_configuracoes
-
-                    st.success("✅ Login realizado!")
-
-                    st.rerun()
-
-                else:
-
-                    st.error("❌ Senha inválida")
-
-            else:
-
-                st.error("❌ Usuário não encontrado")
-
-            cur.close()
-
-            conn.close()
-
-        except Exception as erro:
-
-            st.error(f"Erro: {erro}")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.rerun()

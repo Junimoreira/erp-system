@@ -2,7 +2,7 @@ import streamlit as st
 
 
 # =========================
-# CONFIGURAÇÃO DA PÁGINA (TEM QUE SER PRIMEIRO)
+# CONFIGURAÇÃO DA PÁGINA
 # =========================
 st.set_page_config(
     page_title="ERP Verde Infância",
@@ -14,15 +14,15 @@ st.set_page_config(
 # =========================
 # CSS GLOBAL
 # =========================
-try:
-    with open("styles/styles.css", encoding="utf-8") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-except:
-    pass
+with open("styles/styles.css", encoding="utf-8") as f:
+    st.markdown(
+        f"<style>{f.read()}</style>",
+        unsafe_allow_html=True
+    )
 
 
 # =========================
-# IMPORTAÇÃO DAS TELAS
+# TELAS
 # =========================
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
@@ -39,7 +39,7 @@ from telas.caixa import tela_caixa
 
 
 # =========================
-# SESSÃO INICIAL
+# SESSÃO
 # =========================
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
@@ -54,67 +54,44 @@ if not st.session_state["logado"]:
 
 
 # =========================
-# SUPER USUÁRIO (REGRA DE OURO)
-# =========================
-perfil = st.session_state.get("perfil")
-
-if perfil in ["admin", "diretor"]:
-    st.session_state["abrir_caixa"] = True
-    st.session_state["fechar_caixa"] = True
-    st.session_state["realizar_venda"] = True
-    st.session_state["cadastrar_cliente"] = True
-    st.session_state["cadastrar_produto"] = True
-    st.session_state["ver_financeiro"] = True
-    st.session_state["contas_pagar"] = True
-    st.session_state["configuracoes"] = True
-    st.session_state["usuarios"] = True
-
-
-# =========================
-# MENU BASE (COM PERMISSÕES REAIS DO BANCO)
+# MENU BASE (COM PERMISSÕES)
 # =========================
 menu_opcoes = []
 
-menu_opcoes.append("🏠 Dashboard")
+if st.session_state.get("pode_dashboard"):
+    menu_opcoes.append("🏠 Dashboard")
 
-if st.session_state.get("abrir_caixa"):
+if st.session_state.get("pode_caixa"):
     menu_opcoes.append("💰 Caixa")
 
-if st.session_state.get("cadastrar_cliente"):
+if st.session_state.get("pode_clientes"):
     menu_opcoes.append("👥 Clientes")
 
-if st.session_state.get("cadastrar_produto"):
+if st.session_state.get("pode_produtos"):
     menu_opcoes.append("📦 Produtos")
 
 menu_opcoes.append("💰 Movimentações")
 
-if st.session_state.get("realizar_venda"):
+if st.session_state.get("pode_vendas"):
     menu_opcoes.append("🛒 Vendas")
+
+if st.session_state.get("pode_despesas"):
+    menu_opcoes.append("💸 Despesas")
 
 menu_opcoes.append("🏦 Contas")
 
-if st.session_state.get("contas_pagar"):
+if st.session_state.get("pode_contas_pagar"):
     menu_opcoes.append("📤 Contas a Pagar")
 
-if st.session_state.get("ver_financeiro"):
+if st.session_state.get("pode_contas_receber"):
     menu_opcoes.append("📥 Contas a Receber")
 
-menu_opcoes.append("💸 Despesas")
-
-if st.session_state.get("configuracoes"):
+if st.session_state.get("pode_configuracoes"):
     menu_opcoes.append("⚙️ Configurações")
 
 
 # =========================
-# PROTEÇÃO MENU VAZIO
-# =========================
-if not menu_opcoes:
-    st.error("⛔ Usuário sem permissões liberadas.")
-    st.stop()
-
-
-# =========================
-# SIDEBAR
+# SISTEMA PRINCIPAL
 # =========================
 with st.sidebar:
 
@@ -129,7 +106,7 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-    st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
+    st.success(f"👤 {st.session_state['usuario']}")
 
     st.divider()
 
@@ -143,7 +120,7 @@ with st.sidebar:
 
 
 # =========================
-# BLOQUEIO
+# PROTEÇÃO DE ACESSO
 # =========================
 def bloquear(permissao):
     if not st.session_state.get(permissao, False):
@@ -155,41 +132,43 @@ def bloquear(permissao):
 # ROTAS
 # =========================
 if menu == "🏠 Dashboard":
+    bloquear("pode_dashboard")
     tela_dashboard()
 
 elif menu == "💰 Caixa":
-    bloquear("abrir_caixa")
+    bloquear("pode_caixa")
     tela_caixa()
 
 elif menu == "👥 Clientes":
-    bloquear("cadastrar_cliente")
+    bloquear("pode_clientes")
     tela_clientes()
 
 elif menu == "📦 Produtos":
-    bloquear("cadastrar_produto")
+    bloquear("pode_produtos")
     tela_produtos()
 
 elif menu == "💰 Movimentações":
     tela_movimentacoes()
 
 elif menu == "🛒 Vendas":
-    bloquear("realizar_venda")
+    bloquear("pode_vendas")
     tela_vendas()
 
 elif menu == "💸 Despesas":
+    bloquear("pode_despesas")
     tela_despesas()
 
 elif menu == "🏦 Contas":
     tela_contas()
 
 elif menu == "📤 Contas a Pagar":
-    bloquear("contas_pagar")
+    bloquear("pode_contas_pagar")
     tela_contas_pagar()
 
 elif menu == "📥 Contas a Receber":
-    bloquear("ver_financeiro")
+    bloquear("pode_contas_receber")
     tela_contas_receber()
 
 elif menu == "⚙️ Configurações":
-    bloquear("configuracoes")
+    bloquear("pode_configuracoes")
     tela_configuracoes()
