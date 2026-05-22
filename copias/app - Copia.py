@@ -2,7 +2,7 @@ import streamlit as st
 
 
 # =========================
-# CONFIGURAÇÃO DA PÁGINA
+# CONFIGURAÇÃO
 # =========================
 st.set_page_config(
     page_title="ERP Verde Infância",
@@ -14,16 +14,18 @@ st.set_page_config(
 # =========================
 # CSS GLOBAL
 # =========================
-with open("styles/styles.css", encoding="utf-8") as f:
-    st.markdown(
-        f"<style>{f.read()}</style>",
-        unsafe_allow_html=True
-    )
+try:
+    with open("styles/styles.css", encoding="utf-8") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+except:
+    pass
 
 
 # =========================
-# TELAS
+# IMPORTAÇÃO DAS TELAS
 # =========================
+from telas.painel_admin_permissoes import tela_painel_permissoes
+
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.vendas import tela_vendas
@@ -54,44 +56,104 @@ if not st.session_state["logado"]:
 
 
 # =========================
-# MENU BASE (COM PERMISSÕES)
+# SUPER USUÁRIO
+# =========================
+#perfil = st.session_state.get("perfil")
+
+#if perfil in ["admin", "diretor"]:
+ #   st.session_state["abrir_caixa"] = True
+  #  st.session_state["cadastrar_cliente"] = True
+    #st.session_state["cadastrar_produto"] = True
+    #st.session_state["realizar_venda"] = True
+    #st.session_state["ver_financeiro"] = True
+    #st.session_state["contas_pagar"] = True
+    #st.session_state["configuracoes"] = True
+    #st.session_state["usuarios"] = True
+
+    if st.session_state.get("usuarios"):
+        menu_opcoes.append("🔐 Permissões")
+
+
+
+# =========================
+# PERMISSÕES PADRÃO (EVITA BUGS)
+# =========================
+permissoes_padrao = [
+    "abrir_caixa",
+    "cadastrar_cliente",
+    "cadastrar_produto",
+    "realizar_venda",
+    "ver_financeiro",
+    "contas_pagar",
+    "configuracoes",
+    "usuarios"
+]
+
+for p in permissoes_padrao:
+    if p not in st.session_state:
+        st.session_state[p] = False
+
+
+# =========================
+# SUPER USUÁRIO (ADMIN/DIRETOR)
+# =========================
+perfil = st.session_state.get("perfil")
+
+if perfil in ["admin", "diretor"]:
+    for p in permissoes_padrao:
+        st.session_state[p] = True
+
+
+# =========================
+# MENU BASE (CORRETO)
 # =========================
 menu_opcoes = []
 
-if st.session_state.get("pode_dashboard"):
-    menu_opcoes.append("🏠 Dashboard")
+menu_opcoes.append("🏠 Dashboard")
 
-if st.session_state.get("pode_caixa"):
+if st.session_state.get("abrir_caixa"):
     menu_opcoes.append("💰 Caixa")
 
-if st.session_state.get("pode_clientes"):
+if st.session_state.get("cadastrar_cliente"):
     menu_opcoes.append("👥 Clientes")
 
-if st.session_state.get("pode_produtos"):
+if st.session_state.get("cadastrar_produto"):
     menu_opcoes.append("📦 Produtos")
 
 menu_opcoes.append("💰 Movimentações")
 
-if st.session_state.get("pode_vendas"):
+if st.session_state.get("realizar_venda"):
     menu_opcoes.append("🛒 Vendas")
-
-if st.session_state.get("pode_despesas"):
-    menu_opcoes.append("💸 Despesas")
 
 menu_opcoes.append("🏦 Contas")
 
-if st.session_state.get("pode_contas_pagar"):
+if st.session_state.get("contas_pagar"):
     menu_opcoes.append("📤 Contas a Pagar")
 
-if st.session_state.get("pode_contas_receber"):
+if st.session_state.get("ver_financeiro"):
     menu_opcoes.append("📥 Contas a Receber")
 
-if st.session_state.get("pode_configuracoes"):
+menu_opcoes.append("💸 Despesas")
+
+if st.session_state.get("configuracoes"):
     menu_opcoes.append("⚙️ Configurações")
 
 
+# 🔥 MENU ADMIN (CORRETO — AQUI ESTAVA O ERRO)
+if perfil in ["admin", "diretor"]:
+    menu_opcoes.append("🔐 Permissões")
+
+
 # =========================
-# SISTEMA PRINCIPAL
+# PROTEÇÃO MENU VAZIO
+# =========================
+if len(menu_opcoes) <= 1:
+    st.error("⛔ Usuário sem permissões liberadas.")
+    st.stop()
+
+
+# =========================
+# SIDEBAR
 # =========================
 with st.sidebar:
 
@@ -106,7 +168,7 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-    st.success(f"👤 {st.session_state['usuario']}")
+    st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
 
     st.divider()
 
@@ -120,7 +182,7 @@ with st.sidebar:
 
 
 # =========================
-# PROTEÇÃO DE ACESSO
+# BLOQUEIO
 # =========================
 def bloquear(permissao):
     if not st.session_state.get(permissao, False):
@@ -132,43 +194,44 @@ def bloquear(permissao):
 # ROTAS
 # =========================
 if menu == "🏠 Dashboard":
-    bloquear("pode_dashboard")
     tela_dashboard()
 
 elif menu == "💰 Caixa":
-    bloquear("pode_caixa")
+    bloquear("abrir_caixa")
     tela_caixa()
 
 elif menu == "👥 Clientes":
-    bloquear("pode_clientes")
+    bloquear("cadastrar_cliente")
     tela_clientes()
 
 elif menu == "📦 Produtos":
-    bloquear("pode_produtos")
+    bloquear("cadastrar_produto")
     tela_produtos()
 
 elif menu == "💰 Movimentações":
     tela_movimentacoes()
 
 elif menu == "🛒 Vendas":
-    bloquear("pode_vendas")
+    bloquear("realizar_venda")
     tela_vendas()
 
 elif menu == "💸 Despesas":
-    bloquear("pode_despesas")
     tela_despesas()
 
 elif menu == "🏦 Contas":
     tela_contas()
 
 elif menu == "📤 Contas a Pagar":
-    bloquear("pode_contas_pagar")
+    bloquear("contas_pagar")
     tela_contas_pagar()
 
 elif menu == "📥 Contas a Receber":
-    bloquear("pode_contas_receber")
+    bloquear("ver_financeiro")
     tela_contas_receber()
 
+elif menu == "🔐 Permissões":
+    tela_painel_permissoes()
+
 elif menu == "⚙️ Configurações":
-    bloquear("pode_configuracoes")
+    bloquear("configuracoes")
     tela_configuracoes()

@@ -28,13 +28,17 @@ def listar_usuarios():
                 perfil,
                 ativo,
 
-                pode_caixa,
-                pode_vendas,
-                pode_produtos,
-                pode_clientes,
-                pode_financeiro,
-                pode_configuracoes,
-                pode_usuarios
+                abrir_caixa,
+                fechar_caixa,
+                realizar_venda,
+                cadastrar_cliente,
+                cadastrar_produto,
+                ver_financeiro,
+                contas_pagar,
+                configuracoes,
+                usuarios,
+                ver_contas,
+                ver_despesas
 
             FROM usuarios
 
@@ -66,13 +70,17 @@ def criar_usuario(
     senha,
     perfil,
 
-    pode_caixa,
-    pode_vendas,
-    pode_produtos,
-    pode_clientes,
-    pode_financeiro,
-    pode_configuracoes,
-    pode_usuarios
+    abrir_caixa,
+    fechar_caixa,
+    realizar_venda,
+    cadastrar_cliente,
+    cadastrar_produto,
+    ver_financeiro,
+    contas_pagar,
+    configuracoes,
+    usuarios,
+    ver_contas,
+    ver_despesas
 ):
 
     conn = conectar()
@@ -99,13 +107,17 @@ def criar_usuario(
                 perfil,
                 ativo,
 
-                pode_caixa,
-                pode_vendas,
-                pode_produtos,
-                pode_clientes,
-                pode_financeiro,
-                pode_configuracoes,
-                pode_usuarios
+                abrir_caixa,
+                fechar_caixa,
+                realizar_venda,
+                cadastrar_cliente,
+                cadastrar_produto,
+                ver_financeiro,
+                contas_pagar,
+                configuracoes,
+                usuarios,
+                ver_contas,
+                ver_despesas
 
             )
 
@@ -123,6 +135,10 @@ def criar_usuario(
                 %s,
                 %s,
                 %s,
+                %s,
+                %s,
+                %s,
+                %s,
                 %s
 
             )
@@ -134,13 +150,17 @@ def criar_usuario(
             senha_hash,
             perfil,
 
-            pode_caixa,
-            pode_vendas,
-            pode_produtos,
-            pode_clientes,
-            pode_financeiro,
-            pode_configuracoes,
-            pode_usuarios
+            abrir_caixa,
+            fechar_caixa,
+            realizar_venda,
+            cadastrar_cliente,
+            cadastrar_produto,
+            ver_financeiro,
+            contas_pagar,
+            configuracoes,
+            usuarios,
+            ver_contas,
+            ver_despesas
 
         ))
 
@@ -169,13 +189,17 @@ def atualizar_permissoes(
 
     usuario_id,
 
-    pode_caixa,
-    pode_vendas,
-    pode_produtos,
-    pode_clientes,
-    pode_financeiro,
-    pode_configuracoes,
-    pode_usuarios
+    abrir_caixa,
+    fechar_caixa,
+    realizar_venda,
+    cadastrar_cliente,
+    cadastrar_produto,
+    ver_financeiro,
+    contas_pagar,
+    configuracoes,
+    usuarios,
+    ver_contas,
+    ver_despesas
 
 ):
 
@@ -194,25 +218,33 @@ def atualizar_permissoes(
 
             SET
 
-                pode_caixa = %s,
-                pode_vendas = %s,
-                pode_produtos = %s,
-                pode_clientes = %s,
-                pode_financeiro = %s,
-                pode_configuracoes = %s,
-                pode_usuarios = %s
+                abrir_caixa = %s,
+                fechar_caixa = %s,
+                realizar_venda = %s,
+                cadastrar_cliente = %s,
+                cadastrar_produto = %s,
+                ver_financeiro = %s,
+                contas_pagar = %s,
+                configuracoes = %s,
+                usuarios = %s,
+                ver_contas = %s,
+                ver_despesas = %s
 
             WHERE id = %s
 
         """, (
 
-            pode_caixa,
-            pode_vendas,
-            pode_produtos,
-            pode_clientes,
-            pode_financeiro,
-            pode_configuracoes,
-            pode_usuarios,
+            abrir_caixa,
+            fechar_caixa,
+            realizar_venda,
+            cadastrar_cliente,
+            cadastrar_produto,
+            ver_financeiro,
+            contas_pagar,
+            configuracoes,
+            usuarios,
+            ver_contas,
+            ver_despesas,
 
             usuario_id
 
@@ -310,7 +342,7 @@ def tela_usuarios():
 
             st.dataframe(
                 df,
-                width="stretch"
+                use_container_width=True
             )
 
             st.divider()
@@ -334,40 +366,66 @@ def tela_usuarios():
 
             st.subheader("Permissões")
 
-            pode_caixa = st.checkbox(
-                "Caixa",
-                value=bool(dados["pode_caixa"])
-            )
+            col1, col2 = st.columns(2)
 
-            pode_vendas = st.checkbox(
-                "Vendas",
-                value=bool(dados["pode_vendas"])
-            )
+            with col1:
 
-            pode_produtos = st.checkbox(
-                "Produtos",
-                value=bool(dados["pode_produtos"])
-            )
+                abrir_caixa = st.checkbox(
+                    "Abrir Caixa",
+                    value=bool(dados["abrir_caixa"])
+                )
 
-            pode_clientes = st.checkbox(
-                "Clientes",
-                value=bool(dados["pode_clientes"])
-            )
+                fechar_caixa = st.checkbox(
+                    "Fechar Caixa",
+                    value=bool(dados["fechar_caixa"])
+                )
 
-            pode_financeiro = st.checkbox(
-                "Financeiro",
-                value=bool(dados["pode_financeiro"])
-            )
+                realizar_venda = st.checkbox(
+                    "Realizar Venda",
+                    value=bool(dados["realizar_venda"])
+                )
 
-            pode_configuracoes = st.checkbox(
-                "Configurações",
-                value=bool(dados["pode_configuracoes"])
-            )
+                cadastrar_cliente = st.checkbox(
+                    "Cadastrar Cliente",
+                    value=bool(dados["cadastrar_cliente"])
+                )
 
-            pode_usuarios = st.checkbox(
-                "Usuários",
-                value=bool(dados["pode_usuarios"])
-            )
+                cadastrar_produto = st.checkbox(
+                    "Cadastrar Produto",
+                    value=bool(dados["cadastrar_produto"])
+                )
+
+                ver_contas = st.checkbox(
+                    "Ver Contas",
+                    value=bool(dados["ver_contas"])
+                )
+
+            with col2:
+
+                ver_financeiro = st.checkbox(
+                    "Ver Financeiro",
+                    value=bool(dados["ver_financeiro"])
+                )
+
+                contas_pagar = st.checkbox(
+                    "Contas a Pagar",
+                    value=bool(dados["contas_pagar"])
+                )
+
+                ver_despesas = st.checkbox(
+                    "Ver Despesas",
+                    value=bool(dados["ver_despesas"])
+                )
+
+                configuracoes = st.checkbox(
+                    "Configurações",
+                    value=bool(dados["configuracoes"])
+                )
+
+                usuarios = st.checkbox(
+                    "Usuários",
+                    value=bool(dados["usuarios"])
+                )
 
             if st.button("💾 Salvar Permissões"):
 
@@ -375,13 +433,17 @@ def tela_usuarios():
 
                     usuario_id=int(dados["id"]),
 
-                    pode_caixa=pode_caixa,
-                    pode_vendas=pode_vendas,
-                    pode_produtos=pode_produtos,
-                    pode_clientes=pode_clientes,
-                    pode_financeiro=pode_financeiro,
-                    pode_configuracoes=pode_configuracoes,
-                    pode_usuarios=pode_usuarios
+                    abrir_caixa=abrir_caixa,
+                    fechar_caixa=fechar_caixa,
+                    realizar_venda=realizar_venda,
+                    cadastrar_cliente=cadastrar_cliente,
+                    cadastrar_produto=cadastrar_produto,
+                    ver_financeiro=ver_financeiro,
+                    contas_pagar=contas_pagar,
+                    configuracoes=configuracoes,
+                    usuarios=usuarios,
+                    ver_contas=ver_contas,
+                    ver_despesas=ver_despesas
                 )
 
                 if sucesso:
@@ -441,9 +503,9 @@ def tela_usuarios():
             "Perfil",
 
             [
-                "Diretor",
-                "Administrador",
-                "Atendente"
+                "diretor",
+                "admin",
+                "atendente"
             ]
 
         )
@@ -452,19 +514,19 @@ def tela_usuarios():
 
         st.subheader("Permissões")
 
-        pode_caixa = st.checkbox("Caixa", value=True)
+        abrir_caixa = st.checkbox("Abrir Caixa", value=True)
+        fechar_caixa = st.checkbox("Fechar Caixa")
+        realizar_venda = st.checkbox("Realizar Venda", value=True)
+        cadastrar_cliente = st.checkbox("Cadastrar Cliente", value=True)
+        cadastrar_produto = st.checkbox("Cadastrar Produto", value=True)
 
-        pode_vendas = st.checkbox("Vendas", value=True)
+        ver_financeiro = st.checkbox("Ver Financeiro")
+        contas_pagar = st.checkbox("Contas a Pagar")
+        ver_contas = st.checkbox("Ver Contas")
+        ver_despesas = st.checkbox("Ver Despesas")
 
-        pode_produtos = st.checkbox("Produtos", value=True)
-
-        pode_clientes = st.checkbox("Clientes", value=True)
-
-        pode_financeiro = st.checkbox("Financeiro")
-
-        pode_configuracoes = st.checkbox("Configurações")
-
-        pode_usuarios = st.checkbox("Usuários")
+        configuracoes = st.checkbox("Configurações")
+        usuarios = st.checkbox("Usuários")
 
         if st.button("🚀 Criar Usuário"):
 
@@ -483,13 +545,17 @@ def tela_usuarios():
                     senha=senha,
                     perfil=perfil,
 
-                    pode_caixa=pode_caixa,
-                    pode_vendas=pode_vendas,
-                    pode_produtos=pode_produtos,
-                    pode_clientes=pode_clientes,
-                    pode_financeiro=pode_financeiro,
-                    pode_configuracoes=pode_configuracoes,
-                    pode_usuarios=pode_usuarios
+                    abrir_caixa=abrir_caixa,
+                    fechar_caixa=fechar_caixa,
+                    realizar_venda=realizar_venda,
+                    cadastrar_cliente=cadastrar_cliente,
+                    cadastrar_produto=cadastrar_produto,
+                    ver_financeiro=ver_financeiro,
+                    contas_pagar=contas_pagar,
+                    configuracoes=configuracoes,
+                    usuarios=usuarios,
+                    ver_contas=ver_contas,
+                    ver_despesas=ver_despesas
                 )
 
                 if sucesso:

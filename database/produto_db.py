@@ -2,6 +2,7 @@
 
 from database.connection import conectar
 import pandas as pd
+import streamlit as st
 
 
 # =====================================
@@ -19,65 +20,50 @@ def listar_produtos():
             referencia,
             marca,
             categoria,
-
             codigo_barras,
-
             unidade,
             ncm,
             cest,
             cfop_padrao,
-
             custo,
             preco,
             margem_lucro,
-
             estoque,
             estoque_minimo,
             localizacao,
-
             ativo,
             observacoes,
-
             data_cadastro
-
         FROM produtos
-
         ORDER BY id DESC
     """
 
     df = pd.read_sql(query, conn)
-
     conn.close()
 
     return df
 
 
 # =====================================
-# CADASTRAR PRODUTO
+# CADASTRAR PRODUTO (COM PROTEÇÃO DUPLICIDADE)
 # =====================================
 def cadastrar_produto(
-
     nome,
     preco,
     estoque,
     codigo_barras,
-
     sku,
     referencia,
     marca,
     categoria,
-
     unidade,
     ncm,
     cest,
     cfop_padrao,
-
     custo,
     margem_lucro,
-
     estoque_minimo,
     localizacao,
-
     ativo,
     observacoes
 ):
@@ -85,110 +71,116 @@ def cadastrar_produto(
     conn = conectar()
     cursor = conn.cursor()
 
-    query = """
-        INSERT INTO produtos (
+    try:
 
+        # =====================================
+        # CHECAGEM ANTES DE INSERIR
+        # =====================================
+        if codigo_barras:
+            cursor.execute("""
+                SELECT id FROM produtos
+                WHERE codigo_barras = %s
+                LIMIT 1
+            """, (codigo_barras,))
+
+            if cursor.fetchone():
+                st.error("⚠️ Já existe produto com este código de barras.")
+                return False
+
+        query = """
+            INSERT INTO produtos (
+                nome,
+                preco,
+                estoque,
+                codigo_barras,
+                sku,
+                referencia,
+                marca,
+                categoria,
+                unidade,
+                ncm,
+                cest,
+                cfop_padrao,
+                custo,
+                margem_lucro,
+                estoque_minimo,
+                localizacao,
+                ativo,
+                observacoes
+            )
+            VALUES (
+                %s,%s,%s,%s,
+                %s,%s,%s,%s,
+                %s,%s,%s,%s,
+                %s,%s,
+                %s,%s,
+                %s,%s
+            )
+        """
+
+        cursor.execute(query, (
             nome,
             preco,
             estoque,
             codigo_barras,
-
             sku,
             referencia,
             marca,
             categoria,
-
             unidade,
             ncm,
             cest,
             cfop_padrao,
-
             custo,
             margem_lucro,
-
             estoque_minimo,
             localizacao,
-
             ativo,
             observacoes
+        ))
 
-        )
+        conn.commit()
+        return True
 
-        VALUES (
+    except Exception as erro:
 
-            %s, %s, %s, %s,
-            %s, %s, %s, %s,
-            %s, %s, %s, %s,
-            %s, %s,
-            %s, %s,
-            %s, %s
+        conn.rollback()
 
-        )
-    """
+        erro_texto = str(erro)
 
-    cursor.execute(query, (
+        if "unique" in erro_texto.lower() and "codigo_barras" in erro_texto:
+            st.error("⚠️ Código de barras já cadastrado.")
+        else:
+            st.error(f"Erro ao cadastrar produto: {erro}")
 
-        nome,
-        preco,
-        estoque,
-        codigo_barras,
+        return False
 
-        sku,
-        referencia,
-        marca,
-        categoria,
-
-        unidade,
-        ncm,
-        cest,
-        cfop_padrao,
-
-        custo,
-        margem_lucro,
-
-        estoque_minimo,
-        localizacao,
-
-        ativo,
-        observacoes
-
-    ))
-
-    conn.commit()
-
-    cursor.close()
-    conn.close()
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # =====================================
 # ATUALIZAR PRODUTO
 # =====================================
 def atualizar_produto(
-
     id_produto,
-
     nome,
     preco,
     estoque,
-
     codigo_barras,
-
     sku,
     referencia,
     marca,
     categoria,
-
     unidade,
     ncm,
     cest,
     cfop_padrao,
-
     custo,
     margem_lucro,
-
     estoque_minimo,
     localizacao,
-
     ativo,
     observacoes
 ):
@@ -196,74 +188,64 @@ def atualizar_produto(
     conn = conectar()
     cursor = conn.cursor()
 
-    query = """
-        UPDATE produtos
+    try:
 
-        SET
+        cursor.execute("""
+            UPDATE produtos
+            SET
+                nome=%s,
+                preco=%s,
+                estoque=%s,
+                codigo_barras=%s,
+                sku=%s,
+                referencia=%s,
+                marca=%s,
+                categoria=%s,
+                unidade=%s,
+                ncm=%s,
+                cest=%s,
+                cfop_padrao=%s,
+                custo=%s,
+                margem_lucro=%s,
+                estoque_minimo=%s,
+                localizacao=%s,
+                ativo=%s,
+                observacoes=%s
+            WHERE id=%s
+        """, (
+            nome,
+            preco,
+            estoque,
+            codigo_barras,
+            sku,
+            referencia,
+            marca,
+            categoria,
+            unidade,
+            ncm,
+            cest,
+            cfop_padrao,
+            custo,
+            margem_lucro,
+            estoque_minimo,
+            localizacao,
+            ativo,
+            observacoes,
+            id_produto
+        ))
 
-            nome = %s,
-            preco = %s,
-            estoque = %s,
+        conn.commit()
+        return True
 
-            codigo_barras = %s,
+    except Exception as erro:
 
-            sku = %s,
-            referencia = %s,
-            marca = %s,
-            categoria = %s,
+        conn.rollback()
+        st.error(f"Erro ao atualizar produto: {erro}")
+        return False
 
-            unidade = %s,
-            ncm = %s,
-            cest = %s,
-            cfop_padrao = %s,
-
-            custo = %s,
-            margem_lucro = %s,
-
-            estoque_minimo = %s,
-            localizacao = %s,
-
-            ativo = %s,
-            observacoes = %s
-
-        WHERE id = %s
-    """
-
-    cursor.execute(query, (
-
-        nome,
-        preco,
-        estoque,
-
-        codigo_barras,
-
-        sku,
-        referencia,
-        marca,
-        categoria,
-
-        unidade,
-        ncm,
-        cest,
-        cfop_padrao,
-
-        custo,
-        margem_lucro,
-
-        estoque_minimo,
-        localizacao,
-
-        ativo,
-        observacoes,
-
-        id_produto
-
-    ))
-
-    conn.commit()
-
-    cursor.close()
-    conn.close()
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # =====================================
@@ -285,7 +267,6 @@ def excluir_produto(produto_id):
         total_vendas = cursor.fetchone()[0]
 
         if total_vendas > 0:
-
             return "possui_vendas"
 
         cursor.execute("""
@@ -294,19 +275,15 @@ def excluir_produto(produto_id):
         """, (produto_id,))
 
         conn.commit()
-
         return True
 
     except Exception as erro:
 
         conn.rollback()
-
-        print("Erro ao excluir produto:", erro)
-
+        st.error(f"Erro ao excluir produto: {erro}")
         return False
 
     finally:
-
         cursor.close()
         conn.close()
 
@@ -319,27 +296,13 @@ def buscar_produto_por_codigo(codigo_barras):
     conn = conectar()
     cursor = conn.cursor()
 
-    query = """
-        SELECT
-
-            id,
-            nome,
-            preco,
-            estoque,
-            codigo_barras,
-
-            custo,
-            unidade,
-            ncm
-
+    cursor.execute("""
+        SELECT id, nome, preco, estoque, codigo_barras,
+               custo, unidade, ncm
         FROM produtos
-
         WHERE codigo_barras = %s
-
         LIMIT 1
-    """
-
-    cursor.execute(query, (codigo_barras,))
+    """, (codigo_barras,))
 
     produto = cursor.fetchone()
 

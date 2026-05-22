@@ -9,6 +9,10 @@ from database.connection import conectar
 def autenticar_usuario(usuario, senha):
 
     conn = conectar()
+
+    if conn is None:
+        return None
+
     cur = conn.cursor()
 
     cur.execute("""
@@ -28,7 +32,9 @@ def autenticar_usuario(usuario, senha):
             contas_pagar,
             configuracoes,
             usuarios,
-            cadastrar_produto
+            cadastrar_produto,
+            ver_contas,
+            ver_despesas
 
         FROM usuarios
         WHERE usuario = %s
@@ -60,6 +66,8 @@ def autenticar_usuario(usuario, senha):
         "configuracoes": row[12],
         "usuarios": row[13],
         "cadastrar_produto": row[14],
+        "ver_contas": row[15],
+        "ver_despesas": row[16],
     }
 
     return dados
@@ -72,25 +80,69 @@ def tela_login():
 
     st.markdown("""
         <style>
-        .login-box {
-            background-color: #0f172a;
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 400px;
-            margin: auto;
-            margin-top: 100px;
+
+        .stApp {
+            background: linear-gradient(
+                135deg,
+                #0f172a 0%,
+                #111827 50%,
+                #0b1120 100%
+            );
         }
+
+        .titulo-login {
+            text-align: center;
+            color: white;
+            margin-top: 10px;
+            margin-bottom: 30px;
+        }
+
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("🔐 ERP - Login")
+    # =====================================
+    # LOGO CENTRALIZADA
+    # =====================================
+    col1, col2, col3 = st.columns([1, 2, 1])
 
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
+    with col2:
 
-    if st.button("Entrar"):
+        st.image(
+            "assets/Logo1.png",
+            width=240
+        )
 
-        dados = autenticar_usuario(usuario, senha)
+        st.markdown(
+            """
+            <h1 class="titulo-login">
+                🔐 ERP Verde Infância
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # =====================================
+    # CAMPOS LOGIN
+    # =====================================
+    usuario = st.text_input("👤 Usuário")
+
+    senha = st.text_input(
+        "🔐 Senha",
+        type="password"
+    )
+
+    # =====================================
+    # BOTÃO LOGIN
+    # =====================================
+    if st.button(
+        "Entrar",
+        use_container_width=True
+    ):
+
+        dados = autenticar_usuario(
+            usuario,
+            senha
+        )
 
         if not dados:
             st.error("Usuário não encontrado.")
@@ -101,37 +153,47 @@ def tela_login():
             return
 
         # =====================================
-        # VALIDAÇÃO DE SENHA (bcrypt)
+        # VALIDAÇÃO DE SENHA
         # =====================================
-        if not bcrypt.checkpw(senha.encode(), dados["senha"].encode()):
+        if not bcrypt.checkpw(
+            senha.encode(),
+            dados["senha"].encode()
+        ):
             st.error("Senha inválida.")
             return
 
         # =====================================
-        # REGRA DE SUPER USUÁRIO
-        # =====================================
-        is_admin = dados["perfil"] in ["admin", "diretor"]
-
-        # =====================================
-        # SET SESSION STATE (MOTOR DO ERP)
+        # SESSION STATE
         # =====================================
         st.session_state["logado"] = True
+
         st.session_state["id"] = dados["id"]
         st.session_state["usuario"] = dados["usuario"]
         st.session_state["nome"] = dados["nome"]
         st.session_state["perfil"] = dados["perfil"]
 
-        # permissões banco
-        st.session_state["abrir_caixa"] = True if is_admin else dados["abrir_caixa"]
-        st.session_state["fechar_caixa"] = True if is_admin else dados["fechar_caixa"]
-        st.session_state["realizar_venda"] = True if is_admin else dados["realizar_venda"]
-        st.session_state["cadastrar_cliente"] = True if is_admin else dados["cadastrar_cliente"]
-        st.session_state["ver_financeiro"] = True if is_admin else dados["ver_financeiro"]
-        st.session_state["contas_pagar"] = True if is_admin else dados["contas_pagar"]
-        st.session_state["configuracoes"] = True if is_admin else dados["configuracoes"]
-        st.session_state["usuarios"] = True if is_admin else dados["usuarios"]
-        st.session_state["cadastrar_produto"] = True if is_admin else dados["cadastrar_produto"]
+        # =====================================
+        # PERMISSÕES
+        # =====================================
+        st.session_state.update({
 
-        st.success(f"Bem-vindo, {dados['nome']}!")
+            "abrir_caixa": dados["abrir_caixa"],
+            "fechar_caixa": dados["fechar_caixa"],
+            "realizar_venda": dados["realizar_venda"],
+            "cadastrar_cliente": dados["cadastrar_cliente"],
+            "ver_financeiro": dados["ver_financeiro"],
+            "contas_pagar": dados["contas_pagar"],
+            "configuracoes": dados["configuracoes"],
+            "usuarios": dados["usuarios"],
+            "cadastrar_produto": dados["cadastrar_produto"],
+
+            "ver_contas": dados["ver_contas"],
+            "ver_despesas": dados["ver_despesas"]
+
+        })
+
+        st.success(
+            f"Bem-vindo, {dados['nome']}!"
+        )
 
         st.rerun()

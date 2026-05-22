@@ -24,15 +24,14 @@ def verificar_caixa_aberto():
 
         df = pd.read_sql(query, conn)
 
-        if not df.empty:
-            return df.iloc[0]
+        if df.empty:
+            return None
 
-        return None
+        return df.iloc[0]
 
     except Exception as erro:
 
         print("Erro ao verificar caixa:", erro)
-
         return None
 
     finally:
@@ -58,7 +57,6 @@ def abrir_caixa(usuario, saldo_inicial):
 
         cursor.execute("""
             INSERT INTO caixa (
-
                 usuario,
                 data_abertura,
                 saldo_inicial,
@@ -68,10 +66,8 @@ def abrir_caixa(usuario, saldo_inicial):
                 valor_conferido,
                 diferenca,
                 status
-
             )
             VALUES (
-
                 %s,
                 CURRENT_TIMESTAMP,
                 %s,
@@ -81,25 +77,19 @@ def abrir_caixa(usuario, saldo_inicial):
                 0,
                 0,
                 'aberto'
-
             )
         """, (
-
             usuario,
             saldo_inicial
-
         ))
 
         conn.commit()
-
         return True
 
     except Exception as erro:
 
         conn.rollback()
-
         print("Erro ao abrir caixa:", erro)
-
         return False
 
     finally:
@@ -116,7 +106,7 @@ def resumo_caixa(caixa_id):
     conn = conectar()
 
     if conn is None:
-        return None
+        return {"entradas": 0, "saidas": 0}
 
     cursor = conn.cursor()
 
@@ -124,9 +114,6 @@ def resumo_caixa(caixa_id):
 
         caixa_id = int(caixa_id)
 
-        # ==================================================
-        # ENTRADAS
-        # ==================================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM movimentacoes
@@ -136,9 +123,6 @@ def resumo_caixa(caixa_id):
 
         entradas = float(cursor.fetchone()[0])
 
-        # ==================================================
-        # SAÍDAS
-        # ==================================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM movimentacoes
@@ -149,22 +133,15 @@ def resumo_caixa(caixa_id):
         saidas = float(cursor.fetchone()[0])
 
         return {
-
             "entradas": entradas,
             "saidas": saidas
-
         }
 
     except Exception as erro:
 
         print("Erro no resumo do caixa:", erro)
 
-        return {
-
-            "entradas": 0,
-            "saidas": 0
-
-        }
+        return {"entradas": 0, "saidas": 0}
 
     finally:
 
@@ -193,21 +170,9 @@ def fechar_caixa(
 
     try:
 
-        caixa_id = int(caixa_id)
-
-        total_entradas = float(total_entradas)
-        total_saidas = float(total_saidas)
-
-        saldo_final = float(saldo_final)
-
-        valor_conferido = float(valor_conferido)
-
-        diferenca = float(diferenca)
-
         cursor.execute("""
             UPDATE caixa
             SET
-
                 data_fechamento = CURRENT_TIMESTAMP,
                 total_entradas = %s,
                 total_saidas = %s,
@@ -215,29 +180,23 @@ def fechar_caixa(
                 valor_conferido = %s,
                 diferenca = %s,
                 status = 'fechado'
-
             WHERE id = %s
         """, (
-
-            total_entradas,
-            total_saidas,
-            saldo_final,
-            valor_conferido,
-            diferenca,
-            caixa_id
-
+            float(total_entradas),
+            float(total_saidas),
+            float(saldo_final),
+            float(valor_conferido),
+            float(diferenca),
+            int(caixa_id)
         ))
 
         conn.commit()
-
         return True
 
     except Exception as erro:
 
         conn.rollback()
-
         print("Erro ao fechar caixa:", erro)
-
         return False
 
     finally:
@@ -258,36 +217,69 @@ def listar_movimentacoes_caixa(caixa_id):
 
     try:
 
-        caixa_id = int(caixa_id)
-
         query = """
             SELECT
-
                 tipo,
                 valor,
                 descricao,
                 origem,
                 data_movimentacao
-
             FROM movimentacoes
-
             WHERE caixa_id = %s
-
             ORDER BY data_movimentacao DESC
         """
 
-        df = pd.read_sql(
-            query,
-            conn,
-            params=(caixa_id,)
-        )
+        df = pd.read_sql(query, conn, params=(int(caixa_id),))
 
         return df
 
     except Exception as erro:
 
         print("Erro ao listar movimentações:", erro)
+        return pd.DataFrame()
 
+    finally:
+
+        conn.close()
+
+
+# ==================================================
+# 🔥 NOVO: LISTAR CAIXA POR PERÍODO (RELATÓRIO)
+# ==================================================
+def listar_caixa_periodo(data_inicio, data_fim):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+
+        query = """
+            SELECT
+                id,
+                usuario,
+                data_abertura,
+                data_fechamento,
+                saldo_inicial,
+                total_entradas,
+                total_saidas,
+                saldo_final,
+                valor_conferido,
+                diferenca,
+                status
+            FROM caixa
+            WHERE DATE(data_abertura) BETWEEN %s AND %s
+            ORDER BY data_abertura DESC
+        """
+
+        df = pd.read_sql(query, conn, params=(data_inicio, data_fim))
+
+        return df
+
+    except Exception as erro:
+
+        print("Erro ao listar caixa por período:", erro)
         return pd.DataFrame()
 
     finally:
