@@ -103,7 +103,7 @@ def tela_login():
     # LOGO (CORRIGIDO PARA RENDER)
     # =====================================
 
-    logo_path = "assets/Logo.png"
+    logo_path = "assets/logo1.png"
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
