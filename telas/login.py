@@ -1,5 +1,6 @@
 import streamlit as st
 import bcrypt
+import os
 from database.connection import conectar
 
 
@@ -49,7 +50,7 @@ def autenticar_usuario(usuario, senha):
     if not row:
         return None
 
-    dados = {
+    return {
         "id": row[0],
         "nome": row[1],
         "usuario": row[2],
@@ -69,8 +70,6 @@ def autenticar_usuario(usuario, senha):
         "ver_contas": row[15],
         "ver_despesas": row[16],
     }
-
-    return dados
 
 
 # =====================================
@@ -101,16 +100,19 @@ def tela_login():
     """, unsafe_allow_html=True)
 
     # =====================================
-    # LOGO CENTRALIZADA
+    # LOGO (CORRIGIDO PARA RENDER)
     # =====================================
+
+    logo_path = "assets/Logo.png"
+
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
 
-        st.image(
-            "assets/Logo1.png",
-            width=240
-        )
+        if os.path.exists(logo_path):
+            st.image(logo_path, width=240)
+        else:
+            st.warning("Logo não encontrada (verifique assets/logo.png)")
 
         st.markdown(
             """
@@ -125,24 +127,14 @@ def tela_login():
     # CAMPOS LOGIN
     # =====================================
     usuario = st.text_input("👤 Usuário")
-
-    senha = st.text_input(
-        "🔐 Senha",
-        type="password"
-    )
+    senha = st.text_input("🔐 Senha", type="password")
 
     # =====================================
     # BOTÃO LOGIN
     # =====================================
-    if st.button(
-        "Entrar",
-        use_container_width=True
-    ):
+    if st.button("Entrar", use_container_width=True):
 
-        dados = autenticar_usuario(
-            usuario,
-            senha
-        )
+        dados = autenticar_usuario(usuario, senha)
 
         if not dados:
             st.error("Usuário não encontrado.")
@@ -166,7 +158,6 @@ def tela_login():
         # SESSION STATE
         # =====================================
         st.session_state["logado"] = True
-
         st.session_state["id"] = dados["id"]
         st.session_state["usuario"] = dados["usuario"]
         st.session_state["nome"] = dados["nome"]
@@ -176,7 +167,6 @@ def tela_login():
         # PERMISSÕES
         # =====================================
         st.session_state.update({
-
             "abrir_caixa": dados["abrir_caixa"],
             "fechar_caixa": dados["fechar_caixa"],
             "realizar_venda": dados["realizar_venda"],
@@ -186,14 +176,9 @@ def tela_login():
             "configuracoes": dados["configuracoes"],
             "usuarios": dados["usuarios"],
             "cadastrar_produto": dados["cadastrar_produto"],
-
             "ver_contas": dados["ver_contas"],
             "ver_despesas": dados["ver_despesas"]
-
         })
 
-        st.success(
-            f"Bem-vindo, {dados['nome']}!"
-        )
-
+        st.success(f"Bem-vindo, {dados['nome']}!")
         st.rerun()
