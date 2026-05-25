@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
 from database.connection import conectar
 
@@ -16,9 +17,14 @@ def listar_contas_pagar():
         SELECT
             id,
             descricao,
+            categoria,
+            tipo,
             valor,
             vencimento,
             status,
+            forma_pagamento,
+            recorrente,
+            data_pagamento,
             observacoes
         FROM contas_pagar
         ORDER BY vencimento ASC
@@ -37,8 +43,12 @@ def listar_contas_pagar():
 
 def cadastrar_conta_pagar(
     descricao,
+    categoria,
+    tipo,
     valor,
     vencimento,
+    forma_pagamento,
+    recorrente,
     observacoes
 ):
 
@@ -50,16 +60,34 @@ def cadastrar_conta_pagar(
         cursor.execute("""
             INSERT INTO contas_pagar (
                 descricao,
+                categoria,
+                tipo,
                 valor,
                 vencimento,
+                forma_pagamento,
+                recorrente,
                 observacoes,
                 status
             )
-            VALUES (%s, %s, %s, %s, 'Pendente')
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                'Pendente'
+            )
         """, (
             descricao,
+            categoria,
+            tipo,
             valor,
             vencimento,
+            forma_pagamento,
+            recorrente,
             observacoes
         ))
 
@@ -87,8 +115,12 @@ def cadastrar_conta_pagar(
 def atualizar_conta_pagar(
     conta_id,
     descricao,
+    categoria,
+    tipo,
     valor,
     vencimento,
+    forma_pagamento,
+    recorrente,
     observacoes
 ):
 
@@ -101,14 +133,22 @@ def atualizar_conta_pagar(
             UPDATE contas_pagar
             SET
                 descricao = %s,
+                categoria = %s,
+                tipo = %s,
                 valor = %s,
                 vencimento = %s,
+                forma_pagamento = %s,
+                recorrente = %s,
                 observacoes = %s
             WHERE id = %s
         """, (
             descricao,
+            categoria,
+            tipo,
             valor,
             vencimento,
+            forma_pagamento,
+            recorrente,
             observacoes,
             conta_id
         ))
@@ -205,9 +245,14 @@ def pagar_conta(conta_id):
 
         cursor.execute("""
             UPDATE contas_pagar
-            SET status = 'Pago'
+            SET
+                status = 'Pago',
+                data_pagamento = %s
             WHERE id = %s
-        """, (conta_id,))
+        """, (
+            datetime.now(),
+            conta_id
+        ))
 
         cursor.execute("""
             INSERT INTO movimentacoes (
@@ -221,7 +266,7 @@ def pagar_conta(conta_id):
                 %s
             )
         """, (
-            f"Conta a Pagar: {descricao}",
+            f"Conta Paga: {descricao}",
             valor
         ))
 
@@ -275,12 +320,36 @@ def tela_contas_pagar():
                     "Descrição"
                 )
 
+                categoria = st.text_input(
+                    "Categoria"
+                )
+
+                tipo = st.selectbox(
+                    "Tipo",
+                    ["Fixa", "Variável"]
+                )
+
             with col2:
 
                 valor = st.number_input(
                     "Valor",
                     min_value=0.0,
                     format="%.2f"
+                )
+
+                forma_pagamento = st.selectbox(
+                    "Forma de Pagamento",
+                    [
+                        "Dinheiro",
+                        "PIX",
+                        "Cartão",
+                        "Boleto",
+                        "Transferência"
+                    ]
+                )
+
+                recorrente = st.checkbox(
+                    "Conta Recorrente"
                 )
 
             vencimento = st.date_input(
@@ -299,8 +368,12 @@ def tela_contas_pagar():
 
                 sucesso = cadastrar_conta_pagar(
                     descricao,
+                    categoria,
+                    tipo,
                     valor,
                     vencimento,
+                    forma_pagamento,
+                    recorrente,
                     observacoes
                 )
 
@@ -344,6 +417,28 @@ def tela_contas_pagar():
             )
 
         else:
+
+            total_pendente = df[
+                df["status"] == "Pendente"
+            ]["valor"].sum()
+
+            total_pago = df[
+                df["status"] == "Pago"
+            ]["valor"].sum()
+
+            col1, col2 = st.columns(2)
+
+            col1.metric(
+                "💰 Total Pendente",
+                f"R$ {total_pendente:,.2f}"
+            )
+
+            col2.metric(
+                "✅ Total Pago",
+                f"R$ {total_pago:,.2f}"
+            )
+
+            st.divider()
 
             df_exibir = df.copy()
 
@@ -389,6 +484,8 @@ def tela_contas_pagar():
 
                 st.info(f"""
 📌 Descrição: {conta['descricao']}
+📂 Categoria: {conta['categoria']}
+🏷️ Tipo: {conta['tipo']}
 💰 Valor: R$ {conta['valor']:,.2f}
 📅 Vencimento: {conta['vencimento']}
                 """)
@@ -453,10 +550,37 @@ def tela_contas_pagar():
                     value=conta["descricao"]
                 )
 
+                categoria = st.text_input(
+                    "Categoria",
+                    value=conta["categoria"]
+                )
+
+                tipo = st.selectbox(
+                    "Tipo",
+                    ["Fixa", "Variável"],
+                    index=0 if conta["tipo"] == "Fixa" else 1
+                )
+
                 valor = st.number_input(
                     "Valor",
                     value=float(conta["valor"]),
                     format="%.2f"
+                )
+
+                forma_pagamento = st.selectbox(
+                    "Forma de Pagamento",
+                    [
+                        "Dinheiro",
+                        "PIX",
+                        "Cartão",
+                        "Boleto",
+                        "Transferência"
+                    ]
+                )
+
+                recorrente = st.checkbox(
+                    "Conta Recorrente",
+                    value=bool(conta["recorrente"])
                 )
 
                 vencimento = st.date_input(
@@ -478,8 +602,12 @@ def tela_contas_pagar():
                     sucesso = atualizar_conta_pagar(
                         conta["id"],
                         descricao,
+                        categoria,
+                        tipo,
                         valor,
                         vencimento,
+                        forma_pagamento,
+                        recorrente,
                         observacoes
                     )
 

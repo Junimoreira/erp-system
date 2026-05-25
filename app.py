@@ -15,11 +15,17 @@ st.set_page_config(
 # CSS GLOBAL
 # =========================
 try:
-    with open("styles/styles.css", encoding="utf-8") as f:
+
+    with open(
+        "styles/styles.css",
+        encoding="utf-8"
+    ) as f:
+
         st.markdown(
             f"<style>{f.read()}</style>",
             unsafe_allow_html=True
         )
+
 except:
     pass
 
@@ -41,27 +47,37 @@ from telas.contas_receber import tela_contas_receber
 from telas.despesas import tela_despesas
 from telas.configuracoes import tela_configuracoes
 
+from telas.compras import tela_compras
+from telas.fornecedores import tela_fornecedores
+
 from telas.painel_admin_permissoes import (
     tela_painel_permissoes
 )
 
-# ⚠ IMPORTANTE:
-# Só mantenha esta importação se o arquivo existir
-# telas/usuarios.py
+
+# =========================
+# USUÁRIOS
+# =========================
 try:
+
     from telas.usuarios import tela_usuarios
+
 except:
+
     def tela_usuarios():
+
         st.title("👤 Usuários")
+
         st.info(
-            "Tela de usuários ainda em desenvolvimento."
+            "Tela de usuários em desenvolvimento."
         )
 
 
 # =========================
-# SESSÃO
+# SESSION
 # =========================
 if "logado" not in st.session_state:
+
     st.session_state["logado"] = False
 
 
@@ -69,7 +85,9 @@ if "logado" not in st.session_state:
 # LOGIN
 # =========================
 if not st.session_state["logado"]:
+
     tela_login()
+
     st.stop()
 
 
@@ -85,17 +103,25 @@ perfil = str(
 
 
 # =========================
-# MENU BASE
+# MENU
 # =========================
-menu_opcoes = []
+menu_opcoes = list()
 
+
+# =====================================
+# DASHBOARD
+# =====================================
 menu_opcoes.append("🏠 Dashboard")
 
 
 # =====================================
 # CAIXA
 # =====================================
-if st.session_state.get("abrir_caixa"):
+if (
+    perfil in ["admin", "diretor"]
+    or st.session_state.get("abrir_caixa")
+):
+
     menu_opcoes.append("💰 Caixa")
 
 
@@ -103,6 +129,7 @@ if st.session_state.get("abrir_caixa"):
 # CLIENTES
 # =====================================
 if st.session_state.get("cadastrar_cliente"):
+
     menu_opcoes.append("👥 Clientes")
 
 
@@ -110,13 +137,37 @@ if st.session_state.get("cadastrar_cliente"):
 # PRODUTOS
 # =====================================
 if st.session_state.get("cadastrar_produto"):
+
     menu_opcoes.append("📦 Produtos")
+
+
+# =====================================
+# FORNECEDORES
+# =====================================
+if (
+    perfil in ["admin", "diretor"]
+    or st.session_state.get("cadastrar_produto")
+):
+
+    menu_opcoes.append("🚚 Fornecedores")
+
+
+# =====================================
+# COMPRAS
+# =====================================
+if (
+    perfil in ["admin", "diretor"]
+    or st.session_state.get("cadastrar_produto")
+):
+
+    menu_opcoes.append("📥 Compras")
 
 
 # =====================================
 # USUÁRIOS
 # =====================================
 if st.session_state.get("usuarios"):
+
     menu_opcoes.append("👤 Usuários")
 
 
@@ -130,6 +181,7 @@ menu_opcoes.append("💰 Movimentações")
 # VENDAS
 # =====================================
 if st.session_state.get("realizar_venda"):
+
     menu_opcoes.append("🛒 Vendas")
 
 
@@ -137,20 +189,23 @@ if st.session_state.get("realizar_venda"):
 # CONTAS
 # =====================================
 if st.session_state.get("ver_contas"):
+
     menu_opcoes.append("🏦 Contas")
 
 
 # =====================================
-# CONTAS A PAGAR
+# CONTAS PAGAR
 # =====================================
 if st.session_state.get("contas_pagar"):
+
     menu_opcoes.append("📤 Contas a Pagar")
 
 
 # =====================================
-# CONTAS A RECEBER
+# CONTAS RECEBER
 # =====================================
 if st.session_state.get("ver_financeiro"):
+
     menu_opcoes.append("📥 Contas a Receber")
 
 
@@ -158,6 +213,7 @@ if st.session_state.get("ver_financeiro"):
 # DESPESAS
 # =====================================
 if st.session_state.get("ver_despesas"):
+
     menu_opcoes.append("💸 Despesas")
 
 
@@ -165,23 +221,27 @@ if st.session_state.get("ver_despesas"):
 # CONFIGURAÇÕES
 # =====================================
 if st.session_state.get("configuracoes"):
+
     menu_opcoes.append("⚙️ Configurações")
 
 
 # =====================================
-# MENU ADMIN
+# ADMIN
 # =====================================
 if perfil in ["admin", "diretor"]:
+
     menu_opcoes.append("🔐 Permissões")
 
 
 # =========================
-# PROTEÇÃO MENU VAZIO
+# PROTEÇÃO MENU
 # =========================
 if len(menu_opcoes) <= 1:
+
     st.error(
-        "⛔ Usuário sem permissões liberadas."
+        "⛔ Usuário sem permissões."
     )
+
     st.stop()
 
 
@@ -190,10 +250,15 @@ if len(menu_opcoes) <= 1:
 # =========================
 with st.sidebar:
 
-    st.image(
-        "assets/Logo.png",
-        width=180
-    )
+    try:
+
+        st.image(
+            "assets/Logo.png",
+            width=180
+        )
+
+    except:
+        pass
 
     st.markdown(
         """
@@ -217,7 +282,10 @@ with st.sidebar:
 
     st.divider()
 
-    if st.button("🚪 Sair"):
+    if st.button(
+        "🚪 Sair",
+        use_container_width=True
+    ):
 
         st.session_state.clear()
 
@@ -229,13 +297,16 @@ with st.sidebar:
 # =========================
 def bloquear(permissao):
 
-    if not st.session_state.get(
-        permissao,
-        False
+    if not (
+        perfil in ["admin", "diretor"]
+        or st.session_state.get(
+            permissao,
+            False
+        )
     ):
 
         st.error(
-            "⛔ Você não tem permissão para acessar esta área."
+            "⛔ Você não possui permissão."
         )
 
         st.stop()
@@ -268,6 +339,20 @@ elif menu == "📦 Produtos":
     bloquear("cadastrar_produto")
 
     tela_produtos()
+
+
+elif menu == "🚚 Fornecedores":
+
+    bloquear("cadastrar_produto")
+
+    tela_fornecedores()
+
+
+elif menu == "📥 Compras":
+
+    bloquear("cadastrar_produto")
+
+    tela_compras()
 
 
 elif menu == "👤 Usuários":
@@ -317,13 +402,13 @@ elif menu == "💸 Despesas":
     tela_despesas()
 
 
-elif menu == "🔐 Permissões":
-
-    tela_painel_permissoes()
-
-
 elif menu == "⚙️ Configurações":
 
     bloquear("configuracoes")
 
     tela_configuracoes()
+
+
+elif menu == "🔐 Permissões":
+
+    tela_painel_permissoes()
