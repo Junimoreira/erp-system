@@ -1,75 +1,65 @@
 import streamlit as st
 import bcrypt
 import os
+
 from database.connection import conectar
 
 
 # =====================================
 # BUSCAR USUÁRIO NO BANCO
 # =====================================
-def autenticar_usuario(usuario, senha):
+def autenticar_usuario(usuario):
 
     conn = conectar()
 
     if conn is None:
         return None
 
-    cur = conn.cursor()
+    cursor = conn.cursor()
 
-    cur.execute("""
-        SELECT
-            id,
-            nome,
-            usuario,
-            senha,
-            perfil,
-            ativo,
+    try:
 
-            abrir_caixa,
-            fechar_caixa,
-            realizar_venda,
-            cadastrar_cliente,
-            ver_financeiro,
-            contas_pagar,
-            configuracoes,
-            usuarios,
-            cadastrar_produto,
-            ver_contas,
-            ver_despesas
+        print("Usuário recebido:", usuario)
 
-        FROM usuarios
-        WHERE usuario = %s
-        LIMIT 1
-    """, (usuario,))
+        cursor.execute("""
+            SELECT
+                id,
+                nome,
+                usuario,
+                senha,
+                perfil,
+                ativo
+            FROM usuarios
+            WHERE usuario = %s
+            LIMIT 1
+        """, (usuario,))
 
-    row = cur.fetchone()
+        row = cursor.fetchone()
 
-    cur.close()
-    conn.close()
+        print("Resultado banco:", row)
 
-    if not row:
+        if row is None:
+            return None
+
+        return {
+            "id": row[0],
+            "nome": row[1],
+            "usuario": row[2],
+            "senha": row[3],
+            "perfil": row[4],
+            "ativo": row[5]
+        }
+
+    except Exception as erro:
+
+        print(f"Erro ao autenticar usuário: {erro}")
+
         return None
 
-    return {
-        "id": row[0],
-        "nome": row[1],
-        "usuario": row[2],
-        "senha": row[3],
-        "perfil": row[4],
-        "ativo": row[5],
+    finally:
 
-        "abrir_caixa": row[6],
-        "fechar_caixa": row[7],
-        "realizar_venda": row[8],
-        "cadastrar_cliente": row[9],
-        "ver_financeiro": row[10],
-        "contas_pagar": row[11],
-        "configuracoes": row[12],
-        "usuarios": row[13],
-        "cadastrar_produto": row[14],
-        "ver_contas": row[15],
-        "ver_despesas": row[16],
-    }
+        cursor.close()
+        conn.close()
 
 
 # =====================================
@@ -96,11 +86,21 @@ def tela_login():
             margin-bottom: 30px;
         }
 
+        .stTextInput > div > div > input {
+            border-radius: 10px;
+        }
+
+        .stButton button {
+            border-radius: 10px;
+            height: 45px;
+            font-weight: bold;
+        }
+
         </style>
     """, unsafe_allow_html=True)
 
     # =====================================
-    # LOGO (CORRIGIDO PARA RENDER)
+    # LOGO
     # =====================================
 
     logo_path = "assets/logo1.png"
@@ -110,9 +110,12 @@ def tela_login():
     with col2:
 
         if os.path.exists(logo_path):
+
             st.image(logo_path, width=240)
+
         else:
-            st.warning("Logo não encontrada (verifique assets/logo.png)")
+
+            st.warning("Logo não encontrada.")
 
         st.markdown(
             """
@@ -126,59 +129,109 @@ def tela_login():
     # =====================================
     # CAMPOS LOGIN
     # =====================================
+
     usuario = st.text_input("👤 Usuário")
-    senha = st.text_input("🔐 Senha", type="password")
+
+    senha = st.text_input(
+        "🔐 Senha",
+        type="password"
+    )
 
     # =====================================
     # BOTÃO LOGIN
     # =====================================
-    if st.button("Entrar", use_container_width=True):
 
-        dados = autenticar_usuario(usuario, senha)
+    if st.button(
+        "Entrar",
+        use_container_width=True
+    ):
 
-        if not dados:
-            st.error("Usuário não encontrado.")
+        if not usuario or not senha:
+
+            st.warning(
+                "Informe usuário e senha."
+            )
+
             return
+
+        dados = autenticar_usuario(usuario)
+
+        # =====================================
+        # USUÁRIO NÃO ENCONTRADO
+        # =====================================
+
+        if dados is None:
+
+            st.error("Usuário inválido.")
+
+            return
+
+        # =====================================
+        # USUÁRIO INATIVO
+        # =====================================
 
         if not dados["ativo"]:
+
             st.error("Usuário desativado.")
+
             return
 
         # =====================================
-        # VALIDAÇÃO DE SENHA
+        # VALIDAÇÃO SENHA
         # =====================================
-        if not bcrypt.checkpw(
-            senha.encode(),
-            dados["senha"].encode()
-        ):
+
+        try:
+
+            senha_valida = bcrypt.checkpw(
+                senha.encode(),
+                dados["senha"].encode()
+            )
+
+        except Exception as erro:
+
+            print(f"Erro bcrypt: {erro}")
+
+            st.error("Erro ao validar senha.")
+
+            return
+
+        if not senha_valida:
+
             st.error("Senha inválida.")
+
             return
 
         # =====================================
-        # SESSION STATE
+        # SESSION
         # =====================================
+
         st.session_state["logado"] = True
+
         st.session_state["id"] = dados["id"]
+
         st.session_state["usuario"] = dados["usuario"]
+
         st.session_state["nome"] = dados["nome"]
+
         st.session_state["perfil"] = dados["perfil"]
 
         # =====================================
-        # PERMISSÕES
+        # PERMISSÕES TEMPORÁRIAS ADMIN
         # =====================================
-        st.session_state.update({
-            "abrir_caixa": dados["abrir_caixa"],
-            "fechar_caixa": dados["fechar_caixa"],
-            "realizar_venda": dados["realizar_venda"],
-            "cadastrar_cliente": dados["cadastrar_cliente"],
-            "ver_financeiro": dados["ver_financeiro"],
-            "contas_pagar": dados["contas_pagar"],
-            "configuracoes": dados["configuracoes"],
-            "usuarios": dados["usuarios"],
-            "cadastrar_produto": dados["cadastrar_produto"],
-            "ver_contas": dados["ver_contas"],
-            "ver_despesas": dados["ver_despesas"]
-        })
 
-        st.success(f"Bem-vindo, {dados['nome']}!")
+        st.session_state["pode_dashboard"] = True
+        st.session_state["pode_caixa"] = True
+        st.session_state["pode_clientes"] = True
+        st.session_state["pode_produtos"] = True
+        st.session_state["pode_vendas"] = True
+        st.session_state["pode_financeiro"] = True
+        st.session_state["pode_contas_pagar"] = True
+        st.session_state["pode_contas_receber"] = True
+        st.session_state["pode_despesas"] = True
+        st.session_state["pode_configuracoes"] = True
+
+        st.success(
+            f"Bem-vindo, {dados['nome']}!"
+        )
+
         st.rerun()

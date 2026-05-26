@@ -1,4 +1,5 @@
 import pandas as pd
+
 from datetime import datetime
 
 from database.connection import conectar
@@ -14,12 +15,12 @@ def abrir_caixa(usuario, saldo_inicial):
     if conn is None:
         return False
 
+    cursor = conn.cursor()
+
     try:
 
-        cursor = conn.cursor()
-
         # ==========================================
-        # VERIFICA SE JÁ EXISTE CAIXA ABERTO
+        # VERIFICA SE EXISTE CAIXA ABERTO
         # ==========================================
         cursor.execute("""
             SELECT id
@@ -28,7 +29,9 @@ def abrir_caixa(usuario, saldo_inicial):
             LIMIT 1
         """)
 
-        if cursor.fetchone():
+        caixa_aberto = cursor.fetchone()
+
+        if caixa_aberto:
 
             print("Já existe caixa aberto.")
 
@@ -39,41 +42,57 @@ def abrir_caixa(usuario, saldo_inicial):
         # ==========================================
         cursor.execute("""
             INSERT INTO caixa (
+
                 usuario,
                 data_abertura,
                 saldo_inicial,
-                entradas,
-                saidas,
+                total_entradas,
+                total_saidas,
                 saldo_final,
-                saldo_real,
-                diferenca,
                 status
+
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+            VALUES (
+
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+
+            )
         """, (
+
             usuario,
             datetime.now(),
             float(saldo_inicial),
             0,
             0,
             float(saldo_inicial),
-            float(saldo_inicial),
-            0,
             "ABERTO"
+
         ))
 
         conn.commit()
+
+        print("Caixa aberto com sucesso.")
 
         return True
 
     except Exception as erro:
 
-        print("Erro abrir_caixa:", erro)
+        conn.rollback()
+
+        print(f"Erro abrir_caixa: {erro}")
 
         return False
 
     finally:
 
+        cursor.close()
         conn.close()
 
 
@@ -87,9 +106,9 @@ def verificar_caixa_aberto():
     if conn is None:
         return None
 
-    try:
+    cursor = conn.cursor()
 
-        cursor = conn.cursor()
+    try:
 
         cursor.execute("""
             SELECT *
@@ -103,79 +122,63 @@ def verificar_caixa_aberto():
 
     except Exception as erro:
 
-        print("Erro verificar_caixa:", erro)
+        print(f"Erro verificar_caixa: {erro}")
 
         return None
 
     finally:
 
+        cursor.close()
         conn.close()
 
 
 # ==================================================
 # FECHAR CAIXA
 # ==================================================
-def fechar_caixa(id_caixa, saldo_real):
+def fechar_caixa(id_caixa):
 
     conn = conectar()
 
     if conn is None:
         return False
 
+    cursor = conn.cursor()
+
     try:
 
-        cursor = conn.cursor()
-
-        # ==========================================
-        # BUSCA SALDO FINAL
-        # ==========================================
-        cursor.execute("""
-            SELECT saldo_final
-            FROM caixa
-            WHERE id = ?
-        """, (id_caixa,))
-
-        resultado = cursor.fetchone()
-
-        if resultado is None:
-
-            return False
-
-        saldo_final = float(resultado[0])
-
-        diferenca = float(saldo_real) - saldo_final
-
-        # ==========================================
-        # FECHAR CAIXA
-        # ==========================================
         cursor.execute("""
             UPDATE caixa
             SET
-                data_fechamento = ?,
-                saldo_real = ?,
-                diferenca = ?,
-                status = ?
-            WHERE id = ?
+
+                data_fechamento = %s,
+                status = %s
+
+            WHERE id = %s
         """, (
+
             datetime.now(),
-            float(saldo_real),
-            float(diferenca),
             "FECHADO",
             id_caixa
+
         ))
 
         conn.commit()
+
+        print("Caixa fechado com sucesso.")
 
         return True
 
     except Exception as erro:
 
-        print("Erro fechar_caixa:", erro)
+        conn.rollback()
+
+        print(f"Erro fechar_caixa: {erro}")
 
         return False
 
     finally:
 
+        cursor.close()
         conn.close()
 
 
@@ -194,28 +197,32 @@ def listar_historico_caixa():
 
         query = """
             SELECT
+
                 id,
                 usuario,
                 data_abertura,
                 data_fechamento,
                 saldo_inicial,
-                entradas,
-                saidas,
+                total_entradas,
+                total_saidas,
                 saldo_final,
-                saldo_real,
-                diferenca,
                 status
+
             FROM caixa
+
             ORDER BY id DESC
         """
 
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(
+            query,
+            conn
+        )
 
         return df
 
     except Exception as erro:
 
-        print("Erro listar_historico_caixa:", erro)
+        print(f"Erro listar_historico_caixa: {erro}")
 
         return pd.DataFrame()
 

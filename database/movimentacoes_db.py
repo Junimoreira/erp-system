@@ -1,17 +1,48 @@
 import pandas as pd
+
 from database.connection import conectar
+
+
+# ==================================================
+# TRATAMENTO TEXTO
+# ==================================================
+def tratar_texto(valor):
+
+    if valor is None:
+        return ""
+
+    return str(valor).strip()
+
+
+# ==================================================
+# VALIDAR TIPO
+# ==================================================
+def validar_tipo(tipo):
+
+    tipo = tratar_texto(tipo).lower()
+
+    if tipo not in ["entrada", "saida"]:
+
+        raise ValueError(
+            "Tipo inválido."
+        )
+
+    return tipo
 
 
 # ==================================================
 # REGISTRAR MOVIMENTAÇÃO
 # ==================================================
 def registrar_movimentacao(
+
     caixa_id,
     tipo,
     valor,
     descricao,
+    categoria,
     origem,
     data_movimentacao
+
 ):
 
     conn = conectar()
@@ -23,10 +54,33 @@ def registrar_movimentacao(
 
     try:
 
+        # ==========================================
+        # TRATAMENTOS
+        # ==========================================
         caixa_id = int(caixa_id)
+
+        tipo = validar_tipo(tipo)
 
         valor = float(valor)
 
+        descricao = tratar_texto(descricao)
+
+        categoria = tratar_texto(categoria)
+
+        origem = tratar_texto(origem)
+
+        # ==========================================
+        # VALIDAÇÕES
+        # ==========================================
+        if valor <= 0:
+
+            raise ValueError(
+                "Valor inválido."
+            )
+
+        # ==========================================
+        # INSERT
+        # ==========================================
         query = """
             INSERT INTO movimentacoes (
 
@@ -34,11 +88,22 @@ def registrar_movimentacao(
                 tipo,
                 valor,
                 descricao,
+                categoria,
                 origem,
                 data_movimentacao
 
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (
+
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+
+            )
         """
 
         cursor.execute(query, (
@@ -47,6 +112,7 @@ def registrar_movimentacao(
             tipo,
             valor,
             descricao,
+            categoria,
             origem,
             data_movimentacao
 
@@ -60,7 +126,10 @@ def registrar_movimentacao(
 
         conn.rollback()
 
-        print("Erro ao registrar movimentação:", erro)
+        print(
+            "Erro ao registrar movimentação:",
+            erro
+        )
 
         return False
 
@@ -90,6 +159,7 @@ def listar_movimentacoes():
                 tipo,
                 valor,
                 descricao,
+                categoria,
                 origem,
                 data_movimentacao
 
@@ -98,13 +168,122 @@ def listar_movimentacoes():
             ORDER BY data_movimentacao DESC
         """
 
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(
+            query,
+            conn
+        )
+
+        if df.empty:
+            return pd.DataFrame()
+
+        # ==========================================
+        # TRATAMENTOS
+        # ==========================================
+        df = df.fillna("")
+
+        if "data_movimentacao" in df.columns:
+
+            df["data_movimentacao"] = pd.to_datetime(
+                df["data_movimentacao"],
+                errors="coerce"
+            )
 
         return df
 
     except Exception as erro:
 
-        print("Erro ao listar movimentações:", erro)
+        print(
+            "Erro ao listar movimentações:",
+            erro
+        )
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()
+
+
+# ==================================================
+# LISTAR POR CAIXA
+# ==================================================
+def listar_movimentacoes_caixa(caixa_id):
+
+    try:
+
+        df = listar_movimentacoes()
+
+        if df.empty:
+            return pd.DataFrame()
+
+        df = df[
+            df["caixa_id"] == int(caixa_id)
+        ]
+
+        return df
+
+    except Exception as erro:
+
+        print(
+            "Erro listar movimentações caixa:",
+            erro
+        )
+
+        return pd.DataFrame()
+
+
+# ==================================================
+# LISTAR POR PERÍODO
+# ==================================================
+def listar_movimentacoes_periodo(
+    data_inicio,
+    data_fim
+):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+
+        query = """
+            SELECT
+
+                id,
+                caixa_id,
+                tipo,
+                valor,
+                descricao,
+                categoria,
+                origem,
+                data_movimentacao
+
+            FROM movimentacoes
+
+            WHERE DATE(data_movimentacao)
+            BETWEEN %s AND %s
+
+            ORDER BY data_movimentacao DESC
+        """
+
+        df = pd.read_sql(
+            query,
+            conn,
+            params=[
+                data_inicio,
+                data_fim
+            ]
+        )
+
+        return df.fillna("")
+
+    except Exception as erro:
+
+        print(
+            "Erro listar período:",
+            erro
+        )
 
         return pd.DataFrame()
 
@@ -117,11 +296,14 @@ def listar_movimentacoes():
 # ATUALIZAR MOVIMENTAÇÃO
 # ==================================================
 def atualizar_movimentacao(
+
     id_movimentacao,
     tipo,
     valor,
     descricao,
+    categoria,
     origem
+
 ):
 
     conn = conectar()
@@ -133,27 +315,61 @@ def atualizar_movimentacao(
 
     try:
 
-        id_movimentacao = int(id_movimentacao)
+        # ==========================================
+        # TRATAMENTOS
+        # ==========================================
+        id_movimentacao = int(
+            id_movimentacao
+        )
+
+        tipo = validar_tipo(tipo)
 
         valor = float(valor)
 
-        cursor.execute("""
+        descricao = tratar_texto(
+            descricao
+        )
 
+        categoria = tratar_texto(
+            categoria
+        )
+
+        origem = tratar_texto(
+            origem
+        )
+
+        # ==========================================
+        # VALIDAÇÃO
+        # ==========================================
+        if valor <= 0:
+
+            raise ValueError(
+                "Valor inválido."
+            )
+
+        # ==========================================
+        # UPDATE
+        # ==========================================
+        query = """
             UPDATE movimentacoes
 
             SET
+
                 tipo = %s,
                 valor = %s,
                 descricao = %s,
+                categoria = %s,
                 origem = %s
 
             WHERE id = %s
+        """
 
-        """, (
+        cursor.execute(query, (
 
             tipo,
             valor,
             descricao,
+            categoria,
             origem,
             id_movimentacao
 
@@ -167,7 +383,10 @@ def atualizar_movimentacao(
 
         conn.rollback()
 
-        print("Erro ao atualizar movimentação:", erro)
+        print(
+            "Erro ao atualizar movimentação:",
+            erro
+        )
 
         return False
 
@@ -180,7 +399,9 @@ def atualizar_movimentacao(
 # ==================================================
 # EXCLUIR MOVIMENTAÇÃO
 # ==================================================
-def excluir_movimentacao(id_movimentacao):
+def excluir_movimentacao(
+    id_movimentacao
+):
 
     conn = conectar()
 
@@ -191,7 +412,9 @@ def excluir_movimentacao(id_movimentacao):
 
     try:
 
-        id_movimentacao = int(id_movimentacao)
+        id_movimentacao = int(
+            id_movimentacao
+        )
 
         cursor.execute("""
 
@@ -199,7 +422,11 @@ def excluir_movimentacao(id_movimentacao):
 
             WHERE id = %s
 
-        """, (id_movimentacao,))
+        """, (
+
+            id_movimentacao,
+
+        ))
 
         conn.commit()
 
@@ -209,7 +436,10 @@ def excluir_movimentacao(id_movimentacao):
 
         conn.rollback()
 
-        print("Erro ao excluir movimentação:", erro)
+        print(
+            "Erro ao excluir movimentação:",
+            erro
+        )
 
         return False
 
@@ -227,6 +457,7 @@ def resumo_movimentacoes():
     conn = conectar()
 
     if conn is None:
+
         return {
 
             "entradas": 0,
@@ -239,29 +470,49 @@ def resumo_movimentacoes():
 
     try:
 
+        # ==========================================
+        # ENTRADAS
+        # ==========================================
         cursor.execute("""
 
-            SELECT COALESCE(SUM(valor), 0)
+            SELECT
+                COALESCE(
+                    SUM(valor),
+                    0
+                )
 
             FROM movimentacoes
 
-            WHERE tipo = 'entrada'
+            WHERE LOWER(tipo)
+            = 'entrada'
 
         """)
 
-        entradas = float(cursor.fetchone()[0])
+        entradas = float(
+            cursor.fetchone()[0]
+        )
 
+        # ==========================================
+        # SAÍDAS
+        # ==========================================
         cursor.execute("""
 
-            SELECT COALESCE(SUM(valor), 0)
+            SELECT
+                COALESCE(
+                    SUM(valor),
+                    0
+                )
 
             FROM movimentacoes
 
-            WHERE tipo = 'saida'
+            WHERE LOWER(tipo)
+            = 'saida'
 
         """)
 
-        saidas = float(cursor.fetchone()[0])
+        saidas = float(
+            cursor.fetchone()[0]
+        )
 
         saldo = entradas - saidas
 
@@ -270,6 +521,21 @@ def resumo_movimentacoes():
             "entradas": entradas,
             "saidas": saidas,
             "saldo": saldo
+
+        }
+
+    except Exception as erro:
+
+        print(
+            "Erro resumo movimentações:",
+            erro
+        )
+
+        return {
+
+            "entradas": 0,
+            "saidas": 0,
+            "saldo": 0
 
         }
 
@@ -282,11 +548,15 @@ def resumo_movimentacoes():
 # ==================================================
 # RESUMO POR PERÍODO
 # ==================================================
-def resumo_por_periodo(data_inicio, data_fim):
+def resumo_por_periodo(
+    data_inicio,
+    data_fim
+):
 
     conn = conectar()
 
     if conn is None:
+
         return {
 
             "entradas": 0,
@@ -299,13 +569,21 @@ def resumo_por_periodo(data_inicio, data_fim):
 
     try:
 
+        # ==========================================
+        # ENTRADAS
+        # ==========================================
         cursor.execute("""
 
-            SELECT COALESCE(SUM(valor), 0)
+            SELECT
+                COALESCE(
+                    SUM(valor),
+                    0
+                )
 
             FROM movimentacoes
 
-            WHERE tipo = 'entrada'
+            WHERE LOWER(tipo)
+            = 'entrada'
 
             AND DATE(data_movimentacao)
             BETWEEN %s AND %s
@@ -317,15 +595,25 @@ def resumo_por_periodo(data_inicio, data_fim):
 
         ))
 
-        entradas = float(cursor.fetchone()[0])
+        entradas = float(
+            cursor.fetchone()[0]
+        )
 
+        # ==========================================
+        # SAÍDAS
+        # ==========================================
         cursor.execute("""
 
-            SELECT COALESCE(SUM(valor), 0)
+            SELECT
+                COALESCE(
+                    SUM(valor),
+                    0
+                )
 
             FROM movimentacoes
 
-            WHERE tipo = 'saida'
+            WHERE LOWER(tipo)
+            = 'saida'
 
             AND DATE(data_movimentacao)
             BETWEEN %s AND %s
@@ -337,7 +625,9 @@ def resumo_por_periodo(data_inicio, data_fim):
 
         ))
 
-        saidas = float(cursor.fetchone()[0])
+        saidas = float(
+            cursor.fetchone()[0]
+        )
 
         saldo = entradas - saidas
 
@@ -346,6 +636,21 @@ def resumo_por_periodo(data_inicio, data_fim):
             "entradas": entradas,
             "saidas": saidas,
             "saldo": saldo
+
+        }
+
+    except Exception as erro:
+
+        print(
+            "Erro resumo período:",
+            erro
+        )
+
+        return {
+
+            "entradas": 0,
+            "saidas": 0,
+            "saldo": 0
 
         }
 

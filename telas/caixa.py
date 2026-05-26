@@ -240,10 +240,10 @@ def tela_caixa():
             )
 
             saldo_inicial = float(
-                caixa[3]
-                if isinstance(caixa, tuple)
-                else caixa["saldo_inicial"]
-            )
+               caixa[4] or 0
+               if isinstance(caixa, tuple)
+               else caixa.get("saldo_inicial", 0) or 0
+           )
 
             resumo = resumo_caixa(
                 caixa_id

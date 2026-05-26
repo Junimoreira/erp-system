@@ -10,3 +10,12 @@ postgresql://bd_erp_system_user:QEEydMjHue8CdduUnbcjOnSdKp7dQSbG@dpg-d7uc7aho3t8
 
 PSQL
 render psql dpg-d7uc7aho3t8c73fao0rg-a
+
+
+=========================================================================
+rodar banco no vs code
+=========================================================================
+PS H:\projeto\empresarial> & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h dpg-d7uc7aho3t8c73fao0rg-a.virginia-postgres.render.com -U bd_erp_system_user -d 
+bd_erp_system
+
+senha: QEEydMjHue8CdduUnbcjOnSdKp7dQSbG

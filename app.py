@@ -1,5 +1,8 @@
 import streamlit as st
 
+from telas.fechamento_caixa import tela_fechamento_caixa
+from telas.formacao_preco import tela_formacao_preco
+
 
 # =========================
 # CONFIGURAÇÃO
@@ -27,6 +30,7 @@ try:
         )
 
 except:
+
     pass
 
 
@@ -44,19 +48,14 @@ from telas.movimentacoes import tela_movimentacoes
 from telas.contas import tela_contas
 from telas.contas_pagar import tela_contas_pagar
 from telas.contas_receber import tela_contas_receber
-from telas.despesas import tela_despesas
 from telas.configuracoes import tela_configuracoes
-
 from telas.compras import tela_compras
 from telas.fornecedores import tela_fornecedores
-
-from telas.painel_admin_permissoes import (
-    tela_painel_permissoes
-)
+from telas.painel_admin_permissoes import tela_painel_permissoes
 
 
 # =========================
-# USUÁRIOS
+# USUÁRIOS (fallback)
 # =========================
 try:
 
@@ -103,134 +102,185 @@ perfil = str(
 
 
 # =========================
+# ADMIN TOTAL
+# =========================
+admin_total = perfil in [
+    "admin",
+    "diretor"
+]
+
+
+# =========================
 # MENU
 # =========================
-menu_opcoes = list()
+menu_opcoes = []
+
+menu_opcoes.append(
+    "🏠 Dashboard"
+)
 
 
-# =====================================
-# DASHBOARD
-# =====================================
-menu_opcoes.append("🏠 Dashboard")
-
-
-# =====================================
+# ==========================================
 # CAIXA
-# =====================================
+# ==========================================
 if (
-    perfil in ["admin", "diretor"]
-    or st.session_state.get("abrir_caixa")
+    admin_total
+    or st.session_state.get("pode_caixa")
 ):
 
-    menu_opcoes.append("💰 Caixa")
+    menu_opcoes.append(
+        "💰 Caixa"
+    )
 
 
-# =====================================
+# ==========================================
 # CLIENTES
-# =====================================
-if st.session_state.get("cadastrar_cliente"):
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_clientes")
+):
 
-    menu_opcoes.append("👥 Clientes")
+    menu_opcoes.append(
+        "👥 Clientes"
+    )
 
 
-# =====================================
+# ==========================================
 # PRODUTOS
-# =====================================
-if st.session_state.get("cadastrar_produto"):
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_produtos")
+):
 
-    menu_opcoes.append("📦 Produtos")
+    menu_opcoes.append(
+        "📦 Produtos"
+    )
+
+    menu_opcoes.append(
+        "💰 Formação de Preço"
+    )
 
 
-# =====================================
+# ==========================================
 # FORNECEDORES
-# =====================================
+# ==========================================
 if (
-    perfil in ["admin", "diretor"]
-    or st.session_state.get("cadastrar_produto")
+    admin_total
+    or st.session_state.get("pode_produtos")
 ):
 
-    menu_opcoes.append("🚚 Fornecedores")
+    menu_opcoes.append(
+        "🚚 Fornecedores"
+    )
+
+    menu_opcoes.append(
+        "📥 Compras"
+    )
 
 
-# =====================================
-# COMPRAS
-# =====================================
-if (
-    perfil in ["admin", "diretor"]
-    or st.session_state.get("cadastrar_produto")
-):
-
-    menu_opcoes.append("📥 Compras")
-
-
-# =====================================
+# ==========================================
 # USUÁRIOS
-# =====================================
-if st.session_state.get("usuarios"):
+# ==========================================
+if admin_total:
 
-    menu_opcoes.append("👤 Usuários")
+    menu_opcoes.append(
+        "👤 Usuários"
+    )
 
 
-# =====================================
+# ==========================================
 # MOVIMENTAÇÕES
-# =====================================
-menu_opcoes.append("💰 Movimentações")
+# ==========================================
+menu_opcoes.append(
+    "💰 Movimentações"
+)
 
 
-# =====================================
+# ==========================================
 # VENDAS
-# =====================================
-if st.session_state.get("realizar_venda"):
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_vendas")
+):
 
-    menu_opcoes.append("🛒 Vendas")
+    menu_opcoes.append(
+        "🛒 Vendas"
+    )
 
 
-# =====================================
+# ==========================================
 # CONTAS
-# =====================================
-if st.session_state.get("ver_contas"):
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_financeiro")
+):
 
-    menu_opcoes.append("🏦 Contas")
-
-
-# =====================================
-# CONTAS PAGAR
-# =====================================
-if st.session_state.get("contas_pagar"):
-
-    menu_opcoes.append("📤 Contas a Pagar")
+    menu_opcoes.append(
+        "🏦 Contas"
+    )
 
 
-# =====================================
-# CONTAS RECEBER
-# =====================================
-if st.session_state.get("ver_financeiro"):
+# ==========================================
+# CONTAS A PAGAR
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_contas_pagar")
+):
 
-    menu_opcoes.append("📥 Contas a Receber")
-
-
-# =====================================
-# DESPESAS
-# =====================================
-if st.session_state.get("ver_despesas"):
-
-    menu_opcoes.append("💸 Despesas")
+    menu_opcoes.append(
+        "📤 Contas a Pagar"
+    )
 
 
-# =====================================
+# ==========================================
+# CONTAS A RECEBER
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_contas_receber")
+):
+
+    menu_opcoes.append(
+        "📥 Contas a Receber"
+    )
+
+
+# ==========================================
+# FECHAMENTO CAIXA
+# ==========================================
+if admin_total:
+
+    menu_opcoes.append(
+        "📊 Fechamento de Caixa"
+    )
+
+
+# ==========================================
 # CONFIGURAÇÕES
-# =====================================
-if st.session_state.get("configuracoes"):
+# ==========================================
+if (
+    admin_total
+    or st.session_state.get("pode_configuracoes")
+):
 
-    menu_opcoes.append("⚙️ Configurações")
+    menu_opcoes.append(
+        "⚙️ Configurações"
+    )
 
 
-# =====================================
-# ADMIN
-# =====================================
-if perfil in ["admin", "diretor"]:
+# ==========================================
+# PERMISSÕES
+# ==========================================
+if admin_total:
 
-    menu_opcoes.append("🔐 Permissões")
+    menu_opcoes.append(
+        "🔐 Permissões"
+    )
 
 
 # =========================
@@ -258,6 +308,7 @@ with st.sidebar:
         )
 
     except:
+
         pass
 
     st.markdown(
@@ -298,7 +349,7 @@ with st.sidebar:
 def bloquear(permissao):
 
     if not (
-        perfil in ["admin", "diretor"]
+        admin_total
         or st.session_state.get(
             permissao,
             False
@@ -322,42 +373,45 @@ if menu == "🏠 Dashboard":
 
 elif menu == "💰 Caixa":
 
-    bloquear("abrir_caixa")
+    bloquear("pode_caixa")
 
     tela_caixa()
 
 
 elif menu == "👥 Clientes":
 
-    bloquear("cadastrar_cliente")
+    bloquear("pode_clientes")
 
     tela_clientes()
 
 
 elif menu == "📦 Produtos":
 
-    bloquear("cadastrar_produto")
+    bloquear("pode_produtos")
 
     tela_produtos()
 
 
+elif menu == "💰 Formação de Preço":
+
+    tela_formacao_preco()
+
+
 elif menu == "🚚 Fornecedores":
 
-    bloquear("cadastrar_produto")
+    bloquear("pode_produtos")
 
     tela_fornecedores()
 
 
 elif menu == "📥 Compras":
 
-    bloquear("cadastrar_produto")
+    bloquear("pode_produtos")
 
     tela_compras()
 
 
 elif menu == "👤 Usuários":
-
-    bloquear("usuarios")
 
     tela_usuarios()
 
@@ -369,42 +423,40 @@ elif menu == "💰 Movimentações":
 
 elif menu == "🛒 Vendas":
 
-    bloquear("realizar_venda")
+    bloquear("pode_vendas")
 
     tela_vendas()
 
 
 elif menu == "🏦 Contas":
 
-    bloquear("ver_contas")
+    bloquear("pode_financeiro")
 
     tela_contas()
 
 
 elif menu == "📤 Contas a Pagar":
 
-    bloquear("contas_pagar")
+    bloquear("pode_contas_pagar")
 
     tela_contas_pagar()
 
 
 elif menu == "📥 Contas a Receber":
 
-    bloquear("ver_financeiro")
+    bloquear("pode_contas_receber")
 
     tela_contas_receber()
 
 
-elif menu == "💸 Despesas":
+elif menu == "📊 Fechamento de Caixa":
 
-    bloquear("ver_despesas")
-
-    tela_despesas()
+    tela_fechamento_caixa()
 
 
 elif menu == "⚙️ Configurações":
 
-    bloquear("configuracoes")
+    bloquear("pode_configuracoes")
 
     tela_configuracoes()
 

@@ -1,27 +1,63 @@
-import psycopg2
 import os
+import psycopg2
+
 from dotenv import load_dotenv
-from pathlib import Path
-
-# força carregar .env da raiz do projeto
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 
+# =====================================
+# CARREGA .ENV
+# =====================================
+load_dotenv()
+
+
+# =====================================
+# DEFINE AMBIENTE
+# =====================================
+ERP_ENV = os.getenv(
+    "ERP_ENV",
+    "TESTE"
+).upper()
+
+
+# =====================================
+# DEFINE URL CONFORME AMBIENTE
+# =====================================
+if ERP_ENV == "PROD":
+
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL_PROD"
+    )
+
+else:
+
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL_TESTE"
+    )
+
+
+print(f"\n🌎 Ambiente atual: {ERP_ENV}")
+
+print(f"🔗 DATABASE_URL: {DATABASE_URL}\n")
+
+
+# =====================================
+# CONEXÃO BANCO
+# =====================================
 def conectar():
+
     try:
-        database_url = os.getenv("DATABASE_URL")
 
-        if not database_url:
-            raise Exception("DATABASE_URL não encontrada no ambiente")
-
-        conn = psycopg2.connect(database_url)
-
-        #print("✔ Conexão OK com PostgreSQL")
+        conn = psycopg2.connect(
+            DATABASE_URL,
+            sslmode="require"
+        )
 
         return conn
 
     except Exception as erro:
-        print("❌ ERRO AO CONECTAR NO BANCO:")
+
+        print("\n❌ ERRO AO CONECTAR NO BANCO:")
+
         print(erro)
+
         return None
