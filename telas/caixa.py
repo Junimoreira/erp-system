@@ -458,12 +458,13 @@ def tela_caixa():
                     try:
 
                         sucesso = registrar_movimentacao(
-                            caixa_id=caixa_id,
-                            tipo=tipo,
-                            valor=float(valor),
-                            descricao=tratar_texto(descricao),
-                            categoria=categoria,
-                            data_movimentacao=datetime.now()
+                              caixa_id=caixa_id,
+                              tipo=tipo,
+                              valor=float(valor),
+                              descricao=tratar_texto(descricao),
+                              categoria=categoria,
+                              data_movimentacao=datetime.now(),
+                              origem="CAIXA"
                         )
 
                         if sucesso:
