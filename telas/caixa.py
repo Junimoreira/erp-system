@@ -80,8 +80,8 @@ def resumo_caixa(caixa_id):
         ]["valor"].sum()
 
         return {
-            "entradas": float(entradas),
-            "saidas": float(saidas)
+            "entradas": float(entradas or 0),
+            "saidas": float(saidas or 0)
         }
 
     except Exception as erro:
@@ -240,10 +240,10 @@ def tela_caixa():
             )
 
             saldo_inicial = float(
-               caixa[4] or 0
-               if isinstance(caixa, tuple)
-               else caixa.get("saldo_inicial", 0) or 0
-           )
+                caixa[4] or 0
+                if isinstance(caixa, tuple)
+                else caixa.get("saldo_inicial", 0) or 0
+            )
 
             resumo = resumo_caixa(
                 caixa_id
@@ -455,27 +455,35 @@ def tela_caixa():
 
                 else:
 
-                    sucesso = registrar_movimentacao(
-                        caixa_id,
-                        tipo,
-                        float(valor),
-                        tratar_texto(descricao),
-                        categoria,
-                        datetime.now()
-                    )
+                    try:
 
-                    if sucesso:
-
-                        st.success(
-                            "Movimentação registrada!"
+                        sucesso = registrar_movimentacao(
+                            caixa_id=caixa_id,
+                            tipo=tipo,
+                            valor=float(valor),
+                            descricao=tratar_texto(descricao),
+                            categoria=categoria,
+                            data_movimentacao=datetime.now()
                         )
 
-                        st.rerun()
+                        if sucesso:
 
-                    else:
+                            st.success(
+                                "Movimentação registrada!"
+                            )
+
+                            st.rerun()
+
+                        else:
+
+                            st.error(
+                                "Erro ao registrar."
+                            )
+
+                    except Exception as erro:
 
                         st.error(
-                            "Erro ao registrar."
+                            f"Erro movimentação: {erro}"
                         )
 
     # ==================================================
@@ -503,9 +511,6 @@ def tela_caixa():
 
             df = df.fillna("")
 
-            # ==================================================
-            # FILTROS
-            # ==================================================
             col1, col2 = st.columns(2)
 
             with col1:
@@ -525,9 +530,6 @@ def tela_caixa():
                     "Data"
                 )
 
-            # ==================================================
-            # BUSCA
-            # ==================================================
             if busca:
 
                 df = df[
@@ -540,9 +542,6 @@ def tela_caixa():
                     )
                 ]
 
-            # ==================================================
-            # FILTRO TIPO
-            # ==================================================
             if filtro_tipo != "Todos":
 
                 df = df[
@@ -552,9 +551,6 @@ def tela_caixa():
                     == filtro_tipo.lower()
                 ]
 
-            # ==================================================
-            # FILTRO DATA
-            # ==================================================
             coluna_data = identificar_coluna_data(df)
 
             if coluna_data:
@@ -579,9 +575,6 @@ def tela_caixa():
                         erro
                     )
 
-            # ==================================================
-            # TOTALIZADORES
-            # ==================================================
             entradas = df[
                 df["tipo"]
                 .astype(str)
@@ -623,9 +616,6 @@ def tela_caixa():
 
             st.divider()
 
-            # ==================================================
-            # TABELA
-            # ==================================================
             df = ordenar_dataframe(df)
 
             st.dataframe(
@@ -650,148 +640,16 @@ def tela_caixa():
             if historico is None or historico.empty:
 
                 st.warning(
-                    "Nenhum histórico de caixa encontrado."
+                    "Nenhum histórico encontrado."
                 )
 
             else:
 
-                df_mov = listar_movimentacoes()
-
-                if df_mov is None:
-                    df_mov = pd.DataFrame()
-
-                relatorio = []
-
-                for _, caixa in historico.iterrows():
-
-                    caixa_id = caixa["id"]
-
-                    if not df_mov.empty:
-
-                        movimentacoes = df_mov[
-                            df_mov["caixa_id"]
-                            == caixa_id
-                        ]
-
-                    else:
-
-                        movimentacoes = pd.DataFrame()
-
-                    entradas = 0
-                    saidas = 0
-
-                    if not movimentacoes.empty:
-
-                        entradas = movimentacoes[
-                            movimentacoes["tipo"]
-                            .astype(str)
-                            .str.lower()
-                            == "entrada"
-                        ]["valor"].sum()
-
-                        saidas = movimentacoes[
-                            movimentacoes["tipo"]
-                            .astype(str)
-                            .str.lower()
-                            == "saida"
-                        ]["valor"].sum()
-
-                    saldo_inicial = float(
-                        caixa["saldo_inicial"] or 0
-                    )
-
-                    saldo_sistema = (
-                        saldo_inicial
-                        + float(entradas)
-                        - float(saidas)
-                    )
-
-                    saldo_conferido = float(
-                        caixa["saldo_conferido"] or 0
-                    )
-
-                    diferenca = float(
-                        caixa["diferenca"] or 0
-                    )
-
-                    relatorio.append({
-
-                        "ID":
-                            caixa_id,
-
-                        "Usuário":
-                            tratar_texto(
-                                caixa["usuario"]
-                            ),
-
-                        "Data Abertura":
-                            caixa["data_abertura"],
-
-                        "Data Fechamento":
-                            caixa["data_fechamento"],
-
-                        "Saldo Inicial":
-                            round(saldo_inicial, 2),
-
-                        "Entradas":
-                            round(float(entradas), 2),
-
-                        "Saídas":
-                            round(float(saidas), 2),
-
-                        "Saldo Sistema":
-                            round(saldo_sistema, 2),
-
-                        "Saldo Conferido":
-                            round(saldo_conferido, 2),
-
-                        "Diferença":
-                            round(diferenca, 2),
-
-                        "Status":
-                            tratar_texto(
-                                caixa["status"]
-                            )
-
-                    })
-
-                df_relatorio = pd.DataFrame(
-                    relatorio
-                )
-
                 st.dataframe(
-                    df_relatorio,
+                    historico,
                     use_container_width=True,
                     height=500
                 )
-
-                st.divider()
-
-                # ==================================================
-                # RESUMO
-                # ==================================================
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-
-                    st.metric(
-                        "💰 Total Entradas",
-                        f"R$ {df_relatorio['Entradas'].sum():,.2f}"
-                    )
-
-                with col2:
-
-                    st.metric(
-                        "💸 Total Saídas",
-                        f"R$ {df_relatorio['Saídas'].sum():,.2f}"
-                    )
-
-                with col3:
-
-                    st.metric(
-                        "🏦 Saldo Total",
-                        f"R$ {df_relatorio['Saldo Sistema'].sum():,.2f}"
-                    )
 
         except Exception as erro:
 
