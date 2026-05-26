@@ -315,10 +315,9 @@ def fechar_caixa_diario():
         cursor.close()
         conn.close()
 
-#========================================
-#CALCULAR PREÇO DE VENDA
-#========================================
-
+# ========================================
+# CALCULAR PREÇO DE VENDA (CORRETO ERP)
+# ========================================
 def calcular_preco_venda(
     custo,
     imposto=0,
@@ -329,11 +328,16 @@ def calcular_preco_venda(
 
     custo = float(custo)
 
-    imposto = float(imposto) / 100
-    frete = float(frete) / 100
-    taxa_cartao = float(taxa_cartao) / 100
-    margem_lucro = float(margem_lucro) / 100
+    soma_percentual = (
+        float(imposto) +
+        float(frete) +
+        float(taxa_cartao) +
+        float(margem_lucro)
+    ) / 100
 
-    custo_total = custo * (1 + imposto + frete + taxa_cartao + margem_lucro)
+    if soma_percentual >= 1:
+        raise ValueError("Soma dos percentuais inválida (>= 100%)")
 
-    return round(custo_total, 2)
+    preco_venda = custo / (1 - soma_percentual)
+
+    return round(preco_venda, 2)
