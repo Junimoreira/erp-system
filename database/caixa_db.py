@@ -1,5 +1,4 @@
 import pandas as pd
-
 from datetime import datetime
 
 from database.connection import conectar
@@ -32,9 +31,7 @@ def abrir_caixa(usuario, saldo_inicial):
         caixa_aberto = cursor.fetchone()
 
         if caixa_aberto:
-
             print("Já existe caixa aberto.")
-
             return False
 
         # ==========================================
@@ -42,7 +39,6 @@ def abrir_caixa(usuario, saldo_inicial):
         # ==========================================
         cursor.execute("""
             INSERT INTO caixa (
-
                 usuario,
                 data_abertura,
                 saldo_inicial,
@@ -50,11 +46,8 @@ def abrir_caixa(usuario, saldo_inicial):
                 total_saidas,
                 saldo_final,
                 status
-
             )
-
             VALUES (
-
                 %s,
                 %s,
                 %s,
@@ -62,10 +55,8 @@ def abrir_caixa(usuario, saldo_inicial):
                 %s,
                 %s,
                 %s
-
             )
         """, (
-
             usuario,
             datetime.now(),
             float(saldo_inicial),
@@ -73,25 +64,19 @@ def abrir_caixa(usuario, saldo_inicial):
             0,
             float(saldo_inicial),
             "ABERTO"
-
         ))
 
         conn.commit()
 
         print("Caixa aberto com sucesso.")
-
         return True
 
     except Exception as erro:
-
         conn.rollback()
-
         print(f"Erro abrir_caixa: {erro}")
-
         return False
 
     finally:
-
         cursor.close()
         conn.close()
 
@@ -121,13 +106,10 @@ def verificar_caixa_aberto():
         return cursor.fetchone()
 
     except Exception as erro:
-
         print(f"Erro verificar_caixa: {erro}")
-
         return None
 
     finally:
-
         cursor.close()
         conn.close()
 
@@ -135,7 +117,7 @@ def verificar_caixa_aberto():
 # ==================================================
 # FECHAR CAIXA
 # ==================================================
-def fechar_caixa(id_caixa):
+def fechar_caixa(caixa_id, valor_conferido):
 
     conn = conectar()
 
@@ -146,41 +128,53 @@ def fechar_caixa(id_caixa):
 
     try:
 
+        # ==========================================
+        # BUSCAR DADOS DO CAIXA
+        # ==========================================
+        cursor.execute("""
+            SELECT saldo_inicial, total_entradas, total_saidas
+            FROM caixa
+            WHERE id = %s
+        """, (caixa_id,))
+
+        caixa = cursor.fetchone()
+
+        if not caixa:
+            return False
+
+        saldo_inicial = float(caixa[0])
+        entradas = float(caixa[1])
+        saidas = float(caixa[2])
+
+        saldo_final = saldo_inicial + entradas - saidas
+
+        # ==========================================
+        # ATUALIZAR CAIXA
+        # ==========================================
         cursor.execute("""
             UPDATE caixa
-            SET
-
-                data_fechamento = %s,
-                status = %s
-
+            SET status = 'FECHADO',
+                valor_conferido = %s,
+                saldo_final = %s,
+                data_fechamento = NOW()
             WHERE id = %s
         """, (
-
-            datetime.now(),
-            "FECHADO",
-            id_caixa
-
+            float(valor_conferido),
+            saldo_final,
+            caixa_id
         ))
 
         conn.commit()
-
-        print("Caixa fechado com sucesso.")
-
         return True
 
     except Exception as erro:
-
         conn.rollback()
-
         print(f"Erro fechar_caixa: {erro}")
-
         return False
 
     finally:
-
         cursor.close()
         conn.close()
-
 
 # ==================================================
 # LISTAR HISTÓRICO CAIXA
@@ -190,14 +184,12 @@ def listar_historico_caixa():
     conn = conectar()
 
     if conn is None:
-
         return pd.DataFrame()
 
     try:
 
         query = """
             SELECT
-
                 id,
                 usuario,
                 data_abertura,
@@ -207,25 +199,17 @@ def listar_historico_caixa():
                 total_saidas,
                 saldo_final,
                 status
-
             FROM caixa
-
             ORDER BY id DESC
         """
 
-        df = pd.read_sql(
-            query,
-            conn
-        )
+        df = pd.read_sql(query, conn)
 
         return df
 
     except Exception as erro:
-
         print(f"Erro listar_historico_caixa: {erro}")
-
         return pd.DataFrame()
 
     finally:
-
         conn.close()

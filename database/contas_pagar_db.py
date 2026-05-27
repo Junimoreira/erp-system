@@ -1,3 +1,5 @@
+from services.finance_service import processar_saida_financeira
+
 def pagar_conta(conta_id):
 
     conn = conectar()
@@ -9,40 +11,82 @@ def pagar_conta(conta_id):
 
     try:
 
-        # Atualiza status da conta
+        cursor.execute("""
+            SELECT descricao, valor, categoria, status
+            FROM contas_pagar
+            WHERE id = %s
+        """, (conta_id,))
+
+        conta = cursor.fetchone()
+
+        if not conta:
+            raise ValueError("Conta não encontrada.")
+
+        descricao = tratar_texto(conta[0])
+        valor = float(conta[1])
+        categoria = tratar_texto(conta[2])
+        status = tratar_texto(conta[3]).lower()
+
+        if status == "pago":
+            raise ValueError("Conta já está paga.")
+
+        caixa = verificar_caixa_aberto()
+
+        if caixa is None:
+            raise ValueError("Nenhum caixa aberto.")
+
+        caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
+
+        # ==========================================
+        # ATUALIZA CONTA
+        # ==========================================
         cursor.execute("""
             UPDATE contas_pagar
-            SET 
-                status = 'Pago',
+            SET status = 'Pago',
                 data_pagamento = NOW()
             WHERE id = %s
         """, (conta_id,))
 
-        # Verifica se encontrou a conta
-        if cursor.rowcount == 0:
+        # ==========================================
+        # REGISTRA MOVIMENTAÇÃO
+        # ==========================================
+        sucesso_mov = registrar_movimentacao(
+            caixa_id=caixa_id,
+            tipo="saida",
+            valor=valor,
+            descricao=descricao,
+            categoria=categoria if categoria else "despesa",
+            origem="contas_pagar",
+            data_movimentacao=datetime.now()
+        )
 
-            print("Conta não encontrada.")
+        if not sucesso_mov:
+            raise ValueError("Erro ao gerar movimentação.")
 
-            conn.rollback()
+        # ==========================================
+        # REGISTRA FLUXO CAIXA
+        # ==========================================
+        sucesso_fluxo = registrar_fluxo_caixa(
+            tipo="saida",
+            valor=valor,
+            descricao=descricao,
+            origem="contas_pagar"
+        )
 
-            return False
+        if not sucesso_fluxo:
+            raise ValueError("Erro ao registrar fluxo caixa.")
 
+        # ✔ SÓ AQUI CONFIRMA TUDO
         conn.commit()
-
-        print("Conta paga com sucesso.")
 
         return True
 
     except Exception as erro:
-
         conn.rollback()
-
-        print(f"Erro ao pagar conta: {erro}")
-
+        print("Erro ao pagar conta:", erro)
         return False
 
     finally:
-
         cursor.close()
         conn.close()
 
@@ -51,49 +95,30 @@ def listar_contas():
     conn = conectar()
 
     if conn is None:
-        return []
-
-    cursor = conn.cursor()
+        return pd.DataFrame()
 
     try:
 
-        cursor.execute("""
-            SELECT
-                id,
-                descricao,
-                categoria,
-                tipo,
-                valor,
-                vencimento,
-                status,
-                data_pagamento,
-                observacoes
+        query = """
+            SELECT *
             FROM contas_pagar
             ORDER BY vencimento ASC
-        """)
+        """
 
-        dados = cursor.fetchall()
-
-        return dados
+        df = pd.read_sql(query, conn)
+        return df
 
     except Exception as erro:
-
-        print(f"Erro ao listar contas: {erro}")
-
-        return []
+        print(f"Erro listar_contas: {erro}")
+        return pd.DataFrame()
 
     finally:
-
-        cursor.close()
         conn.close()
+
 
 def excluir_conta(conta_id):
 
     conn = conectar()
-
-    if conn is None:
-        return False
-
     cursor = conn.cursor()
 
     try:
@@ -104,20 +129,13 @@ def excluir_conta(conta_id):
         """, (conta_id,))
 
         conn.commit()
-
-        print("Conta excluída com sucesso.")
-
         return True
 
     except Exception as erro:
-
         conn.rollback()
-
-        print(f"Erro ao excluir conta: {erro}")
-
+        print(f"Erro excluir_conta: {erro}")
         return False
 
     finally:
-
         cursor.close()
         conn.close()
