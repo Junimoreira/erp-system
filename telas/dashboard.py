@@ -1,3 +1,5 @@
+# telas/dashboard.py
+
 import streamlit as st
 
 from database.dashboard_db import (
@@ -21,57 +23,77 @@ def tela_dashboard():
     # ==================================================
     # DADOS GERAIS
     # ==================================================
-    dados = obter_dashboard_mensal()
+    try:
 
-    despesas_fixas = total_despesas_fixas_mes()
+        dados = obter_dashboard_mensal()
 
-    vendido = total_vendido_mes()
+        despesas_fixas = float(
+            total_despesas_fixas_mes() or 0
+        )
 
-    meta = calcular_meta_mes()
+        vendido = float(
+            total_vendido_mes() or 0
+        )
 
-    falta = calcular_falta_meta()
+        meta = float(
+            calcular_meta_mes() or 0
+        )
 
-    percentual = percentual_meta()
+        falta = float(
+            calcular_falta_meta() or 0
+        )
 
-    lucro = lucro_estimado()
+        percentual = float(
+            percentual_meta() or 0
+        )
+
+        lucro = float(
+            lucro_estimado() or 0
+        )
+
+    except Exception as erro:
+
+        st.error(f"Erro ao carregar dashboard: {erro}")
+
+        return
 
     # ==================================================
     # VALIDAÇÕES
     # ==================================================
     vendas_mes = float(
-        dados.get("vendas_mes", 0)
+        dados.get("vendas_mes", 0) or 0
     )
 
     receber_mes = float(
-        dados.get("receber_mes", 0)
+        dados.get("receber_mes", 0) or 0
     )
 
     pagar_mes = float(
-        dados.get("pagar_mes", 0)
+        dados.get("pagar_mes", 0) or 0
     )
 
     clientes = int(
-        dados.get("clientes", 0)
+        dados.get("clientes", 0) or 0
     )
 
     fornecedores = int(
-        dados.get("fornecedores", 0)
+        dados.get("fornecedores", 0) or 0
     )
 
     produtos = int(
-        dados.get("produtos", 0)
+        dados.get("produtos", 0) or 0
     )
 
     estoque_baixo = int(
-        dados.get("estoque_baixo", 0)
+        dados.get("estoque_baixo", 0) or 0
     )
 
     caixa_atual = float(
-        dados.get("caixa_atual", 0)
+        dados.get("caixa_atual", 0) or 0
     )
 
     lucro_mes = float(
-        dados.get("lucro_mes", 0)
+        dados.get("lucro_mes", 0) or 0
     )
 
     # ==================================================
@@ -222,6 +244,11 @@ def tela_dashboard():
         1.0
     )
 
+    progresso = max(
+        progresso,
+        0
+    )
+
     st.progress(progresso)
 
     st.info(f"""
@@ -233,3 +260,10 @@ def tela_dashboard():
 
 📊 Progresso: {percentual:.1f}%
 """)
+
+    # ==================================================
+    # DEBUG TEMPORÁRIO
+    # ==================================================
+    with st.expander("🔍 Debug Dashboard"):
+
+        st.write(dados)

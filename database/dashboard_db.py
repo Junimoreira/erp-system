@@ -1,3 +1,5 @@
+# database/dashboard_db.py
+
 from database.connection import conectar
 
 
@@ -18,136 +20,231 @@ def obter_dashboard_mensal():
     try:
 
         # ==========================================
-        # VENDAS MÊS
+        # VENDAS DO MÊS
         # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor_total), 0)
-            FROM vendas
-            WHERE DATE_TRUNC('month', data_venda)
-            = DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        try:
 
-        dados["vendas_mes"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COALESCE(SUM(valor_total), 0)
+                FROM vendas
+                WHERE DATE_TRUNC('month', data_venda)
+                = DATE_TRUNC('month', CURRENT_DATE)
+            """)
 
-        # ==========================================
-        # CONTAS RECEBER
-        # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor), 0)
-            FROM contas_receber
-            WHERE status = 'PENDENTE'
-        """)
+            dados["vendas_mes"] = float(
+                cursor.fetchone()[0] or 0
+            )
 
-        dados["receber_mes"] = (
-            cursor.fetchone()[0] or 0
-        )
+        except:
+
+            dados["vendas_mes"] = 0
 
         # ==========================================
-        # CONTAS PAGAR
+        # CONTAS A RECEBER
         # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor), 0)
-            FROM contas_pagar
-            WHERE status = 'PENDENTE'
-        """)
+        try:
 
-        dados["pagar_mes"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COALESCE(SUM(valor), 0)
+                FROM contas_receber
+                WHERE UPPER(status) = 'PENDENTE'
+            """)
+
+            dados["receber_mes"] = float(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["receber_mes"] = 0
+
+        # ==========================================
+        # CONTAS A PAGAR
+        # ==========================================
+        try:
+
+            cursor.execute("""
+                SELECT COALESCE(SUM(valor), 0)
+                FROM contas_pagar
+                WHERE UPPER(status) = 'PENDENTE'
+            """)
+
+            dados["pagar_mes"] = float(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["pagar_mes"] = 0
 
         # ==========================================
         # CLIENTES
         # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM clientes
-        """)
+        try:
 
-        dados["clientes"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM clientes
+            """)
+
+            dados["clientes"] = int(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["clientes"] = 0
 
         # ==========================================
         # FORNECEDORES
         # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM fornecedores
-        """)
+        try:
 
-        dados["fornecedores"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM fornecedores
+            """)
+
+            dados["fornecedores"] = int(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["fornecedores"] = 0
 
         # ==========================================
         # PRODUTOS
         # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM produtos
-        """)
+        try:
 
-        dados["produtos"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM produtos
+            """)
+
+            dados["produtos"] = int(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["produtos"] = 0
 
         # ==========================================
         # ESTOQUE BAIXO
         # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM produtos
-            WHERE estoque <= estoque_minimo
-        """)
+        try:
 
-        dados["estoque_baixo"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM produtos
+                WHERE estoque <= estoque_minimo
+            """)
+
+            dados["estoque_baixo"] = int(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["estoque_baixo"] = 0
 
         # ==========================================
         # CAIXA ATUAL
         # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(saldo_final, 0)
-            FROM caixa
-            ORDER BY id DESC
-            LIMIT 1
-        """)
+        # PRIORIDADE:
+        # 1 - tabela caixa
+        # 2 - movimentacoes
+        # ==========================================
+        try:
 
-        resultado_caixa = cursor.fetchone()
+            cursor.execute("""
+                SELECT COALESCE(saldo_final, 0)
+                FROM caixa
+                ORDER BY id DESC
+                LIMIT 1
+            """)
 
-        dados["caixa_atual"] = (
-            resultado_caixa[0]
-            if resultado_caixa
-            else 0
-        )
+            resultado_caixa = cursor.fetchone()
+
+            if resultado_caixa and resultado_caixa[0] is not None:
+
+                dados["caixa_atual"] = float(
+                    resultado_caixa[0]
+                )
+
+            else:
+
+                raise Exception(
+                    "Caixa vazio"
+                )
+
+        except:
+
+            try:
+
+                cursor.execute("""
+                    SELECT
+                        COALESCE(SUM(
+                            CASE
+                                WHEN LOWER(tipo) = 'entrada'
+                                THEN valor
+                                ELSE 0
+                            END
+                        ),0)
+                        -
+                        COALESCE(SUM(
+                            CASE
+                                WHEN LOWER(tipo) = 'saida'
+                                THEN valor
+                                ELSE 0
+                            END
+                        ),0)
+                    FROM movimentacoes
+                """)
+
+                dados["caixa_atual"] = float(
+                    cursor.fetchone()[0] or 0
+                )
+
+            except:
+
+                dados["caixa_atual"] = 0
 
         # ==========================================
         # LUCRO MÊS
         # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(
-                SUM(valor_total - custo_total),
-                0
-            )
-            FROM vendas
-            WHERE DATE_TRUNC('month', data_venda)
-            = DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        try:
 
-        dados["lucro_mes"] = (
-            cursor.fetchone()[0] or 0
-        )
+            cursor.execute("""
+                SELECT COALESCE(
+                    SUM(valor_total - custo_total),
+                    0
+                )
+                FROM vendas
+                WHERE DATE_TRUNC('month', data_venda)
+                = DATE_TRUNC('month', CURRENT_DATE)
+            """)
+
+            dados["lucro_mes"] = float(
+                cursor.fetchone()[0] or 0
+            )
+
+        except:
+
+            dados["lucro_mes"] = (
+                dados["vendas_mes"]
+                -
+                dados["pagar_mes"]
+            )
 
         return dados
 
     except Exception as erro:
 
         print(
-            "Erro dashboard:",
-            erro
+            f"Erro dashboard: {erro}"
         )
 
         return {}
@@ -172,6 +269,9 @@ def total_despesas_fixas_mes():
 
     try:
 
+        # ==========================================
+        # TENTA TABELA DESPESAS
+        # ==========================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM despesas
@@ -179,12 +279,30 @@ def total_despesas_fixas_mes():
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
-        return float(
-            cursor.fetchone()[0] or 0
-        )
+        total = cursor.fetchone()[0]
+
+        return float(total or 0)
 
     except:
-        return 0
+
+        # ==========================================
+        # FALLBACK CONTAS PAGAR
+        # ==========================================
+        try:
+
+            cursor.execute("""
+                SELECT COALESCE(SUM(valor), 0)
+                FROM contas_pagar
+                WHERE UPPER(status) = 'PENDENTE'
+            """)
+
+            total = cursor.fetchone()[0]
+
+            return float(total or 0)
+
+        except:
+
+            return 0
 
     finally:
 
@@ -197,11 +315,53 @@ def total_despesas_fixas_mes():
 # ==================================================
 def total_vendido_mes():
 
-    dados = obter_dashboard_mensal()
+    conn = conectar()
 
-    return float(
-        dados.get("vendas_mes", 0)
-    )
+    if conn is None:
+        return 0
+
+    cursor = conn.cursor()
+
+    try:
+
+        # ==========================================
+        # TENTA VENDAS
+        # ==========================================
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor_total), 0)
+            FROM vendas
+            WHERE DATE_TRUNC('month', data_venda)
+            = DATE_TRUNC('month', CURRENT_DATE)
+        """)
+
+        total = cursor.fetchone()[0]
+
+        if total and float(total) > 0:
+
+            return float(total)
+
+        # ==========================================
+        # FALLBACK MOVIMENTACOES
+        # ==========================================
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor),0)
+            FROM movimentacoes
+            WHERE LOWER(tipo) = 'entrada'
+            AND LOWER(categoria) LIKE '%venda%'
+        """)
+
+        total = cursor.fetchone()[0]
+
+        return float(total or 0)
+
+    except:
+
+        return 0
+
+    finally:
+
+        cursor.close()
+        conn.close()
 
 
 # ==================================================
@@ -211,7 +371,9 @@ def calcular_meta_mes():
 
     despesas = total_despesas_fixas_mes()
 
-    return float(despesas * 2)
+    return float(
+        despesas * 2
+    )
 
 
 # ==================================================
@@ -225,7 +387,10 @@ def calcular_falta_meta():
 
     falta = meta - vendido
 
-    return max(falta, 0)
+    return max(
+        float(falta),
+        0
+    )
 
 
 # ==================================================
