@@ -1,22 +1,19 @@
 import pandas as pd
 from database.connection import conectar
-from relatorios.base_pdf import gerar_pdf_base
+from relatorios.base_pdf_profissional import gerar_pdf_profissional
 
 
 def relatorio_vendas():
 
     conn = conectar()
 
-    if conn is None:
-        raise Exception("Erro ao conectar no banco")
-
     try:
 
         query = """
         SELECT 
-            v.id AS venda_id,
+            v.id,
             v.data_venda,
-            c.nome AS cliente,
+            c.nome,
             v.valor_total,
             v.desconto,
             v.valor_final,
@@ -29,20 +26,11 @@ def relatorio_vendas():
 
         df = pd.read_sql_query(query, conn)
 
-        return gerar_pdf_base(
+        return gerar_pdf_profissional(
             "relatorio_vendas",
-            "Relatório de Vendas",
-            df.values.tolist(),
-            [
-                "Venda ID",
-                "Data",
-                "Cliente",
-                "Total",
-                "Desconto",
-                "Final",
-                "Pagamento",
-                "Status"
-            ]
+            "RELATÓRIO DE VENDAS",
+            ["ID", "Data", "Cliente", "Total", "Desconto", "Final", "Pagamento", "Status"],
+            df.values.tolist()
         )
 
     finally:
