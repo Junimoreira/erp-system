@@ -29,7 +29,7 @@ def carregar_css():
     try:
 
         with open(
-            "assets/style.css",
+            "style.css",  # <- CORRIGIDO (raiz mesmo)
             encoding="utf-8"
         ) as arquivo:
 
@@ -40,12 +40,7 @@ def carregar_css():
 
     except Exception as erro:
 
-        print(
-            f"Erro ao carregar CSS: {erro}"
-        )
-
-
-carregar_css()
+        print(f"Erro ao carregar CSS: {erro}")
 
 # ==================================================
 # IMPORTAÇÃO DAS TELAS

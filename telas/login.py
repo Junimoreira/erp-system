@@ -6,7 +6,7 @@ from database.connection import conectar
 
 
 # =====================================
-# BUSCAR USUÁRIO NO BANCO
+# AUTENTICAÇÃO
 # =====================================
 def autenticar_usuario(usuario):
 
@@ -19,24 +19,14 @@ def autenticar_usuario(usuario):
 
     try:
 
-        print("Usuário recebido:", usuario)
-
         cursor.execute("""
-            SELECT
-                id,
-                nome,
-                usuario,
-                senha,
-                perfil,
-                ativo
+            SELECT id, nome, usuario, senha, perfil, ativo
             FROM usuarios
             WHERE usuario = %s
             LIMIT 1
         """, (usuario,))
 
         row = cursor.fetchone()
-
-        print("Resultado banco:", row)
 
         if row is None:
             return None
@@ -50,188 +40,152 @@ def autenticar_usuario(usuario):
             "ativo": row[5]
         }
 
-    except Exception as erro:
-
-        print(f"Erro ao autenticar usuário: {erro}")
-
-        return None
-
     finally:
-
         cursor.close()
         conn.close()
 
 
 # =====================================
-# LOGIN
+# LOGIN SaaS PROFISSIONAL
 # =====================================
 def tela_login():
 
     st.markdown("""
         <style>
 
+        /* FUNDO SaaS MODERNO */
         .stApp {
-            background: linear-gradient(
-                135deg,
-                #0f172a 0%,
-                #111827 50%,
-                #0b1120 100%
-            );
+            background: linear-gradient(135deg, #0f172a 0%, #111827 50%, #0b1120 100%);
         }
 
+        /* CENTRALIZAÇÃO TOTAL */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 90vh;
+        }
+
+        /* CARD PRINCIPAL */
+        .login-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+
+            border: 1px solid rgba(255, 255, 255, 0.15);
+
+            padding: 40px 35px;
+            border-radius: 18px;
+
+            width: 380px;
+
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        /* TÍTULO */
         .titulo-login {
             text-align: center;
             color: white;
-            margin-top: 10px;
-            margin-bottom: 30px;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 25px;
         }
 
-        .stTextInput > div > div > input {
-            border-radius: 10px;
+        /* INPUTS */
+        .stTextInput input {
+            border-radius: 10px !important;
+            padding: 10px !important;
+            border: 2px solid #44D62C !important;
         }
 
+        /* BOTÃO */
         .stButton button {
+            width: 100%;
             border-radius: 10px;
             height: 45px;
             font-weight: bold;
+            background: linear-gradient(90deg, #44D62C, #008ACD);
+            color: white;
+            border: none;
+            transition: 0.3s;
+        }
+
+        .stButton button:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        /* TEXTO AUXILIAR */
+        .login-sub {
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 13px;
+            margin-bottom: 20px;
         }
 
         </style>
     """, unsafe_allow_html=True)
 
     # =====================================
-    # LOGO
+    # LAYOUT CENTRAL
     # =====================================
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+
+    # LOGO
     logo_path = "assets/logo1.png"
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=180)
 
-    with col2:
+    st.markdown('<div class="titulo-login">ERP Verde Infância</div>', unsafe_allow_html=True)
 
-        if os.path.exists(logo_path):
+    st.markdown('<div class="login-sub">Faça login para acessar o sistema</div>', unsafe_allow_html=True)
 
-            st.image(logo_path, width=240)
+    # CAMPOS
+    usuario = st.text_input("Usuário")
+    senha = st.text_input("Senha", type="password")
 
-        else:
-
-            st.warning("Logo não encontrada.")
-
-        st.markdown(
-            """
-            <h1 class="titulo-login">
-                🔐 ERP Verde Infância
-            </h1>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # =====================================
-    # CAMPOS LOGIN
-    # =====================================
-
-    usuario = st.text_input("👤 Usuário")
-
-    senha = st.text_input(
-        "🔐 Senha",
-        type="password"
-    )
-
-    # =====================================
-    # BOTÃO LOGIN
-    # =====================================
-
-    if st.button(
-        "Entrar",
-        use_container_width=True
-    ):
+    # BOTÃO
+    if st.button("Entrar", use_container_width=True):
 
         if not usuario or not senha:
-
-            st.warning(
-                "Informe usuário e senha."
-            )
-
+            st.warning("Informe usuário e senha.")
             return
 
         dados = autenticar_usuario(usuario)
 
-        # =====================================
-        # USUÁRIO NÃO ENCONTRADO
-        # =====================================
-
         if dados is None:
-
             st.error("Usuário inválido.")
-
             return
-
-        # =====================================
-        # USUÁRIO INATIVO
-        # =====================================
 
         if not dados["ativo"]:
-
             st.error("Usuário desativado.")
-
             return
 
-        # =====================================
-        # VALIDAÇÃO SENHA
-        # =====================================
-
         try:
-
             senha_valida = bcrypt.checkpw(
                 senha.encode(),
                 dados["senha"].encode()
             )
-
-        except Exception as erro:
-
-            print(f"Erro bcrypt: {erro}")
-
+        except:
             st.error("Erro ao validar senha.")
-
             return
 
         if not senha_valida:
-
             st.error("Senha inválida.")
-
             return
 
-        # =====================================
         # SESSION
-        # =====================================
-
         st.session_state["logado"] = True
-
         st.session_state["id"] = dados["id"]
-
         st.session_state["usuario"] = dados["usuario"]
-
         st.session_state["nome"] = dados["nome"]
-
         st.session_state["perfil"] = dados["perfil"]
 
-        # =====================================
-        # PERMISSÕES TEMPORÁRIAS ADMIN
-        # =====================================
-
-        st.session_state["pode_dashboard"] = True
-        st.session_state["pode_caixa"] = True
-        st.session_state["pode_clientes"] = True
-        st.session_state["pode_produtos"] = True
-        st.session_state["pode_vendas"] = True
-        st.session_state["pode_financeiro"] = True
-        st.session_state["pode_contas_pagar"] = True
-        st.session_state["pode_contas_receber"] = True
-        st.session_state["pode_despesas"] = True
-        st.session_state["pode_configuracoes"] = True
-
-        st.success(
-            f"Bem-vindo, {dados['nome']}!"
-        )
-
+        st.success(f"Bem-vindo, {dados['nome']}!")
         st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
