@@ -1,62 +1,58 @@
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 from datetime import datetime
 import os
 
 
-def gerar_pdf_base(nome_arquivo, titulo, dados, colunas, logo_path="assets/logo.png"):
+def gerar_pdf_base(nome_arquivo, titulo, dados, colunas):
 
-    arquivo = f"{nome_arquivo}.pdf"
-    c = canvas.Canvas(arquivo, pagesize=A4)
+    file_path = f"{nome_arquivo}.pdf"
+    doc = SimpleDocTemplate(file_path, pagesize=A4)
 
-    largura, altura = A4
+    elements = []
+    styles = getSampleStyleSheet()
 
-    # =========================
+    # ==================================================
     # LOGO
-    # =========================
-    try:
-        if os.path.exists(logo_path):
-            c.drawImage(logo_path, 40, altura - 100, width=80, height=60)
-    except:
-        pass
+    # ==================================================
+    logo_path = "assets/logo1.png"
 
-    # =========================
-    # TÍTULO
-    # =========================
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(140, altura - 80, titulo)
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=120, height=60)
+        elements.append(logo)
 
-    c.setFont("Helvetica", 9)
-    c.drawString(40, altura - 120, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    # ==================================================
+    # CABEÇALHO
+    # ==================================================
+    elements.append(Paragraph("<b>SISTEMA ERP - RELATÓRIOS GERENCIAIS</b>", styles["Title"]))
+    elements.append(Paragraph(titulo, styles["h2"]))
 
-    # =========================
-    # CABEÇALHO TABELA
-    # =========================
-    y = altura - 160
-    x = 40
+    data_geracao = datetime.now().strftime("%d/%m/%Y %H:%M")
+    elements.append(Paragraph(f"Gerado em: {data_geracao}", styles["Normal"]))
 
-    c.setFont("Helvetica-Bold", 9)
-    for col in colunas:
-        c.drawString(x, y, str(col))
-        x += 120
+    elements.append(Spacer(1, 20))
 
-    y -= 20
+    # ==================================================
+    # TABELA
+    # ==================================================
+    table_data = [colunas] + dados
 
-    # =========================
-    # DADOS
-    # =========================
-    c.setFont("Helvetica", 8)
+    table = Table(table_data)
 
-    for linha in dados:
-        x = 40
-        for item in linha:
-            c.drawString(x, y, str(item)[:20])
-            x += 120
-        y -= 15
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
 
-        if y < 50:
-            c.showPage()
-            y = altura - 50
+    elements.append(table)
 
-    c.save()
-    return arquivo
+    doc.build(elements)
+
+    return file_path

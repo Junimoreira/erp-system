@@ -7,19 +7,43 @@ def relatorio_vendas():
 
     conn = conectar()
 
-    query = """
-    SELECT id, cliente_id, valor_total, valor_final, data_venda
-    FROM vendas
-    ORDER BY data_venda DESC
-    """
+    if conn is None:
+        raise Exception("Erro ao conectar no banco")
 
-    df = pd.read_sql_query(query, conn)
+    try:
 
-    dados = df.values.tolist()
+        query = """
+        SELECT 
+            v.id AS venda_id,
+            v.data_venda,
+            c.nome AS cliente,
+            v.valor_total,
+            v.desconto,
+            v.valor_final,
+            v.forma_pagamento,
+            v.status
+        FROM vendas v
+        LEFT JOIN clientes c ON c.id = v.cliente_id
+        ORDER BY v.id DESC
+        """
 
-    return gerar_pdf_base(
-        "relatorio_vendas",
-        "Relatório de Vendas",
-        dados,
-        ["ID", "Cliente", "Total", "Final", "Data"]
-    )
+        df = pd.read_sql_query(query, conn)
+
+        return gerar_pdf_base(
+            "relatorio_vendas",
+            "Relatório de Vendas",
+            df.values.tolist(),
+            [
+                "Venda ID",
+                "Data",
+                "Cliente",
+                "Total",
+                "Desconto",
+                "Final",
+                "Pagamento",
+                "Status"
+            ]
+        )
+
+    finally:
+        conn.close()

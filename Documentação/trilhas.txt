@@ -3,3 +3,14 @@ Se quiser o próximo nível, posso te montar:
 👉 script automático profissional (.bat completo)
 👉 integração no seu ERP
 👉 sistema de backup agendado
+
+✔ 
+relatório agrupado estilo “nota fiscal”
+✔ 
+PDF com quebra por venda
+✔ 
+totalizadores automáticos
+✔ 
+dashboard de vendas
+✔ 
+ranking de produtos mais vendidos

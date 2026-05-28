@@ -1,0 +1,35 @@
+import pandas as pd
+from database.connection import conectar
+from relatorios.base_pdf import gerar_pdf_base
+
+
+def relatorio_clientes():
+
+    conn = conectar()
+
+    if conn is None:
+        raise Exception("Erro ao conectar no banco")
+
+    try:
+
+        query = """
+        SELECT 
+            id,
+            nome
+        FROM clientes
+        ORDER BY nome
+        """
+
+        df = pd.read_sql_query(query, conn)
+
+        dados = df.values.tolist()
+
+        return gerar_pdf_base(
+            "relatorio_clientes",
+            "Relatório de Clientes",
+            dados,
+            ["ID", "Nome"]
+        )
+
+    finally:
+        conn.close()
