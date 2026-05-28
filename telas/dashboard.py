@@ -9,7 +9,8 @@ from database.dashboard_db import (
     calcular_meta_mes,
     calcular_falta_meta,
     percentual_meta,
-    lucro_estimado
+    lucro_estimado,
+    obter_alertas_financeiros
 )
 
 
@@ -261,8 +262,82 @@ def tela_dashboard():
         )
 
     # ==================================================
+    # ALERTAS FINANCEIROS
+    # ==================================================
+    st.divider()
+
+    st.subheader("🚨 Alertas Financeiros")
+
+    alertas = obter_alertas_financeiros()
+
+    # ==========================================
+    # CONTAS VENCIDAS
+    # ==========================================
+    if alertas["vencidas"]:
+
+        st.error(
+            f"Existem {len(alertas['vencidas'])} contas vencidas."
+        )
+
+        for descricao, valor, vencimento in alertas["vencidas"]:
+
+            st.write(
+                f"🔴 {descricao} | "
+                f"R$ {valor:,.2f} | "
+                f"{vencimento:%d/%m/%Y}"
+            )
+
+    # ==========================================
+    # VENCEM HOJE
+    # ==========================================
+    if alertas["hoje"]:
+
+        st.warning(
+            f"Existem {len(alertas['hoje'])} contas vencendo hoje."
+        )
+
+        for descricao, valor, vencimento in alertas["hoje"]:
+
+            st.write(
+                f"🟠 {descricao} | "
+                f"R$ {valor:,.2f}"
+            )
+
+    # ==========================================
+    # PRÓXIMOS 7 DIAS
+    # ==========================================
+    if alertas["proximas"]:
+
+        st.info(
+            f"Existem {len(alertas['proximas'])} contas vencendo nos próximos 7 dias."
+        )
+
+        for descricao, valor, vencimento in alertas["proximas"]:
+
+            st.write(
+                f"🟢 {descricao} | "
+                f"R$ {valor:,.2f} | "
+                f"{vencimento:%d/%m/%Y}"
+            )
+
+    # ==========================================
+    # SEM ALERTAS
+    # ==========================================
+    if (
+        not alertas["vencidas"]
+        and not alertas["hoje"]
+        and not alertas["proximas"]
+    ):
+
+        st.success(
+            "Nenhuma conta vencida ou próxima do vencimento."
+        )
+
+    # ==================================================
     # DEBUG
     # ==================================================
     with st.expander("🔍 Debug Dashboard"):
 
         st.write(dados)
+
+ 

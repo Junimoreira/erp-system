@@ -339,3 +339,87 @@ def lucro_estimado():
         lucro,
         2
     )
+
+# ==================================================
+# ALERTAS FINANCEIROS
+# ==================================================
+def obter_alertas_financeiros():
+
+    conn = conectar()
+
+    if conn is None:
+        return {
+            "vencidas": [],
+            "hoje": [],
+            "proximas": []
+        }
+
+    cursor = conn.cursor()
+
+    try:
+
+        # CONTAS VENCIDAS
+        cursor.execute("""
+            SELECT
+                descricao,
+                valor,
+                vencimento
+            FROM contas_pagar
+            WHERE LOWER(status) = 'pendente'
+            AND vencimento < CURRENT_DATE
+            ORDER BY vencimento
+        """)
+
+        vencidas = cursor.fetchall()
+
+        # VENCEM HOJE
+        cursor.execute("""
+            SELECT
+                descricao,
+                valor,
+                vencimento
+            FROM contas_pagar
+            WHERE LOWER(status) = 'pendente'
+            AND vencimento = CURRENT_DATE
+            ORDER BY vencimento
+        """)
+
+        hoje = cursor.fetchall()
+
+        # PRÓXIMOS 7 DIAS
+        cursor.execute("""
+            SELECT
+                descricao,
+                valor,
+                vencimento
+            FROM contas_pagar
+            WHERE LOWER(status) = 'pendente'
+            AND vencimento > CURRENT_DATE
+            AND vencimento <= CURRENT_DATE + INTERVAL '7 days'
+            ORDER BY vencimento
+        """)
+
+        proximas = cursor.fetchall()
+
+        return {
+            "vencidas": vencidas,
+            "hoje": hoje,
+            "proximas": proximas
+        }
+
+    except Exception as erro:
+
+        print(
+            f"Erro alertas: {erro}"
+        )
+
+        return {
+            "vencidas": [],
+            "hoje": [],
+            "proximas": []
+        }
+
+    finally:
+
+        cursor.close()
+        conn.close()
