@@ -4,17 +4,26 @@ from database.connection import conectar
 
 
 # ==================================================
-# UTIL: SEGURANÇA DE CONEXÃO
+# UTIL
 # ==================================================
 def safe_fetchone(cursor, default=0):
+
     try:
-        return cursor.fetchone()[0] or default
-    except:
+
+        resultado = cursor.fetchone()
+
+        if resultado is None:
+            return default
+
+        return resultado[0] if resultado[0] is not None else default
+
+    except Exception:
+
         return default
 
 
 # ==================================================
-# DASHBOARD MENSAL (ERP PROFISSIONAL)
+# DASHBOARD MENSAL
 # ==================================================
 def obter_dashboard_mensal():
 
@@ -29,20 +38,23 @@ def obter_dashboard_mensal():
 
     try:
 
-        # ==================================================
+        # ==========================================
         # VENDAS DO MÊS
-        # ==================================================
+        # ==========================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor_total), 0)
             FROM vendas
             WHERE DATE_TRUNC('month', data_venda)
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
-        dados["vendas_mes"] = float(safe_fetchone(cursor))
 
-        # ==================================================
-        # CONTAS A RECEBER (MÊS)
-        # ==================================================
+        dados["vendas_mes"] = float(
+            safe_fetchone(cursor)
+        )
+
+        # ==========================================
+        # CONTAS A RECEBER DO MÊS
+        # ==========================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM contas_receber
@@ -50,11 +62,14 @@ def obter_dashboard_mensal():
             AND DATE_TRUNC('month', vencimento)
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
-        dados["receber_mes"] = float(safe_fetchone(cursor))
 
-        # ==================================================
-        # CONTAS A PAGAR (MÊS)
-        # ==================================================
+        dados["receber_mes"] = float(
+            safe_fetchone(cursor)
+        )
+
+        # ==========================================
+        # CONTAS A PAGAR DO MÊS
+        # ==========================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM contas_pagar
@@ -62,47 +77,99 @@ def obter_dashboard_mensal():
             AND DATE_TRUNC('month', vencimento)
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
-        dados["pagar_mes"] = float(safe_fetchone(cursor))
 
-        # ==================================================
-        # CADASTROS
-        # ==================================================
-        cursor.execute("SELECT COUNT(*) FROM clientes")
-        dados["clientes"] = int(safe_fetchone(cursor))
+        dados["pagar_mes"] = float(
+            safe_fetchone(cursor)
+        )
 
-        cursor.execute("SELECT COUNT(*) FROM fornecedores")
-        dados["fornecedores"] = int(safe_fetchone(cursor))
+        # ==========================================
+        # CLIENTES
+        # ==========================================
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM clientes
+        """)
 
-        cursor.execute("SELECT COUNT(*) FROM produtos")
-        dados["produtos"] = int(safe_fetchone(cursor))
+        dados["clientes"] = int(
+            safe_fetchone(cursor)
+        )
 
+        # ==========================================
+        # FORNECEDORES
+        # ==========================================
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM fornecedores
+        """)
+
+        dados["fornecedores"] = int(
+            safe_fetchone(cursor)
+        )
+
+        # ==========================================
+        # PRODUTOS
+        # ==========================================
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM produtos
+        """)
+
+        dados["produtos"] = int(
+            safe_fetchone(cursor)
+        )
+
+        # ==========================================
+        # ESTOQUE BAIXO
+        # ==========================================
         cursor.execute("""
             SELECT COUNT(*)
             FROM produtos
             WHERE estoque <= estoque_minimo
         """)
-        dados["estoque_baixo"] = int(safe_fetchone(cursor))
 
-        # ==================================================
+        dados["estoque_baixo"] = int(
+            safe_fetchone(cursor)
+        )
+
+        # ==========================================
         # CAIXA ATUAL
-        # ==================================================
+        # ==========================================
         cursor.execute("""
-            SELECT COALESCE(SUM(
-                CASE WHEN LOWER(tipo) = 'entrada' THEN valor ELSE 0 END
-            ), 0)
-            -
-            COALESCE(SUM(
-                CASE WHEN LOWER(tipo) = 'saida' THEN valor ELSE 0 END
-            ), 0)
+            SELECT
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN LOWER(tipo) = 'entrada'
+                            THEN valor
+                            ELSE 0
+                        END
+                    ),
+                    0
+                )
+                -
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN LOWER(tipo) = 'saida'
+                            THEN valor
+                            ELSE 0
+                        END
+                    ),
+                    0
+                )
             FROM movimentacoes
         """)
-        dados["caixa_atual"] = float(safe_fetchone(cursor))
 
-        # ==================================================
-        # LUCRO DO MÊS (REAL)
-        # ==================================================
+        dados["caixa_atual"] = float(
+            safe_fetchone(cursor)
+        )
+
+        # ==========================================
+        # LUCRO ESTIMADO DO MÊS
+        # ==========================================
         dados["lucro_mes"] = round(
-            dados["vendas_mes"] - dados["pagar_mes"],
+            dados["vendas_mes"] -
+            dados["pagar_mes"],
             2
         )
 
@@ -110,7 +177,9 @@ def obter_dashboard_mensal():
 
     except Exception as erro:
 
-        print(f"Erro dashboard: {erro}")
+        print(
+            f"Erro dashboard: {erro}"
+        )
 
         return {}
 
@@ -121,7 +190,7 @@ def obter_dashboard_mensal():
 
 
 # ==================================================
-# DESPESAS FIXAS DO MÊS
+# TOTAL DESPESAS MÊS
 # ==================================================
 def total_despesas_fixas_mes():
 
@@ -142,7 +211,17 @@ def total_despesas_fixas_mes():
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
-        return float(safe_fetchone(cursor))
+        return float(
+            safe_fetchone(cursor)
+        )
+
+    except Exception as erro:
+
+        print(
+            f"Erro despesas mês: {erro}"
+        )
+
+        return 0
 
     finally:
 
@@ -151,7 +230,7 @@ def total_despesas_fixas_mes():
 
 
 # ==================================================
-# TOTAL VENDIDO NO MÊS
+# TOTAL VENDIDO MÊS
 # ==================================================
 def total_vendido_mes():
 
@@ -171,7 +250,17 @@ def total_vendido_mes():
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
-        return float(safe_fetchone(cursor))
+        return float(
+            safe_fetchone(cursor)
+        )
+
+    except Exception as erro:
+
+        print(
+            f"Erro total vendido: {erro}"
+        )
+
+        return 0
 
     finally:
 
@@ -188,7 +277,12 @@ def calcular_meta_mes():
 
     margem_lucro = despesas * 0.20
 
-    return round(despesas + margem_lucro, 2)
+    meta = despesas + margem_lucro
+
+    return round(
+        meta,
+        2
+    )
 
 
 # ==================================================
@@ -197,11 +291,15 @@ def calcular_meta_mes():
 def calcular_falta_meta():
 
     meta = calcular_meta_mes()
+
     vendido = total_vendido_mes()
 
     falta = meta - vendido
 
-    return max(round(falta, 2), 0)
+    return max(
+        round(falta, 2),
+        0
+    )
 
 
 # ==================================================
@@ -210,12 +308,20 @@ def calcular_falta_meta():
 def percentual_meta():
 
     meta = calcular_meta_mes()
+
     vendido = total_vendido_mes()
 
     if meta <= 0:
         return 0
 
-    return round((vendido / meta) * 100, 2)
+    percentual = (
+        vendido / meta
+    ) * 100
+
+    return round(
+        percentual,
+        2
+    )
 
 
 # ==================================================
@@ -224,6 +330,12 @@ def percentual_meta():
 def lucro_estimado():
 
     vendido = total_vendido_mes()
+
     despesas = total_despesas_fixas_mes()
 
-    return round(vendido - despesas, 2)
+    lucro = vendido - despesas
+
+    return round(
+        lucro,
+        2
+    )

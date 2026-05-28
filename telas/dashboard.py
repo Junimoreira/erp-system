@@ -20,14 +20,11 @@ def tela_dashboard():
 
     st.title("📊 Dashboard Financeiro")
 
-    # ==================================================
-    # DADOS GERAIS
-    # ==================================================
     try:
 
         dados = obter_dashboard_mensal()
 
-        despesas_fixas = float(
+        despesas_mes = float(
             total_despesas_fixas_mes() or 0
         )
 
@@ -53,12 +50,14 @@ def tela_dashboard():
 
     except Exception as erro:
 
-        st.error(f"Erro ao carregar dashboard: {erro}")
+        st.error(
+            f"Erro ao carregar dashboard: {erro}"
+        )
 
         return
 
     # ==================================================
-    # VALIDAÇÕES
+    # DADOS
     # ==================================================
     vendas_mes = float(
         dados.get("vendas_mes", 0) or 0
@@ -97,95 +96,34 @@ def tela_dashboard():
     )
 
     # ==================================================
-    # PRIMEIRA LINHA
+    # RESUMO FINANCEIRO
     # ==================================================
+    st.subheader("💰 Resumo Financeiro")
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
 
         st.metric(
-            "💰 Vendas Mês",
+            "💵 Vendas do Mês",
             f"R$ {vendas_mes:,.2f}"
         )
 
     with col2:
 
         st.metric(
-            "📈 Lucro Mês",
-            f"R$ {lucro_mes:,.2f}"
+            "📥 Contas a Receber",
+            f"R$ {receber_mes:,.2f}"
         )
 
     with col3:
 
         st.metric(
-            "💳 Contas Receber",
-            f"R$ {receber_mes:,.2f}"
-        )
-
-    with col4:
-
-        st.metric(
-            "💸 Contas Pagar",
+            "📤 Contas a Pagar",
             f"R$ {pagar_mes:,.2f}"
         )
 
-    st.divider()
-
-    # ==================================================
-    # SEGUNDA LINHA
-    # ==================================================
-    col5, col6, col7, col8 = st.columns(4)
-
-    with col5:
-
-        st.metric(
-            "📦 Produtos",
-            produtos
-        )
-
-    with col6:
-
-        st.metric(
-            "👥 Clientes",
-            clientes
-        )
-
-    with col7:
-
-        st.metric(
-            "🚚 Fornecedores",
-            fornecedores
-        )
-
-    with col8:
-
-        st.metric(
-            "⚠️ Estoque Baixo",
-            estoque_baixo
-        )
-
-    st.divider()
-
-    # ==================================================
-    # TERCEIRA LINHA
-    # ==================================================
-    col9, col10, col11 = st.columns(3)
-
-    with col9:
-
-        st.metric(
-            "💸 Despesas Fixas",
-            f"R$ {despesas_fixas:,.2f}"
-        )
-
-    with col10:
-
-        st.metric(
-            "🎯 Meta do Mês",
-            f"R$ {meta:,.2f}"
-        )
-
-    with col11:
+    with col4:
 
         st.metric(
             "🏦 Caixa Atual",
@@ -195,48 +133,84 @@ def tela_dashboard():
     st.divider()
 
     # ==================================================
-    # QUARTA LINHA
+    # META E RESULTADO
     # ==================================================
-    col12, col13, col14 = st.columns(3)
+    st.subheader("🎯 Meta e Resultado")
 
-    with col12:
+    col5, col6, col7, col8 = st.columns(4)
+
+    with col5:
 
         st.metric(
-            "💰 Vendido no Mês",
-            f"R$ {vendido:,.2f}"
+            "📌 Compromissos do Mês",
+            f"R$ {despesas_mes:,.2f}"
         )
 
-    with col13:
+    with col6:
+
+        st.metric(
+            "🎯 Meta de Faturamento",
+            f"R$ {meta:,.2f}"
+        )
+
+    with col7:
 
         st.metric(
             "📉 Falta para Meta",
             f"R$ {falta:,.2f}"
         )
 
-    with col14:
+    with col8:
 
         st.metric(
-            "📊 Meta Atingida",
-            f"{percentual:.1f}%"
+            "📈 Lucro Estimado",
+            f"R$ {lucro:,.2f}"
         )
 
     st.divider()
 
     # ==================================================
-    # LUCRO ESTIMADO
+    # CADASTROS
     # ==================================================
-    st.metric(
-        "📈 Lucro Estimado",
-        f"R$ {lucro:,.2f}"
-    )
+    st.subheader("📋 Cadastros")
+
+    col9, col10, col11, col12 = st.columns(4)
+
+    with col9:
+
+        st.metric(
+            "👥 Clientes",
+            clientes
+        )
+
+    with col10:
+
+        st.metric(
+            "🚚 Fornecedores",
+            fornecedores
+        )
+
+    with col11:
+
+        st.metric(
+            "📦 Produtos",
+            produtos
+        )
+
+    with col12:
+
+        st.metric(
+            "⚠️ Estoque Baixo",
+            estoque_baixo
+        )
 
     st.divider()
 
     # ==================================================
-    # PROGRESSO META
+    # PROGRESSO DA META
     # ==================================================
     st.subheader(
-        "🎯 Progresso da Meta"
+        "🚀 Progresso da Meta Mensal"
     )
 
     progresso = min(
@@ -252,17 +226,42 @@ def tela_dashboard():
     st.progress(progresso)
 
     st.info(f"""
-💰 Vendido: R$ {vendido:,.2f}
+💰 Faturamento Atual: R$ {vendido:,.2f}
 
-🎯 Meta: R$ {meta:,.2f}
+🎯 Meta de Faturamento: R$ {meta:,.2f}
 
-📉 Falta: R$ {falta:,.2f}
+📉 Falta para atingir a meta: R$ {falta:,.2f}
 
-📊 Progresso: {percentual:.1f}%
+📊 Meta atingida: {percentual:.2f}%
 """)
 
+    st.divider()
+
     # ==================================================
-    # DEBUG TEMPORÁRIO
+    # ANÁLISE RÁPIDA
+    # ==================================================
+    st.subheader("📈 Análise do Mês")
+
+    if lucro > 0:
+
+        st.success(
+            f"Empresa projetando lucro de R$ {lucro:,.2f} no mês."
+        )
+
+    elif lucro < 0:
+
+        st.error(
+            f"Empresa projetando prejuízo de R$ {abs(lucro):,.2f} no mês."
+        )
+
+    else:
+
+        st.warning(
+            "Resultado financeiro zerado até o momento."
+        )
+
+    # ==================================================
+    # DEBUG
     # ==================================================
     with st.expander("🔍 Debug Dashboard"):
 
