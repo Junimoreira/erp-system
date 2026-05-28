@@ -1,5 +1,3 @@
-# services/finance_service.py
-
 from datetime import datetime
 
 from database.connection import conectar
@@ -22,6 +20,7 @@ def processar_entrada_financeira(
     conn = conectar()
 
     if conn is None:
+        print("ERRO: conexão não encontrada")
         return False
 
     cursor = conn.cursor()
@@ -35,10 +34,16 @@ def processar_entrada_financeira(
 
         caixa = verificar_caixa_aberto()
 
+        print("CAIXA ENCONTRADO:", caixa)
+
         if caixa is None:
             raise ValueError("Nenhum caixa aberto.")
 
-        caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
+        caixa_id = (
+            caixa[0]
+            if isinstance(caixa, tuple)
+            else caixa["id"]
+        )
 
         ok_mov = registrar_movimentacao(
             caixa_id=caixa_id,
@@ -51,7 +56,9 @@ def processar_entrada_financeira(
         )
 
         if not ok_mov:
-            raise ValueError("Erro movimentação entrada.")
+            raise ValueError(
+                "Erro ao registrar movimentação."
+            )
 
         ok_fluxo = registrar_fluxo_caixa(
             tipo="entrada",
@@ -61,9 +68,14 @@ def processar_entrada_financeira(
         )
 
         if not ok_fluxo:
-            raise ValueError("Erro fluxo caixa.")
+            raise ValueError(
+                "Erro ao registrar fluxo caixa."
+            )
 
-        if origem == "contas_receber" and referencia_id is not None:
+        if (
+            origem == "contas_receber"
+            and referencia_id is not None
+        ):
 
             cursor.execute("""
                 UPDATE contas_receber
@@ -73,14 +85,22 @@ def processar_entrada_financeira(
             """, (referencia_id,))
 
         conn.commit()
+
         return True
 
     except Exception as erro:
+
         conn.rollback()
-        print("Erro entrada financeira:", erro)
+
+        print(
+            "ERRO ENTRADA FINANCEIRA:",
+            erro
+        )
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
@@ -113,9 +133,15 @@ def processar_saida_financeira(
         caixa = verificar_caixa_aberto()
 
         if caixa is None:
-            raise ValueError("Nenhum caixa aberto.")
+            raise ValueError(
+                "Nenhum caixa aberto."
+            )
 
-        caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
+        caixa_id = (
+            caixa[0]
+            if isinstance(caixa, tuple)
+            else caixa["id"]
+        )
 
         ok_mov = registrar_movimentacao(
             caixa_id=caixa_id,
@@ -128,7 +154,9 @@ def processar_saida_financeira(
         )
 
         if not ok_mov:
-            raise ValueError("Erro movimentação saída.")
+            raise ValueError(
+                "Erro movimentação saída."
+            )
 
         ok_fluxo = registrar_fluxo_caixa(
             tipo="saida",
@@ -138,9 +166,14 @@ def processar_saida_financeira(
         )
 
         if not ok_fluxo:
-            raise ValueError("Erro fluxo caixa.")
+            raise ValueError(
+                "Erro fluxo caixa."
+            )
 
-        if origem == "contas_pagar" and referencia_id is not None:
+        if (
+            origem == "contas_pagar"
+            and referencia_id is not None
+        ):
 
             cursor.execute("""
                 UPDATE contas_pagar
@@ -150,140 +183,28 @@ def processar_saida_financeira(
             """, (referencia_id,))
 
         conn.commit()
+
         return True
 
     except Exception as erro:
+
         conn.rollback()
-        print("Erro saída financeira:", erro)
+
+        print(
+            "ERRO SAÍDA FINANCEIRA:",
+            erro
+        )
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
 
 # ==================================================
-# ESTORNO SAÍDA
-# ==================================================
-def estornar_saida_financeira(conta_id, valor, descricao):
-
-    conn = conectar()
-
-    if conn is None:
-        return False
-
-    cursor = conn.cursor()
-
-    try:
-
-        valor = float(valor)
-
-        caixa = verificar_caixa_aberto()
-
-        if caixa is None:
-            raise ValueError("Nenhum caixa aberto.")
-
-        caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
-
-        registrar_movimentacao(
-            caixa_id=caixa_id,
-            tipo="entrada",
-            valor=valor,
-            descricao=f"Estorno saída: {descricao}",
-            categoria="estorno",
-            origem="estorno_saida",
-            data_movimentacao=datetime.now()
-        )
-
-        registrar_fluxo_caixa(
-            tipo="entrada",
-            valor=valor,
-            descricao=f"Estorno: {descricao}",
-            origem="estorno_saida"
-        )
-
-        cursor.execute("""
-            UPDATE contas_pagar
-            SET status = 'Pendente',
-                data_pagamento = NULL
-            WHERE id = %s
-        """, (conta_id,))
-
-        conn.commit()
-        return True
-
-    except Exception as erro:
-        conn.rollback()
-        print("Erro estorno saída:", erro)
-        return False
-
-    finally:
-        cursor.close()
-        conn.close()
-
-
-# ==================================================
-# ESTORNO ENTRADA
-# ==================================================
-def estornar_entrada_financeira(conta_id, valor, descricao):
-
-    conn = conectar()
-
-    if conn is None:
-        return False
-
-    cursor = conn.cursor()
-
-    try:
-
-        valor = float(valor)
-
-        caixa = verificar_caixa_aberto()
-
-        if caixa is None:
-            raise ValueError("Nenhum caixa aberto.")
-
-        caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
-
-        registrar_movimentacao(
-            caixa_id=caixa_id,
-            tipo="saida",
-            valor=valor,
-            descricao=f"Estorno entrada: {descricao}",
-            categoria="estorno",
-            origem="estorno_entrada",
-            data_movimentacao=datetime.now()
-        )
-
-        registrar_fluxo_caixa(
-            tipo="saida",
-            valor=valor,
-            descricao=f"Estorno: {descricao}",
-            origem="estorno_entrada"
-        )
-
-        cursor.execute("""
-            UPDATE contas_receber
-            SET status = 'Pendente',
-                data_recebimento = NULL
-            WHERE id = %s
-        """, (conta_id,))
-
-        conn.commit()
-        return True
-
-    except Exception as erro:
-        conn.rollback()
-        print("Erro estorno entrada:", erro)
-        return False
-
-    finally:
-        cursor.close()
-        conn.close()
-
-
-# ==================================================
-# FECHAMENTO DE CAIXA DIÁRIO (CORRIGE SEU ERRO)
+# FECHAMENTO DE CAIXA
 # ==================================================
 def fechar_caixa_diario():
 
@@ -304,20 +225,185 @@ def fechar_caixa_diario():
         """)
 
         conn.commit()
+
         return True
 
     except Exception as erro:
+
         conn.rollback()
-        print("Erro fechar caixa diário:", erro)
+
+        print(
+            "Erro fechar caixa:",
+            erro
+        )
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
-# ========================================
-# CALCULAR PREÇO DE VENDA (CORRETO ERP)
-# ========================================
+
+# ==================================================
+# ESTORNO SAÍDA
+# ==================================================
+def estornar_saida_financeira(
+    conta_id,
+    valor,
+    descricao
+):
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+
+        valor = float(valor)
+
+        caixa = verificar_caixa_aberto()
+
+        if caixa is None:
+            raise ValueError(
+                "Nenhum caixa aberto."
+            )
+
+        caixa_id = (
+            caixa[0]
+            if isinstance(caixa, tuple)
+            else caixa["id"]
+        )
+
+        registrar_movimentacao(
+            caixa_id=caixa_id,
+            tipo="entrada",
+            valor=valor,
+            descricao=f"Estorno saída: {descricao}",
+            categoria="estorno",
+            origem="estorno_saida",
+            data_movimentacao=datetime.now()
+        )
+
+        registrar_fluxo_caixa(
+            tipo="entrada",
+            valor=valor,
+            descricao=f"Estorno saída: {descricao}",
+            origem="estorno_saida"
+        )
+
+        cursor.execute("""
+            UPDATE contas_pagar
+            SET status = 'Pendente',
+                data_pagamento = NULL
+            WHERE id = %s
+        """, (conta_id,))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro estorno saída:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# ESTORNO ENTRADA
+# ==================================================
+def estornar_entrada_financeira(
+    conta_id,
+    valor,
+    descricao
+):
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+
+        valor = float(valor)
+
+        caixa = verificar_caixa_aberto()
+
+        if caixa is None:
+            raise ValueError(
+                "Nenhum caixa aberto."
+            )
+
+        caixa_id = (
+            caixa[0]
+            if isinstance(caixa, tuple)
+            else caixa["id"]
+        )
+
+        registrar_movimentacao(
+            caixa_id=caixa_id,
+            tipo="saida",
+            valor=valor,
+            descricao=f"Estorno entrada: {descricao}",
+            categoria="estorno",
+            origem="estorno_entrada",
+            data_movimentacao=datetime.now()
+        )
+
+        registrar_fluxo_caixa(
+            tipo="saida",
+            valor=valor,
+            descricao=f"Estorno entrada: {descricao}",
+            origem="estorno_entrada"
+        )
+
+        cursor.execute("""
+            UPDATE contas_receber
+            SET status = 'Pendente',
+                data_recebimento = NULL
+            WHERE id = %s
+        """, (conta_id,))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro estorno entrada:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# FORMAÇÃO DE PREÇO
+# ==================================================
 def calcular_preco_venda(
     custo,
     imposto=0,
@@ -329,15 +415,20 @@ def calcular_preco_venda(
     custo = float(custo)
 
     soma_percentual = (
-        float(imposto) +
-        float(frete) +
-        float(taxa_cartao) +
-        float(margem_lucro)
+        float(imposto)
+        + float(frete)
+        + float(taxa_cartao)
+        + float(margem_lucro)
     ) / 100
 
     if soma_percentual >= 1:
-        raise ValueError("Soma dos percentuais inválida (>= 100%)")
 
-    preco_venda = custo / (1 - soma_percentual)
+        raise ValueError(
+            "A soma dos percentuais não pode ser maior ou igual a 100%"
+        )
+
+    preco_venda = custo / (
+        1 - soma_percentual
+    )
 
     return round(preco_venda, 2)

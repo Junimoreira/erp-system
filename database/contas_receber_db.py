@@ -82,7 +82,7 @@ def cadastrar_conta_receber(
 # ==================================================
 # LISTAR CONTAS A RECEBER
 # ==================================================
-def listar_contas_receber():
+def listar_contas():
 
     conn = conectar()
 
@@ -93,32 +93,35 @@ def listar_contas_receber():
 
         query = """
             SELECT
-                cr.id,
-                c.nome AS cliente,
-                cr.cliente_id,
-                cr.descricao,
-                cr.valor,
-                cr.vencimento,
-                cr.status,
-                cr.data_recebimento,
-                cr.observacoes,
-                cr.criado_em
-            FROM contas_receber cr
-            LEFT JOIN clientes c ON cr.cliente_id = c.id
-            ORDER BY cr.vencimento ASC
+                id,
+                descricao,
+                valor,
+                vencimento,
+                status,
+                observacoes,
+                criado_em
+            FROM contas_receber
+            ORDER BY vencimento ASC
         """
 
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(
+            query,
+            conn
+        )
 
-        return df.fillna("") if not df.empty else pd.DataFrame()
+        return df.fillna("")
 
     except Exception as erro:
-        print("Erro listar contas receber:", erro)
+
+        print(
+            f"Erro ao listar contas a receber: {erro}"
+        )
+
         return pd.DataFrame()
 
     finally:
-        conn.close()
 
+        conn.close()
 
 # ==================================================
 # RECEBER CONTA (APENAS DB - SEM REGRA FINANCEIRA)
@@ -284,79 +287,61 @@ def resumo_contas_receber():
         cursor.close()
         conn.close()
 
-def listar_contas():
+# ==================================================
+# LISTAR CONTAS A RECEBER
+# ==================================================
+def listar_contas_receber():
 
     conn = conectar()
 
     if conn is None:
-        return []
-
-    cursor = conn.cursor()
+        return pd.DataFrame()
 
     try:
 
-        cursor.execute("""
+        query = """
             SELECT
                 id,
+                cliente,
+                cliente_id,
                 descricao,
-                categoria,
-                tipo,
                 valor,
                 vencimento,
                 status,
+                forma_pagamento,
+                data_pagamento,
                 data_recebimento,
-                observacoes
+                observacoes,
+                criado_em
             FROM contas_receber
             ORDER BY vencimento ASC
-        """)
+        """
 
-        dados = cursor.fetchall()
+        df = pd.read_sql(
+            query,
+            conn
+        )
 
-        return dados
+        print("TOTAL CONTAS RECEBER:", len(df))
+
+        return df.fillna("")
 
     except Exception as erro:
 
-        print(f"Erro ao listar contas a receber: {erro}")
+        print(
+            "Erro listar contas receber:",
+            erro
+        )
 
-        return []
+        return pd.DataFrame()
 
     finally:
 
-        cursor.close()
-        conn.close()
-
-
+        conn.close()# ==================================================
+# EXCLUIR CONTA (COMPATIBILIDADE COM TELA)
+# ==================================================
 def excluir_conta(conta_id):
 
-    conn = conectar()
-
-    if conn is None:
-        return False
-
-    cursor = conn.cursor()
-
-    try:
-
-        cursor.execute("""
-            DELETE FROM contas_receber
-            WHERE id = %s
-        """, (conta_id,))
-
-        conn.commit()
-
-        print("Conta excluída com sucesso.")
-
-        return True
-
-    except Exception as erro:
-
-        conn.rollback()
-
-        print(f"Erro ao excluir conta: {erro}")
-
-        return False
-
-    finally:
-
-        cursor.close()
-        conn.close()
+    return excluir_conta_receber(
+        conta_id
+    )

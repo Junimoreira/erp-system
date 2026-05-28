@@ -24,7 +24,7 @@ def abrir_caixa(usuario, saldo_inicial):
         cursor.execute("""
             SELECT id
             FROM caixa
-            WHERE status = 'ABERTO'
+            WHERE LOWER(status) = 'aberto'
             LIMIT 1
         """)
 
@@ -72,11 +72,17 @@ def abrir_caixa(usuario, saldo_inicial):
         return True
 
     except Exception as erro:
+
         conn.rollback()
-        print(f"Erro abrir_caixa: {erro}")
+
+        print(
+            f"Erro abrir_caixa: {erro}"
+        )
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
 
@@ -98,18 +104,27 @@ def verificar_caixa_aberto():
         cursor.execute("""
             SELECT *
             FROM caixa
-            WHERE status = 'ABERTO'
+            WHERE LOWER(status) = 'aberto'
             ORDER BY id DESC
             LIMIT 1
         """)
 
-        return cursor.fetchone()
+        caixa = cursor.fetchone()
+
+        print("CAIXA ABERTO:", caixa)
+
+        return caixa
 
     except Exception as erro:
-        print(f"Erro verificar_caixa: {erro}")
+
+        print(
+            f"Erro verificar_caixa: {erro}"
+        )
+
         return None
 
     finally:
+
         cursor.close()
         conn.close()
 
@@ -128,11 +143,11 @@ def fechar_caixa(caixa_id, valor_conferido):
 
     try:
 
-        # ==========================================
-        # BUSCAR DADOS DO CAIXA
-        # ==========================================
         cursor.execute("""
-            SELECT saldo_inicial, total_entradas, total_saidas
+            SELECT
+                saldo_inicial,
+                total_entradas,
+                total_saidas
             FROM caixa
             WHERE id = %s
         """, (caixa_id,))
@@ -142,18 +157,20 @@ def fechar_caixa(caixa_id, valor_conferido):
         if not caixa:
             return False
 
-        saldo_inicial = float(caixa[0])
-        entradas = float(caixa[1])
-        saidas = float(caixa[2])
+        saldo_inicial = float(caixa[0] or 0)
+        entradas = float(caixa[1] or 0)
+        saidas = float(caixa[2] or 0)
 
-        saldo_final = saldo_inicial + entradas - saidas
+        saldo_final = (
+            saldo_inicial +
+            entradas -
+            saidas
+        )
 
-        # ==========================================
-        # ATUALIZAR CAIXA
-        # ==========================================
         cursor.execute("""
             UPDATE caixa
-            SET status = 'FECHADO',
+            SET
+                status = 'FECHADO',
                 valor_conferido = %s,
                 saldo_final = %s,
                 data_fechamento = NOW()
@@ -165,16 +182,28 @@ def fechar_caixa(caixa_id, valor_conferido):
         ))
 
         conn.commit()
+
+        print(
+            f"Caixa {caixa_id} fechado."
+        )
+
         return True
 
     except Exception as erro:
+
         conn.rollback()
-        print(f"Erro fechar_caixa: {erro}")
+
+        print(
+            f"Erro fechar_caixa: {erro}"
+        )
+
         return False
 
     finally:
+
         cursor.close()
         conn.close()
+
 
 # ==================================================
 # LISTAR HISTÓRICO CAIXA
@@ -203,13 +232,21 @@ def listar_historico_caixa():
             ORDER BY id DESC
         """
 
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(
+            query,
+            conn
+        )
 
         return df
 
     except Exception as erro:
-        print(f"Erro listar_historico_caixa: {erro}")
+
+        print(
+            f"Erro listar_historico_caixa: {erro}"
+        )
+
         return pd.DataFrame()
 
     finally:
+
         conn.close()
