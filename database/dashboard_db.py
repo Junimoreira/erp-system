@@ -40,14 +40,16 @@ def obter_dashboard_mensal():
             dados["vendas_mes"] = 0
 
         # ==========================================
-        # CONTAS A RECEBER
+        # CONTAS A RECEBER DO MÊS
         # ==========================================
         try:
 
             cursor.execute("""
                 SELECT COALESCE(SUM(valor), 0)
                 FROM contas_receber
-                WHERE UPPER(status) = 'PENDENTE'
+                WHERE LOWER(status) = 'pendente'
+                AND DATE_TRUNC('month', vencimento)
+                = DATE_TRUNC('month', CURRENT_DATE)
             """)
 
             dados["receber_mes"] = float(
@@ -59,14 +61,16 @@ def obter_dashboard_mensal():
             dados["receber_mes"] = 0
 
         # ==========================================
-        # CONTAS A PAGAR
+        # CONTAS A PAGAR DO MÊS
         # ==========================================
         try:
 
             cursor.execute("""
                 SELECT COALESCE(SUM(valor), 0)
                 FROM contas_pagar
-                WHERE UPPER(status) = 'PENDENTE'
+                WHERE LOWER(status) = 'pendente'
+                AND DATE_TRUNC('month', vencimento)
+                = DATE_TRUNC('month', CURRENT_DATE)
             """)
 
             dados["pagar_mes"] = float(
@@ -153,91 +157,44 @@ def obter_dashboard_mensal():
         # ==========================================
         # CAIXA ATUAL
         # ==========================================
-        # PRIORIDADE:
-        # 1 - tabela caixa
-        # 2 - movimentacoes
-        # ==========================================
         try:
 
             cursor.execute("""
-                SELECT COALESCE(saldo_final, 0)
-                FROM caixa
-                ORDER BY id DESC
-                LIMIT 1
+                SELECT
+                    COALESCE(SUM(
+                        CASE
+                            WHEN LOWER(tipo) = 'entrada'
+                            THEN valor
+                            ELSE 0
+                        END
+                    ), 0)
+                    -
+                    COALESCE(SUM(
+                        CASE
+                            WHEN LOWER(tipo) = 'saida'
+                            THEN valor
+                            ELSE 0
+                        END
+                    ), 0)
+                FROM movimentacoes
             """)
 
-            resultado_caixa = cursor.fetchone()
-
-            if resultado_caixa and resultado_caixa[0] is not None:
-
-                dados["caixa_atual"] = float(
-                    resultado_caixa[0]
-                )
-
-            else:
-
-                raise Exception(
-                    "Caixa vazio"
-                )
-
-        except:
-
-            try:
-
-                cursor.execute("""
-                    SELECT
-                        COALESCE(SUM(
-                            CASE
-                                WHEN LOWER(tipo) = 'entrada'
-                                THEN valor
-                                ELSE 0
-                            END
-                        ),0)
-                        -
-                        COALESCE(SUM(
-                            CASE
-                                WHEN LOWER(tipo) = 'saida'
-                                THEN valor
-                                ELSE 0
-                            END
-                        ),0)
-                    FROM movimentacoes
-                """)
-
-                dados["caixa_atual"] = float(
-                    cursor.fetchone()[0] or 0
-                )
-
-            except:
-
-                dados["caixa_atual"] = 0
-
-        # ==========================================
-        # LUCRO MÊS
-        # ==========================================
-        try:
-
-            cursor.execute("""
-                SELECT COALESCE(
-                    SUM(valor_total - custo_total),
-                    0
-                )
-                FROM vendas
-                WHERE DATE_TRUNC('month', data_venda)
-                = DATE_TRUNC('month', CURRENT_DATE)
-            """)
-
-            dados["lucro_mes"] = float(
+            dados["caixa_atual"] = float(
                 cursor.fetchone()[0] or 0
             )
 
         except:
 
-            dados["lucro_mes"] = (
-                dados["vendas_mes"]
-                -
-                dados["pagar_mes"]
-            )
+            dados["caixa_atual"] = 0
+
+        # ==========================================
+        # LUCRO DO MÊS
+        # ==========================================
+        dados["lucro_mes"] = (
+            dados["vendas_mes"]
+            -
+            dados["pagar_mes"]
+        )
 
         return dados
 
@@ -256,7 +213,7 @@ def obter_dashboard_mensal():
 
 
 # ==================================================
-# DESPESAS FIXAS MÊS
+# DESPESAS FIXAS DO MÊS
 # ==================================================
 def total_despesas_fixas_mes():
 
@@ -269,13 +226,11 @@ def total_despesas_fixas_mes():
 
     try:
 
-        # ==========================================
-        # TENTA TABELA DESPESAS
-        # ==========================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
-            FROM despesas
-            WHERE DATE_TRUNC('month', data_despesa)
+            FROM contas_pagar
+            WHERE LOWER(status) = 'pendente'
+            AND DATE_TRUNC('month', vencimento)
             = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
@@ -285,24 +240,7 @@ def total_despesas_fixas_mes():
 
     except:
 
-        # ==========================================
-        # FALLBACK CONTAS PAGAR
-        # ==========================================
-        try:
-
-            cursor.execute("""
-                SELECT COALESCE(SUM(valor), 0)
-                FROM contas_pagar
-                WHERE UPPER(status) = 'PENDENTE'
-            """)
-
-            total = cursor.fetchone()[0]
-
-            return float(total or 0)
-
-        except:
-
-            return 0
+        return 0
 
     finally:
 
@@ -311,7 +249,7 @@ def total_despesas_fixas_mes():
 
 
 # ==================================================
-# TOTAL VENDIDO
+# TOTAL VENDIDO NO MÊS
 # ==================================================
 def total_vendido_mes():
 
@@ -324,30 +262,11 @@ def total_vendido_mes():
 
     try:
 
-        # ==========================================
-        # TENTA VENDAS
-        # ==========================================
         cursor.execute("""
             SELECT COALESCE(SUM(valor_total), 0)
             FROM vendas
             WHERE DATE_TRUNC('month', data_venda)
             = DATE_TRUNC('month', CURRENT_DATE)
-        """)
-
-        total = cursor.fetchone()[0]
-
-        if total and float(total) > 0:
-
-            return float(total)
-
-        # ==========================================
-        # FALLBACK MOVIMENTACOES
-        # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
-            FROM movimentacoes
-            WHERE LOWER(tipo) = 'entrada'
-            AND LOWER(categoria) LIKE '%venda%'
         """)
 
         total = cursor.fetchone()[0]
@@ -365,19 +284,27 @@ def total_vendido_mes():
 
 
 # ==================================================
-# META MÊS
+# META DO MÊS
 # ==================================================
 def calcular_meta_mes():
 
     despesas = total_despesas_fixas_mes()
 
-    return float(
-        despesas * 2
+    # ==========================================
+    # MARGEM DE LUCRO 20%
+    # ==========================================
+    margem_lucro = despesas * 0.20
+
+    meta = despesas + margem_lucro
+
+    return round(
+        float(meta),
+        2
     )
 
 
 # ==================================================
-# FALTA META
+# FALTA PARA META
 # ==================================================
 def calcular_falta_meta():
 
@@ -388,7 +315,7 @@ def calcular_falta_meta():
     falta = meta - vendido
 
     return max(
-        float(falta),
+        round(float(falta), 2),
         0
     )
 
@@ -403,10 +330,15 @@ def percentual_meta():
     vendido = total_vendido_mes()
 
     if meta <= 0:
+
         return 0
 
+    percentual = (
+        vendido / meta
+    ) * 100
+
     return round(
-        (vendido / meta) * 100,
+        percentual,
         2
     )
 
@@ -420,7 +352,9 @@ def lucro_estimado():
 
     despesas = total_despesas_fixas_mes()
 
+    lucro = vendido - despesas
+
     return round(
-        vendido - despesas,
+        lucro,
         2
     )

@@ -1,134 +1,362 @@
+# telas/painel_admin_permissoes.py
+
 import streamlit as st
+
 from database.connection import conectar
 
 
-# =====================================
-# BUSCAR USUÁRIOS
-# =====================================
-def carregar_usuarios():
+# ==================================================
+# LISTAR USUÁRIOS
+# ==================================================
+def listar_usuarios():
+
     conn = conectar()
-    cur = conn.cursor()
 
-    cur.execute("""
-        SELECT id, nome, usuario, perfil,
-               abrir_caixa,
-               fechar_caixa,
-               realizar_venda,
-               cadastrar_cliente,
-               ver_financeiro,
-               contas_pagar,
-               configuracoes,
-               usuarios,
-               cadastrar_produto
-        FROM usuarios
-        ORDER BY nome
-    """)
+    if conn is None:
+        return []
 
-    dados = cur.fetchall()
-    colunas = [desc[0] for desc in cur.description]
+    cursor = conn.cursor()
 
-    cur.close()
-    conn.close()
+    try:
 
-    return [dict(zip(colunas, row)) for row in dados]
+        cursor.execute("""
+            SELECT
+                id,
+                usuario,
+                perfil,
+
+                pode_caixa,
+                pode_clientes,
+                pode_produtos,
+                pode_vendas,
+                pode_financeiro,
+                pode_contas_pagar,
+                pode_contas_receber,
+                pode_configuracoes,
+
+                pode_formacao_preco,
+                pode_fornecedores,
+                pode_compras,
+                pode_relatorios,
+                pode_fechamento_caixa,
+                pode_movimentacoes
+
+            FROM usuarios
+            ORDER BY usuario
+        """)
+
+        colunas = [
+            desc[0]
+            for desc in cursor.description
+        ]
+
+        usuarios = []
+
+        for linha in cursor.fetchall():
+
+            usuarios.append(
+                dict(
+                    zip(colunas, linha)
+                )
+            )
+
+        return usuarios
+
+    except Exception as erro:
+
+        st.error(
+            f"Erro ao listar usuários: {erro}"
+        )
+
+        return []
+
+    finally:
+
+        cursor.close()
+        conn.close()
 
 
-# =====================================
-# SALVAR PERMISSÕES
-# =====================================
-def salvar_permissoes(user_id, permissoes):
+# ==================================================
+# ATUALIZAR PERMISSÕES
+# ==================================================
+def atualizar_permissoes(
+    usuario_id,
+    permissoes
+):
+
     conn = conectar()
-    cur = conn.cursor()
 
-    cur.execute("""
-        UPDATE usuarios
-        SET
-            abrir_caixa = %s,
-            fechar_caixa = %s,
-            realizar_venda = %s,
-            cadastrar_cliente = %s,
-            ver_financeiro = %s,
-            contas_pagar = %s,
-            configuracoes = %s,
-            usuarios = %s,
-            cadastrar_produto = %s
-        WHERE id = %s
-    """, (
-        permissoes["abrir_caixa"],
-        permissoes["fechar_caixa"],
-        permissoes["realizar_venda"],
-        permissoes["cadastrar_cliente"],
-        permissoes["ver_financeiro"],
-        permissoes["contas_pagar"],
-        permissoes["configuracoes"],
-        permissoes["usuarios"],
-        permissoes["cadastrar_produto"],
-        user_id
-    ))
+    if conn is None:
+        return False
 
-    conn.commit()
-    cur.close()
-    conn.close()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            UPDATE usuarios
+            SET
+
+                pode_caixa = %s,
+                pode_clientes = %s,
+                pode_produtos = %s,
+                pode_vendas = %s,
+                pode_financeiro = %s,
+                pode_contas_pagar = %s,
+                pode_contas_receber = %s,
+                pode_configuracoes = %s,
+
+                pode_formacao_preco = %s,
+                pode_fornecedores = %s,
+                pode_compras = %s,
+                pode_relatorios = %s,
+                pode_fechamento_caixa = %s,
+                pode_movimentacoes = %s
+
+            WHERE id = %s
+        """, (
+
+            permissoes["pode_caixa"],
+            permissoes["pode_clientes"],
+            permissoes["pode_produtos"],
+            permissoes["pode_vendas"],
+            permissoes["pode_financeiro"],
+            permissoes["pode_contas_pagar"],
+            permissoes["pode_contas_receber"],
+            permissoes["pode_configuracoes"],
+
+            permissoes["pode_formacao_preco"],
+            permissoes["pode_fornecedores"],
+            permissoes["pode_compras"],
+            permissoes["pode_relatorios"],
+            permissoes["pode_fechamento_caixa"],
+            permissoes["pode_movimentacoes"],
+
+            usuario_id
+        ))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        st.error(
+            f"Erro ao atualizar permissões: {erro}"
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
 
 
-# =====================================
-# TELA PRINCIPAL
-# =====================================
-def tela_permissoes():
+# ==================================================
+# TELA PERMISSÕES
+# ==================================================
+def tela_painel_permissoes():
 
-    st.title("🔐 Permissões de Usuários")
+    st.title(
+        "🔐 Painel de Permissões"
+    )
 
-    usuarios = carregar_usuarios()
+    usuarios = listar_usuarios()
 
     if not usuarios:
-        st.warning("Nenhum usuário encontrado.")
+
+        st.warning(
+            "Nenhum usuário encontrado."
+        )
+
         return
 
-    nomes = [f"{u['nome']} ({u['perfil']})" for u in usuarios]
-    selecionado = st.selectbox("Selecione um usuário", nomes)
+    nomes_usuarios = [
+        usuario["usuario"]
+        for usuario in usuarios
+    ]
 
-    user = usuarios[nomes.index(selecionado)]
+    usuario_nome = st.selectbox(
+        "Selecione o usuário",
+        nomes_usuarios
+    )
+
+    usuario = next(
+        (
+            u for u in usuarios
+            if u["usuario"] == usuario_nome
+        ),
+        None
+    )
+
+    if usuario is None:
+
+        st.error(
+            "Usuário não encontrado."
+        )
+
+        return
 
     st.divider()
 
-    st.subheader(f"👤 {user['nome']}")
-
-    # =====================================
-    # SUPER USUÁRIO (PROTEÇÃO)
-    # =====================================
-    if user["perfil"] == "admin":
-        st.success("Este usuário é ADMIN e possui acesso total automático.")
-        return
-
-    # =====================================
-    # CHECKBOXES DE PERMISSÃO
-    # =====================================
-    permissoes = {}
+    st.subheader(
+        f"Permissões de {usuario_nome}"
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
-        permissoes["abrir_caixa"] = st.checkbox("Abrir Caixa", value=user["abrir_caixa"])
-        permissoes["fechar_caixa"] = st.checkbox("Fechar Caixa", value=user["fechar_caixa"])
-        permissoes["realizar_venda"] = st.checkbox("Realizar Vendas", value=user["realizar_venda"])
-        permissoes["cadastrar_cliente"] = st.checkbox("Cadastrar Cliente", value=user["cadastrar_cliente"])
-        permissoes["cadastrar_produto"] = st.checkbox("Cadastrar Produto", value=user["cadastrar_produto"])
+
+        pode_caixa = st.checkbox(
+            "💰 Caixa",
+            value=usuario.get(
+                "pode_caixa",
+                False
+            )
+        )
+
+        pode_clientes = st.checkbox(
+            "👥 Clientes",
+            value=usuario.get(
+                "pode_clientes",
+                False
+            )
+        )
+
+        pode_produtos = st.checkbox(
+            "📦 Produtos",
+            value=usuario.get(
+                "pode_produtos",
+                False
+            )
+        )
+
+        pode_vendas = st.checkbox(
+            "🛒 Vendas",
+            value=usuario.get(
+                "pode_vendas",
+                False
+            )
+        )
+
+        pode_financeiro = st.checkbox(
+            "🏦 Contas",
+            value=usuario.get(
+                "pode_financeiro",
+                False
+            )
+        )
+
+        pode_contas_pagar = st.checkbox(
+            "📤 Contas a Pagar",
+            value=usuario.get(
+                "pode_contas_pagar",
+                False
+            )
+        )
+
+        pode_contas_receber = st.checkbox(
+            "📥 Contas a Receber",
+            value=usuario.get(
+                "pode_contas_receber",
+                False
+            )
+        )
 
     with col2:
-        permissoes["ver_financeiro"] = st.checkbox("Ver Financeiro", value=user["ver_financeiro"])
-        permissoes["contas_pagar"] = st.checkbox("Contas a Pagar", value=user["contas_pagar"])
-        permissoes["configuracoes"] = st.checkbox("Configurações", value=user["configuracoes"])
-        permissoes["usuarios"] = st.checkbox("Usuários", value=user["usuarios"])
+
+        pode_formacao_preco = st.checkbox(
+            "💰 Formação de Preço",
+            value=usuario.get(
+                "pode_formacao_preco",
+                False
+            )
+        )
+
+        pode_fornecedores = st.checkbox(
+            "🚚 Fornecedores",
+            value=usuario.get(
+                "pode_fornecedores",
+                False
+            )
+        )
+
+        pode_compras = st.checkbox(
+            "📥 Compras",
+            value=usuario.get(
+                "pode_compras",
+                False
+            )
+        )
+
+        pode_relatorios = st.checkbox(
+            "📊 Relatórios",
+            value=usuario.get(
+                "pode_relatorios",
+                False
+            )
+        )
+
+        pode_fechamento_caixa = st.checkbox(
+            "📊 Fechamento Caixa",
+            value=usuario.get(
+                "pode_fechamento_caixa",
+                False
+            )
+        )
+
+        pode_movimentacoes = st.checkbox(
+            "💰 Movimentações",
+            value=usuario.get(
+                "pode_movimentacoes",
+                False
+            )
+        )
+
+        pode_configuracoes = st.checkbox(
+            "⚙️ Configurações",
+            value=usuario.get(
+                "pode_configuracoes",
+                False
+            )
+        )
 
     st.divider()
 
-    # =====================================
-    # BOTÃO SALVAR
-    # =====================================
-    if st.button("💾 Salvar Permissões", use_container_width=True):
+    if st.button(
+        "💾 Salvar Permissões",
+        use_container_width=True
+    ):
 
-        salvar_permissoes(user["id"], permissoes)
+        permissoes = {
 
-        st.success("Permissões atualizadas com sucesso!")
+            "pode_caixa": pode_caixa,
+            "pode_clientes": pode_clientes,
+            "pode_produtos": pode_produtos,
+            "pode_vendas": pode_vendas,
+            "pode_financeiro": pode_financeiro,
+            "pode_contas_pagar": pode_contas_pagar,
+            "pode_contas_receber": pode_contas_receber,
+            "pode_configuracoes": pode_configuracoes,
 
-        st.rerun()
+            "pode_formacao_preco": pode_formacao_preco,
+            "pode_fornecedores": pode_fornecedores,
+            "pode_compras": pode_compras,
+            "pode_relatorios": pode_relatorios,
+            "pode_fechamento_caixa": pode_fechamento_caixa,
+            "pode_movimentacoes": pode_movimentacoes
+        }
+
+        sucesso = atualizar_permissoes(
+            usuario["id"],
+            permissoes
+        )
+
+        if sucesso:
+
+            st.success(
+                "✅ Permissões atualizadas com sucesso!"
+            )
+
+            st.rerun()

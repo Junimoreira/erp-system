@@ -1,3 +1,6 @@
+import pandas as pd
+
+from database.connection import conectar
 from services.finance_service import processar_saida_financeira
 
 def pagar_conta(conta_id):
