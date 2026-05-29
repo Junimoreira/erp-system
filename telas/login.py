@@ -41,6 +41,7 @@ def autenticar_usuario(usuario):
         }
 
     finally:
+
         cursor.close()
         conn.close()
 
@@ -51,141 +52,168 @@ def autenticar_usuario(usuario):
 def tela_login():
 
     st.markdown("""
-        <style>
+    <style>
 
-        /* FUNDO SaaS MODERNO */
-        .stApp {
-            background: linear-gradient(135deg, #0f172a 0%, #111827 50%, #0b1120 100%);
-        }
+    .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0rem !important;
+    }
 
-        /* CENTRALIZAÇÃO TOTAL */
-        .login-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 90vh;
-        }
+    .stApp {
+        background: linear-gradient(
+            135deg,
+            #0f172a 0%,
+            #111827 50%,
+            #0b1120 100%
+        );
+    }
 
-        /* CARD PRINCIPAL */
-        .login-card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+    .titulo-login {
+        text-align: center;
+        color: white;
+        font-size: 32px;
+        font-weight: 700;
+        margin-top: 10px;
+        margin-bottom: 5px;
+    }
 
-            border: 1px solid rgba(255, 255, 255, 0.15);
+    .subtitulo-login {
+        text-align: center;
+        color: #cbd5e1;
+        font-size: 16px;
+        margin-bottom: 25px;
+    }
 
-            padding: 40px 35px;
-            border-radius: 18px;
+    .stTextInput input {
+        border-radius: 12px !important;
+        border: 2px solid #44D62C !important;
+    }
 
-            width: 380px;
+    .stButton > button {
+        width: 100%;
+        height: 50px;
+        border-radius: 12px;
+        border: none;
 
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-        }
+        background: linear-gradient(
+            90deg,
+            #44D62C,
+            #008ACD
+        );
 
-        /* TÍTULO */
-        .titulo-login {
-            text-align: center;
-            color: white;
-            font-size: 22px;
-            font-weight: bold;
-            margin-bottom: 25px;
-        }
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+    }
 
-        /* INPUTS */
-        .stTextInput input {
-            border-radius: 10px !important;
-            padding: 10px !important;
-            border: 2px solid #44D62C !important;
-        }
+    .stButton > button:hover {
+        transform: scale(1.02);
+    }
 
-        /* BOTÃO */
-        .stButton button {
-            width: 100%;
-            border-radius: 10px;
-            height: 45px;
-            font-weight: bold;
-            background: linear-gradient(90deg, #44D62C, #008ACD);
-            color: white;
-            border: none;
-            transition: 0.3s;
-        }
-
-        .stButton button:hover {
-            transform: scale(1.03);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-
-        /* TEXTO AUXILIAR */
-        .login-sub {
-            text-align: center;
-            color: #cbd5e1;
-            font-size: 13px;
-            margin-bottom: 20px;
-        }
-
-        </style>
+    </style>
     """, unsafe_allow_html=True)
 
     # =====================================
-    # LAYOUT CENTRAL
+    # CENTRALIZAÇÃO
     # =====================================
-    st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([2, 1.5, 2])
 
-    # LOGO
-    logo_path = "assets/logo1.png"
+    with col2:
 
-    if os.path.exists(logo_path):
-        st.image(logo_path, width=180)
+        logo_path = "assets/logo1.png"
 
-    st.markdown('<div class="titulo-login">ERP Verde Infância</div>', unsafe_allow_html=True)
+        if os.path.exists(logo_path):
 
-    st.markdown('<div class="login-sub">Faça login para acessar o sistema</div>', unsafe_allow_html=True)
-
-    # CAMPOS
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
-
-    # BOTÃO
-    if st.button("Entrar", use_container_width=True):
-
-        if not usuario or not senha:
-            st.warning("Informe usuário e senha.")
-            return
-
-        dados = autenticar_usuario(usuario)
-
-        if dados is None:
-            st.error("Usuário inválido.")
-            return
-
-        if not dados["ativo"]:
-            st.error("Usuário desativado.")
-            return
-
-        try:
-            senha_valida = bcrypt.checkpw(
-                senha.encode(),
-                dados["senha"].encode()
+            st.image(
+                logo_path,
+                width=280
             )
-        except:
-            st.error("Erro ao validar senha.")
-            return
 
-        if not senha_valida:
-            st.error("Senha inválida.")
-            return
+        
+        st.markdown(
+            """
+            <div class="subtitulo-login">
+                Sistema de Gestão da Loja
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        # SESSION
-        st.session_state["logado"] = True
-        st.session_state["id"] = dados["id"]
-        st.session_state["usuario"] = dados["usuario"]
-        st.session_state["nome"] = dados["nome"]
-        st.session_state["perfil"] = dados["perfil"]
+        usuario = st.text_input(
+            "👤 Usuário",
+            key="login_usuario"
+        )
 
-        st.success(f"Bem-vindo, {dados['nome']}!")
-        st.rerun()
+        senha = st.text_input(
+            "🔒 Senha",
+            type="password",
+            key="login_senha"
+        )
 
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        if st.button(
+            "Entrar",
+            use_container_width=True,
+            key="btn_login"
+        ):
+
+            if not usuario or not senha:
+
+                st.warning(
+                    "Informe usuário e senha."
+                )
+
+                return
+
+            dados = autenticar_usuario(usuario)
+
+            if dados is None:
+
+                st.error(
+                    "Usuário inválido."
+                )
+
+                return
+
+            if not dados["ativo"]:
+
+                st.error(
+                    "Usuário desativado."
+                )
+
+                return
+
+            try:
+
+                senha_valida = bcrypt.checkpw(
+                    senha.encode(),
+                    dados["senha"].encode()
+                )
+
+            except Exception:
+
+                st.error(
+                    "Erro ao validar senha."
+                )
+
+                return
+
+            if not senha_valida:
+
+                st.error(
+                    "Senha inválida."
+                )
+
+                return
+
+            st.session_state["logado"] = True
+            st.session_state["id"] = dados["id"]
+            st.session_state["usuario"] = dados["usuario"]
+            st.session_state["nome"] = dados["nome"]
+            st.session_state["perfil"] = dados["perfil"]
+
+            st.success(
+                f"Bem-vindo, {dados['nome']}!"
+            )
+
+            st.rerun()
