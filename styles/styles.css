@@ -1,4 +1,33 @@
 /* ==================================================
+   OCULTAR ELEMENTOS PADRÃO DO STREAMLIT
+================================================== */
+
+/* Barra superior branca */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Toolbar */
+[data-testid="stToolbar"] {
+    display: none !important;
+}
+
+/* Menu hamburguer */
+#MainMenu {
+    visibility: hidden;
+}
+
+/* Rodapé */
+footer {
+    visibility: hidden;
+}
+
+/* Remove espaço superior */
+.block-container {
+    padding-top: 1rem !important;
+}
+
+/* ==================================================
    FUNDO PADRÃO SISTEMA (ERP)
 ================================================== */
 
@@ -82,7 +111,9 @@ div[data-testid="metric-container"] {
    TÍTULOS
 ================================================== */
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
     color: #008ACD;
 }
 

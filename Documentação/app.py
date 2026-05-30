@@ -378,9 +378,3 @@ elif menu == "⚙️ Configurações":
 elif menu == "🔐 Permissões":
 
     tela_painel_permissoes()
-
-elif menu == "📥 Contas a Receber":
-
-    bloquear("pode_contas_receber")
-
-    tela_contas_receber()

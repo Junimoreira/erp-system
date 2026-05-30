@@ -54,11 +54,14 @@ def tela_login():
     st.markdown("""
     <style>
 
+    /* Espaçamento da página */
     .block-container {
-        padding-top: 0.5rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 0rem !important;
+        max-width: 1000px;
     }
 
+    /* Fundo */
     .stApp {
         background: linear-gradient(
             135deg,
@@ -68,27 +71,27 @@ def tela_login():
         );
     }
 
-    .titulo-login {
-        text-align: center;
-        color: white;
-        font-size: 32px;
-        font-weight: 700;
-        margin-top: 10px;
-        margin-bottom: 5px;
+    /* Container Login */
+    .login-wrapper {
+        margin-top: 100px;
     }
 
     .subtitulo-login {
         text-align: center;
         color: #cbd5e1;
         font-size: 16px;
+        margin-top: 15px;
         margin-bottom: 25px;
     }
 
+    /* Inputs */
     .stTextInput input {
         border-radius: 12px !important;
         border: 2px solid #44D62C !important;
+        height: 50px;
     }
 
+    /* Botão */
     .stButton > button {
         width: 100%;
         height: 50px;
@@ -104,6 +107,8 @@ def tela_login():
         color: white;
         font-weight: bold;
         font-size: 16px;
+
+        transition: all 0.3s ease;
     }
 
     .stButton > button:hover {
@@ -112,6 +117,15 @@ def tela_login():
 
     </style>
     """, unsafe_allow_html=True)
+
+    # =====================================
+    # ESPAÇO SUPERIOR
+    # =====================================
+
+    st.markdown(
+        "<div class='login-wrapper'></div>",
+        unsafe_allow_html=True
+    )
 
     # =====================================
     # CENTRALIZAÇÃO
@@ -127,10 +141,9 @@ def tela_login():
 
             st.image(
                 logo_path,
-                width=280
+                width=320
             )
 
-        
         st.markdown(
             """
             <div class="subtitulo-login">

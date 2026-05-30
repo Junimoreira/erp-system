@@ -14,20 +14,22 @@ def tela_contas_receber():
 
     st.title("📥 Contas a Receber")
 
-    # ==========================================
-    # BUSCA DADOS
-    # ==========================================
-    df = listar_contas_receber()
+    try:
 
-    st.caption(
-        f"Registros encontrados: {len(df)}"
-    )
+        df = listar_contas_receber()
 
-    if df is None or df.empty:
+        st.write("DEBUG:")
+        st.write(df)
 
-        st.info(
-            "Nenhuma conta cadastrada."
-        )
+        st.write("COLUNAS:")
+        st.write(df.columns.tolist())
+
+        st.write("LINHAS:")
+        st.write(len(df))
+
+    except Exception as erro:
+
+        st.error(f"ERRO AO CARREGAR DF: {erro}")
 
         return
 
