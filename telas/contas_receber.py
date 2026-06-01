@@ -1,146 +1,103 @@
 import streamlit as st
 
 from database.contas_receber_db import (
-    listar_contas_receber,
-    excluir_conta_receber
+    listar_contas,
+    excluir_conta_receber,
+    receber_conta
 )
 
-from services.finance_service import (
-    processar_entrada_financeira
-)
+from database.contas_bancarias import listar_contas as listar_bancos
 
 
+# ==================================================
+# TELA CONTAS A RECEBER
+# ==================================================
 def tela_contas_receber():
 
     st.title("📥 Contas a Receber")
 
-    try:
+    df = listar_contas()
+    df_bancos = listar_bancos()
 
-        df = listar_contas_receber()
-
-        st.write("DEBUG:")
-        st.write(df)
-
-        st.write("COLUNAS:")
-        st.write(df.columns.tolist())
-
-        st.write("LINHAS:")
-        st.write(len(df))
-
-    except Exception as erro:
-
-        st.error(f"ERRO AO CARREGAR DF: {erro}")
-
+    if df.empty:
+        st.info("Nenhuma conta cadastrada.")
         return
 
     # ==========================================
     # TABELA
     # ==========================================
-    st.dataframe(
-        df,
-        use_container_width=True
-    )
+    st.dataframe(df, use_container_width=True)
 
     st.divider()
 
     # ==========================================
     # RECEBER CONTA
     # ==========================================
-    st.subheader(
-        "💰 Receber Conta"
-    )
+    st.subheader("💰 Receber Conta")
 
-    if "status" not in df.columns:
+    df["status"] = df["status"].fillna("").astype(str)
 
-        st.error(
-            "Coluna STATUS não encontrada."
-        )
-
-        return
-
-    pendentes = df[
-        df["status"]
-        .astype(str)
-        .str.lower()
-        == "pendente"
-    ]
+    pendentes = df[df["status"].str.lower() == "pendente"]
 
     if not pendentes.empty:
 
         conta_id = st.selectbox(
             "Selecione a conta",
-            pendentes["id"].tolist()
+            pendentes["id"].tolist(),
+            key="receber_conta"
         )
 
-        conta = pendentes[
-            pendentes["id"] == conta_id
-        ].iloc[0]
+        conta = pendentes[pendentes["id"] == conta_id].iloc[0]
 
-        st.write(
-            f"📌 {conta['descricao']}"
+        st.write("📌", conta["descricao"])
+        st.write("💲 R$", float(conta["valor"]))
+
+        # ==========================================
+        # ORIGEM FINANCEIRA
+        # ==========================================
+        origem = st.radio(
+            "Receber em:",
+            ["CAIXA", "BANCO"]
         )
 
-        st.write(
-            f"💲 R$ {float(conta['valor']):.2f}"
-        )
+        conta_bancaria_id = None
 
-        if st.button(
-            "💰 Receber Conta",
-            use_container_width=True
-        ):
+        if origem == "BANCO":
 
-            try:
+            if df_bancos.empty:
+                st.error("Nenhuma conta bancária cadastrada.")
+            else:
 
-                ok = processar_entrada_financeira(
-                    valor=float(
-                        conta["valor"]
-                    ),
-                    descricao=str(
-                        conta["descricao"]
-                    ),
-                    categoria="Recebimento",
-                    origem="contas_receber",
-                    referencia_id=int(
-                        conta["id"]
-                    )
+                conta_bancaria_id = st.selectbox(
+                    "Selecione a conta bancária",
+                    df_bancos["id"].tolist(),
+                    format_func=lambda x:
+                        df_bancos[df_bancos["id"] == x]["banco"].values[0]
                 )
 
-                if ok:
+        if st.button("💰 Receber Conta", use_container_width=True):
 
-                    st.success(
-                        "Conta recebida com sucesso!"
-                    )
+            ok = receber_conta(
+                conta_id=conta_id,
+                origem_financeira=origem,
+                conta_bancaria_id=conta_bancaria_id
+            )
 
-                    st.rerun()
-
-                else:
-
-                    st.error(
-                        "A função retornou False."
-                    )
-
-            except Exception as erro:
-
-                st.error(
-                    f"Erro: {erro}"
-                )
-
-                print(erro)
+            if ok:
+                st.success("Conta recebida com sucesso!")
+                st.rerun()
+            else:
+                st.error("Erro ao receber conta.")
 
     else:
-
-        st.info(
-            "Nenhuma conta pendente."
-        )
+        st.info("Nenhuma conta pendente.")
 
     st.divider()
 
     # ==========================================
     # EXCLUIR CONTA
     # ==========================================
-    st.subheader(
-        "🗑️ Excluir Conta"
-    )
+    st.subheader("🗑️ Excluir Conta")
 
     conta_excluir = st.selectbox(
         "Selecione a conta para excluir",
@@ -148,31 +105,16 @@ def tela_contas_receber():
         key="excluir_conta_receber"
     )
 
-    if st.button(
-        "🗑️ Excluir Conta",
-        use_container_width=True
-    ):
+    if st.button("🗑️ Excluir Conta", use_container_width=True):
 
-        resultado = excluir_conta_receber(
-            conta_excluir
-        )
+        resultado = excluir_conta_receber(conta_excluir)
 
         if resultado is True:
-
-            st.success(
-                "Conta excluída com sucesso!"
-            )
-
+            st.success("Conta excluída com sucesso!")
             st.rerun()
 
         elif resultado == "recebido":
-
-            st.warning(
-                "Não é permitido excluir contas já recebidas."
-            )
+            st.warning("Não é permitido excluir contas já recebidas.")
 
         else:
-
-            st.error(
-                "Erro ao excluir conta."
-            )
+            st.error("Erro ao excluir conta.")

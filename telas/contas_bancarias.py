@@ -1,5 +1,5 @@
 import streamlit as st
-from database.contas_db import (
+from database.contas_bancarias import (
     listar_contas,
     cadastrar_conta,
     atualizar_conta,
@@ -7,7 +7,7 @@ from database.contas_db import (
 )
 
 
-def tela_contas():
+def tela_contas_bancarias():
 
     abas = st.tabs([
         "🏦 Contas Bancárias",

@@ -4,6 +4,7 @@ import pandas as pd
 from database.connection import conectar
 from database.caixa_db import verificar_caixa_aberto
 from database.movimentacoes_db import registrar_movimentacao
+from database.contas_bancarias import listar_contas as listar_bancos
 
 
 # ==================================================
@@ -37,7 +38,6 @@ def cadastrar_conta_receber(
 
         descricao = tratar_texto(descricao)
         observacoes = tratar_texto(observacoes)
-
         valor = float(valor)
 
         if valor <= 0:
@@ -94,39 +94,35 @@ def listar_contas():
         query = """
             SELECT
                 id,
+                cliente_id,
                 descricao,
                 valor,
                 vencimento,
                 status,
                 observacoes,
-                criado_em
+                criado_em,
+                forma_pagamento,
+                data_recebimento,
+                data_pagamento
             FROM contas_receber
             ORDER BY vencimento ASC
         """
 
-        df = pd.read_sql(
-            query,
-            conn
-        )
-
+        df = pd.read_sql(query, conn)
         return df.fillna("")
 
     except Exception as erro:
-
-        print(
-            f"Erro ao listar contas a receber: {erro}"
-        )
-
+        print("Erro listar contas receber:", erro)
         return pd.DataFrame()
 
     finally:
-
         conn.close()
 
+
 # ==================================================
-# RECEBER CONTA (APENAS DB - SEM REGRA FINANCEIRA)
+# RECEBER CONTA (VERSÃO CORRIGIDA FUTURA)
 # ==================================================
-def receber_conta(conta_id):
+def receber_conta(conta_id, origem_financeira="CAIXA", conta_bancaria_id=None):
 
     conn = conectar()
 
@@ -137,6 +133,66 @@ def receber_conta(conta_id):
 
     try:
 
+        cursor.execute("""
+            SELECT descricao, valor, status
+            FROM contas_receber
+            WHERE id = %s
+        """, (conta_id,))
+
+        conta = cursor.fetchone()
+
+        if not conta:
+            raise ValueError("Conta não encontrada.")
+
+        descricao = tratar_texto(conta[0])
+        valor = float(conta[1])
+        status = tratar_texto(conta[2]).lower()
+
+        if status == "recebido":
+            raise ValueError("Conta já recebida.")
+
+        # ==========================================
+        # CAIXA
+        # ==========================================
+        if origem_financeira.upper() == "CAIXA":
+
+            caixa = verificar_caixa_aberto()
+
+            if caixa is None:
+                raise ValueError("Nenhum caixa aberto.")
+
+            caixa_id = caixa[0]
+
+            registrar_movimentacao(
+                caixa_id=caixa_id,
+                tipo="entrada",
+                valor=valor,
+                descricao=descricao,
+                categoria="recebimento",
+                origem="contas_receber",
+                data_movimentacao=datetime.now()
+            )
+
+        # ==========================================
+        # BANCO
+        # ==========================================
+        elif origem_financeira.upper() == "BANCO":
+
+            if conta_bancaria_id is None:
+                raise ValueError("Conta bancária não informada.")
+
+            cursor.execute("""
+                UPDATE contas_bancarias
+                SET saldo = saldo + %s
+                WHERE id = %s
+            """, (valor, conta_bancaria_id))
+
+        else:
+            raise ValueError("Origem inválida.")
+
+        # ==========================================
+        # ATUALIZA CONTA
+        # ==========================================
         cursor.execute("""
             UPDATE contas_receber
             SET status = 'Recebido',
@@ -149,7 +205,7 @@ def receber_conta(conta_id):
 
     except Exception as erro:
         conn.rollback()
-        print("Erro ao receber conta:", erro)
+        print("Erro receber conta:", erro)
         return False
 
     finally:
@@ -179,7 +235,7 @@ def atualizar_conta_receber(conta_id, descricao, valor, vencimento):
             WHERE id = %s
         """, (
             descricao,
-            valor,
+            float(valor),
             vencimento,
             conta_id
         ))
@@ -222,9 +278,7 @@ def excluir_conta_receber(conta_id):
         if not conta:
             return False
 
-        status = tratar_texto(conta[0]).lower()
-
-        if status == "recebido":
+        if tratar_texto(conta[0]).lower() == "recebido":
             return "recebido"
 
         cursor.execute("""
@@ -286,62 +340,3 @@ def resumo_contas_receber():
     finally:
         cursor.close()
         conn.close()
-
-# ==================================================
-# LISTAR CONTAS A RECEBER
-# ==================================================
-def listar_contas_receber():
-
-    conn = conectar()
-
-    if conn is None:
-        return pd.DataFrame()
-
-    try:
-
-        query = """
-            SELECT
-                id,
-                cliente,
-                cliente_id,
-                descricao,
-                valor,
-                vencimento,
-                status,
-                forma_pagamento,
-                data_pagamento,
-                data_recebimento,
-                observacoes,
-                criado_em
-            FROM contas_receber
-            ORDER BY vencimento ASC
-        """
-
-        df = pd.read_sql(
-            query,
-            conn
-        )
-
-        print("TOTAL CONTAS RECEBER:", len(df))
-
-        return df.fillna("")
-
-    except Exception as erro:
-
-        print(
-            "Erro listar contas receber:",
-            erro
-        )
-
-        return pd.DataFrame()
-
-    finally:
-
-        conn.close()# ==================================================
-# EXCLUIR CONTA (COMPATIBILIDADE COM TELA)
-# ==================================================
-def excluir_conta(conta_id):
-
-    return excluir_conta_receber(
-        conta_id
-    )

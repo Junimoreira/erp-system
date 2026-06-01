@@ -56,7 +56,7 @@ from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.vendas import tela_vendas
 from telas.movimentacoes import tela_movimentacoes
-from telas.contas import tela_contas
+from telas.contas_bancarias import tela_contas_bancarias
 from telas.contas_pagar import tela_contas_pagar
 from telas.contas_receber import tela_contas_receber
 from telas.configuracoes import tela_configuracoes
