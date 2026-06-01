@@ -250,3 +250,96 @@ def listar_historico_caixa():
     finally:
 
         conn.close()
+
+# ==================================================
+# REGISTRAR ENTRADA NO CAIXA
+# ==================================================
+def registrar_entrada_caixa(caixa_id, valor):
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            UPDATE caixa
+            SET
+                total_entradas = COALESCE(total_entradas, 0) + %s,
+                saldo_final = COALESCE(saldo_final, 0) + %s
+            WHERE id = %s
+        """, (
+            float(valor),
+            float(valor),
+            caixa_id
+        ))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro registrar entrada caixa:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# REGISTRAR SAÍDA NO CAIXA
+# ==================================================
+def registrar_saida_caixa(caixa_id, valor):
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            UPDATE caixa
+            SET
+                total_saidas = COALESCE(total_saidas, 0) + %s,
+                saldo_final = COALESCE(saldo_final, 0) - %s
+            WHERE id = %s
+        """, (
+            float(valor),
+            float(valor),
+            caixa_id
+        ))
+
+        conn.commit()
+
+        return True
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        print(
+            "Erro registrar saída caixa:",
+            erro
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()

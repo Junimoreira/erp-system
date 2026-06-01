@@ -164,6 +164,15 @@ def pagar_conta(
                 data_movimentacao=datetime.now()
             )
 
+            cursor.execute("""
+                UPDATE caixa
+                SET total_saidas = COALESCE(total_saidas,0) + %s
+                WHERE id = %s
+                """, (
+                valor,
+                caixa_id
+           ))
+
             registrar_fluxo_caixa(
                 tipo="saida",
                 valor=valor,
@@ -204,12 +213,14 @@ def pagar_conta(
                 )
 
             cursor.execute("""
-                UPDATE contas_bancarias
-                SET saldo = saldo - %s
-                WHERE id = %s
-            """, (
-                valor,
-                conta_bancaria_id
+              UPDATE contas_bancarias
+              SET saldo = saldo - %s
+              WHERE id = %s
+              AND saldo >= %s
+              """, (
+              valor,
+              conta_bancaria_id,
+              valor
             ))
 
             cursor.execute("""
@@ -291,9 +302,21 @@ def listar_contas():
     try:
 
         query = """
-            SELECT *
-            FROM contas_pagar
-            ORDER BY vencimento ASC
+            SELECT
+                id,
+                descricao,
+                categoria,
+                valor,
+                vencimento,
+                status,
+                forma_pagamento,
+                data_pagamento,
+                observacoes,
+                origem_pagamento,
+                conta_bancaria_id,
+                caixa_id
+           FROM contas_pagar
+           ORDER BY vencimento ASC
         """
 
         return pd.read_sql(
@@ -336,7 +359,7 @@ def excluir_conta(conta_id):
 
         conta = cursor.fetchone()
 
-        if conta and str(conta[0]).lower() == "pago":
+        if conta and str(conta[0]).strip().lower() == "pago":
             raise ValueError(
                 "Conta paga não pode ser excluída."
             )
