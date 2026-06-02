@@ -78,7 +78,7 @@ def registrar_movimentacao(
                 "Valor inválido."
             )
 
-	cursor.execute("""
+        cursor.execute("""
             SELECT id
             FROM caixa
             WHERE id = %s
