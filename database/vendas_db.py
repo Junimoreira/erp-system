@@ -315,9 +315,16 @@ def salvar_venda(
 
         conn.rollback()
 
-        print("Erro ao salvar venda:", erro)
+        import traceback
 
-        return False
+        print("\n" + "=" * 80)
+        print("ERRO AO SALVAR VENDA")
+        print("TIPO:", type(erro))
+        print("MENSAGEM:", str(erro))
+        traceback.print_exc()
+        print("=" * 80)
+
+        raise
 
     finally:
 

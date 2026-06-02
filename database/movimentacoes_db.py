@@ -78,6 +78,18 @@ def registrar_movimentacao(
                 "Valor inválido."
             )
 
+	cursor.execute("""
+            SELECT id
+            FROM caixa
+            WHERE id = %s
+        """, (caixa_id,))
+
+        if not cursor.fetchone():
+
+            raise ValueError(
+                "Caixa não encontrado."
+            )
+
         # ==========================================
         # INSERT
         # ==========================================
@@ -652,6 +664,81 @@ def resumo_por_periodo(
             "saidas": 0,
             "saldo": 0
 
+        }
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+# ==================================================
+# RESUMO DE UM CAIXA
+# ==================================================
+def resumo_caixa(caixa_id):
+
+    conn = conectar()
+
+    if conn is None:
+
+        return {
+            "entradas": 0,
+            "saidas": 0,
+            "saldo": 0
+        }
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            SELECT
+                COALESCE(
+                    SUM(valor),
+                    0
+                )
+            FROM movimentacoes
+            WHERE caixa_id = %s
+            AND tipo = 'entrada'
+        """, (caixa_id,))
+
+        entradas = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute("""
+            SELECT
+                COALESCE(
+                    SUM(valor),
+                    0
+                )
+            FROM movimentacoes
+            WHERE caixa_id = %s
+            AND tipo = 'saida'
+        """, (caixa_id,))
+
+        saidas = float(
+            cursor.fetchone()[0]
+        )
+
+        saldo = entradas - saidas
+
+        return {
+            "entradas": entradas,
+            "saidas": saidas,
+            "saldo": saldo
+        }
+
+    except Exception as erro:
+
+        print(
+            "Erro resumo caixa:",
+            erro
+        )
+
+        return {
+            "entradas": 0,
+            "saidas": 0,
+            "saldo": 0
         }
 
     finally:
