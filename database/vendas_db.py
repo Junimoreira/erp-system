@@ -263,7 +263,7 @@ def salvar_venda(
         # ==========================================
         # PIX = CONTA BANCÁRIA
         # ==========================================
-                elif forma_pagamento == "PIX":
+        elif forma_pagamento == "PIX":
 
             cursor.execute("""
                 INSERT INTO movimentacoes (
@@ -291,7 +291,7 @@ def salvar_venda(
         # ==========================================
         # CARTÃO = CONTA BANCÁRIA
         # ==========================================
-                elif forma_pagamento == "Cartão":
+        elif forma_pagamento == "Cartão":
 
             cursor.execute("""
                 INSERT INTO movimentacoes (
