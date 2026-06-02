@@ -228,37 +228,42 @@ def salvar_venda(
 
             caixa = verificar_caixa_aberto()
 
-            if caixa is not None:
+            if caixa is None:
 
-                caixa_id = int(caixa["id"])
+                raise ValueError(
+                    "Não existe caixa aberto para receber venda em dinheiro."
+                )
 
-                cursor.execute("""
-                    INSERT INTO movimentacoes (
+            caixa_id = int(caixa[0])
 
-                        caixa_id,
-                        tipo,
-                        valor,
-                        descricao,
-                        origem,
-                        data_movimentacao
-
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
+            cursor.execute("""
+                INSERT INTO movimentacoes (
 
                     caixa_id,
-                    "entrada",
-                    valor_final,
-                    f"Venda Dinheiro #{venda_id}",
-                    "Caixa",
-                    datetime.now()
+                    tipo,
+                    valor,
+                    descricao,
+                    categoria,
+                    origem,
+                    data_movimentacao
 
-                ))
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
 
+                caixa_id,
+                "entrada",
+                valor_final,
+                f"Venda Dinheiro #{venda_id}",
+                "Venda",
+                "Caixa",
+                datetime.now()
+
+            ))
         # ==========================================
         # PIX = CONTA BANCÁRIA
         # ==========================================
-        elif forma_pagamento == "PIX":
+                elif forma_pagamento == "PIX":
 
             cursor.execute("""
                 INSERT INTO movimentacoes (
@@ -266,16 +271,18 @@ def salvar_venda(
                     tipo,
                     valor,
                     descricao,
+                    categoria,
                     origem,
                     data_movimentacao
 
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
             """, (
 
                 "entrada",
                 valor_final,
                 f"Venda PIX #{venda_id}",
+                "Venda",
                 "Banco PIX",
                 datetime.now()
 
@@ -284,7 +291,7 @@ def salvar_venda(
         # ==========================================
         # CARTÃO = CONTA BANCÁRIA
         # ==========================================
-        elif forma_pagamento == "Cartão":
+                elif forma_pagamento == "Cartão":
 
             cursor.execute("""
                 INSERT INTO movimentacoes (
@@ -292,16 +299,18 @@ def salvar_venda(
                     tipo,
                     valor,
                     descricao,
+                    categoria,
                     origem,
                     data_movimentacao
 
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
             """, (
 
                 "entrada",
                 valor_final,
                 f"Venda Cartão #{venda_id}",
+                "Venda",
                 "Cartão",
                 datetime.now()
 
