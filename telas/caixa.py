@@ -51,7 +51,7 @@ def identificar_coluna_data(df):
 def resumo_caixa(caixa_id):
 
     try:
-        df = listar_movimentacoes()
+        df = listar_movimentacoes_caixa(caixa_id)
 
         if df is None or df.empty:
             return {"entradas": 0, "saidas": 0}
@@ -82,7 +82,7 @@ def resumo_caixa(caixa_id):
 def listar_movimentacoes_caixa(caixa_id):
 
     try:
-        df = listar_movimentacoes()
+        df = listar_movimentacoes_caixa(caixa_id)
 
         if df is None or df.empty:
             return pd.DataFrame()
@@ -341,7 +341,7 @@ def tela_caixa():
 
         busca = st.text_input("🔎 Buscar movimentação")
 
-        df = listar_movimentacoes()
+        df = listar_movimentacoes_caixa(caixa_id)
 
         if df is None or df.empty:
             st.info("Nenhuma movimentação encontrada.")
