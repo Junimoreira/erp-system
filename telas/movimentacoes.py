@@ -1,5 +1,5 @@
 import streamlit as st
-from database.movimentacoes_db import listar_movimentacoes, resumo_movimentacoes
+#from database.movimentacoes_db import listar_movimentacoes, resumo_movimentacoes
 import pandas as pd
 
 

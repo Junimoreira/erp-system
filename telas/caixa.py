@@ -6,7 +6,7 @@ from datetime import datetime
 
 from database.movimentacoes_db import (
     registrar_movimentacao,
-    listar_movimentacoes,
+    listar_movimentacoes_caixa,
     atualizar_movimentacao,
     excluir_movimentacao
 )
@@ -87,12 +87,15 @@ def listar_movimentacoes_caixa(caixa_id):
         if df is None or df.empty:
             return pd.DataFrame()
 
+        if "caixa_id" not in df.columns:
+            print("Coluna caixa_id não existe em movimentacoes")
+            return pd.DataFrame()
+
         return df[df["caixa_id"] == caixa_id]
 
     except Exception as erro:
         print("Erro listar_movimentacoes_caixa:", erro)
         return pd.DataFrame()
-
 
 # ==================================================
 # ORDENAÇÃO SEGURA

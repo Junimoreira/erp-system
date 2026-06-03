@@ -4,9 +4,9 @@ import pandas as pd
 from datetime import datetime
 
 from database.connection import conectar
-
 from database.caixa_db import (
-    verificar_caixa_aberto
+    verificar_caixa_aberto,
+    registrar_entrada_caixa
 )
 
 
@@ -135,17 +135,14 @@ def salvar_venda(
 
         venda_id = int(cursor.fetchone()[0])
 
-        # ==========================================
+                # ==========================================
         # ITENS DA VENDA
         # ==========================================
         for item in itens:
 
             quantidade = float(item["quantidade"])
-
             preco = float(item["preco"])
-
             subtotal = float(item["subtotal"])
-
             produto_id = int(item["produto_id"])
 
             # ======================================
@@ -178,7 +175,7 @@ def salvar_venda(
             cursor.execute("""
                 UPDATE produtos
 
-                SET estoque = estoque - %s
+                SET estoque = COALESCE(estoque, 0) - %s
 
                 WHERE id = %s
             """, (
@@ -188,9 +185,31 @@ def salvar_venda(
 
             ))
 
-# ==========================================
-# VENDA A PRAZO
-# ==========================================
+        # ==========================================
+        # REGISTRAR ENTRADA NO CAIXA
+        # ==========================================
+        caixa = verificar_caixa_aberto()
+
+        if caixa:
+
+            caixa_id = int(caixa[0])
+
+            registrar_entrada_caixa(
+                caixa_id,
+                valor_final
+            )
+
+        conn.commit()
+
+        return True
+
+        # ==========================================
+        # FINALIZA TRANSAÇÃO
+        # ==========================================
+        conn.commit()
+
+        return True
+
     except Exception as erro:
 
         conn.rollback()
@@ -204,13 +223,12 @@ def salvar_venda(
         traceback.print_exc()
         print("=" * 80)
 
-        raise
+        return False
 
     finally:
 
         cursor.close()
         conn.close()
-
 
 # ==================================================
 # HISTÓRICO DE VENDAS
