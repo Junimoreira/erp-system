@@ -2,33 +2,33 @@
    OCULTAR ELEMENTOS PADRÃO DO STREAMLIT
 ================================================== */
 
-/* Barra superior branca */
 header[data-testid="stHeader"] {
     display: none !important;
 }
 
-/* Toolbar */
 [data-testid="stToolbar"] {
     display: none !important;
 }
 
-/* Menu hamburguer */
 #MainMenu {
     visibility: hidden;
 }
 
-/* Rodapé */
 footer {
     visibility: hidden;
 }
 
-/* Remove espaço superior */
+/* ==================================================
+   AJUSTE GLOBAL
+================================================== */
+
 .block-container {
     padding-top: 1rem !important;
+    padding-bottom: 2rem !important;
 }
 
 /* ==================================================
-   FUNDO PADRÃO SISTEMA (ERP)
+   FUNDO SISTEMA
 ================================================== */
 
 .stApp {
@@ -36,15 +36,17 @@ footer {
 }
 
 /* ==================================================
-   SIDEBAR
+   SIDEBAR VERDE INFÂNCIA
 ================================================== */
 
 section[data-testid="stSidebar"] {
     background: linear-gradient(
         180deg,
-        #44D62C 0%,
+        #071633 0%,
+        #0B1F45 40%,
         #008ACD 100%
     );
+    border-right: 3px solid #44D62C;
 }
 
 /* ==================================================
@@ -56,22 +58,62 @@ section[data-testid="stSidebar"] * {
 }
 
 /* ==================================================
+   LOGO SIDEBAR
+================================================== */
+
+section[data-testid="stSidebar"] img {
+    margin-bottom: 10px;
+}
+
+/* ==================================================
+   RADIO MENU
+================================================== */
+
+div[role="radiogroup"] label {
+    border-radius: 12px !important;
+    padding: 8px !important;
+}
+
+div[role="radiogroup"] label:hover {
+    background-color: rgba(255,255,255,0.10);
+}
+
+/* ==================================================
    BOTÕES
 ================================================== */
 
 .stButton > button {
-    background-color: #D5066F;
-    color: white;
-    border-radius: 12px;
-    border: none;
-    padding: 10px 18px;
-    font-weight: bold;
-    transition: 0.3s;
+
+    background: linear-gradient(
+        90deg,
+        #44D62C 0%,
+        #008ACD 100%
+    ) !important;
+
+    color: white !important;
+
+    border: none !important;
+
+    border-radius: 12px !important;
+
+    font-weight: 700 !important;
+
+    min-height: 46px !important;
+
+    transition: all .25s ease !important;
 }
 
 .stButton > button:hover {
-    background-color: #b0045d;
-    transform: scale(1.02);
+
+    background: linear-gradient(
+        90deg,
+        #39C122 0%,
+        #0078B8 100%
+    ) !important;
+
+    transform: translateY(-2px);
+
+    box-shadow: 0 4px 12px rgba(0,138,205,.35);
 }
 
 /* ==================================================
@@ -80,41 +122,101 @@ section[data-testid="stSidebar"] * {
 
 .stTextInput input,
 .stNumberInput input,
-.stSelectbox div[data-baseweb="select"] {
-    border-radius: 10px !important;
+.stDateInput input,
+.stTextArea textarea {
+
+    border-radius: 12px !important;
+
+    border: 2px solid #44D62C !important;
+
+    background-color: white !important;
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stDateInput input:focus,
+.stTextArea textarea:focus {
+
+    border-color: #008ACD !important;
+
+    box-shadow: 0 0 8px rgba(0,138,205,.35) !important;
+}
+
+/* ==================================================
+   SELECTBOX
+================================================== */
+
+div[data-baseweb="select"] {
+
+    border-radius: 12px !important;
+
     border: 2px solid #44D62C !important;
 }
 
 /* ==================================================
-   MÉTRICAS
+   MÉTRICAS DASHBOARD
 ================================================== */
 
 div[data-testid="metric-container"] {
+
     background: white;
-    border-left: 5px solid #44D62C;
-    padding: 15px;
+
+    border-left: 6px solid #44D62C;
+
     border-radius: 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+
+    padding: 18px;
+
+    box-shadow: 0 3px 12px rgba(0,0,0,.08);
 }
 
 /* ==================================================
-   TABELAS
+   DATAFRAME
 ================================================== */
 
 [data-testid="stDataFrame"] {
+
     border-radius: 14px;
+
     overflow: hidden;
-    border: 1px solid #e1e5eb;
+
+    border: 1px solid #dce3ea;
+
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+
+/* ==================================================
+   FORMULÁRIOS
+================================================== */
+
+form {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 16px;
+
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
 }
 
 /* ==================================================
    TÍTULOS
 ================================================== */
 
-h1,
-h2,
+h1 {
+    color: #008ACD !important;
+    font-weight: 700 !important;
+}
+
+h2 {
+    color: #071633 !important;
+    font-weight: 700 !important;
+}
+
 h3 {
-    color: #008ACD;
+    color: #44D62C !important;
+    font-weight: 600 !important;
 }
 
 /* ==================================================
@@ -123,6 +225,87 @@ h3 {
 
 .stSuccess,
 .stWarning,
-.stError {
-    border-radius: 10px;
+.stError,
+.stInfo {
+
+    border-radius: 12px !important;
+}
+
+/* ==================================================
+   EXPANDERS
+================================================== */
+
+.streamlit-expanderHeader {
+
+    border-radius: 10px !important;
+
+    font-weight: 600 !important;
+}
+
+/* ==================================================
+   TABS
+================================================== */
+
+button[data-baseweb="tab"] {
+
+    border-radius: 10px !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+
+    background-color: #008ACD !important;
+
+    color: white !important;
+}
+
+/* ==================================================
+   SEPARADORES
+================================================== */
+
+hr {
+
+    border-color: rgba(68,214,44,.30);
+}
+
+/* ==================================================
+   SCROLLBAR
+================================================== */
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f3f6;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #008ACD;
+    border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #006fa4;
+}
+
+/* ==================================================
+   LOGO LOGIN CENTRALIZADA
+================================================== */
+
+/* Centraliza qualquer imagem do Streamlit */
+[data-testid="stImage"] {
+    width: 100%;
+    text-align: center !important;
+}
+
+/* Centraliza a imagem */
+[data-testid="stImage"] img {
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Ajuste fino para o centro visual da logo */
+[data-testid="stImage"] img[src*="logo"] {
+    transform: translateX(12px);
 }

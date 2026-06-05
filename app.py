@@ -1,47 +1,3 @@
-import streamlit as st
-import sys
-import os
-
-sys.path.append(
-    os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "../../.."
-        )
-    )
-)
-
-# ==================================================
-# CONFIGURAÇÃO
-# ==================================================
-st.set_page_config(
-    page_title="ERP Verde Infância",
-    page_icon="🌳",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# ==================================================
-# CARREGAR CSS
-# ==================================================
-def carregar_css():
-
-    try:
-
-        with open(
-            "style.css",  # <- CORRIGIDO (raiz mesmo)
-            encoding="utf-8"
-        ) as arquivo:
-
-            st.markdown(
-                f"<style>{arquivo.read()}</style>",
-                unsafe_allow_html=True
-            )
-
-    except Exception as erro:
-
-        print(f"Erro ao carregar CSS: {erro}")
-
 # ==================================================
 # IMPORTAÇÃO DAS TELAS
 # ==================================================
@@ -65,127 +21,134 @@ from telas.fornecedores import tela_fornecedores
 from telas.painel_admin_permissoes import tela_painel_permissoes
 from telas.relatorios.relatorio_produtos_pdf import tela_relatorio_produtos_pdf
 from telas.relatorios.relatorio_vendas_pdf import tela_relatorio_vendas_lucro
+from telas.relatorios.relatorio_contas_pagar_pdf import tela_relatorio_contas_pagar
+from telas.relatorios.relatorio_contas_receber_pdf import tela_relatorio_contas_receber
+
+import streamlit as st
+import sys
+import os
 
 # ==================================================
-# USUÁRIOS (fallback)
+# PATH
+# ==================================================
+sys.path.append(
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "../../.."
+        )
+    )
+)
+
+# ==================================================
+# CONFIG
+# ==================================================
+st.set_page_config(
+    page_title="ERP - Verde Infância",
+    page_icon="assets/logo2.png",
+    layout="wide"
+)
+# ==================================================
+# CSS
+# ==================================================
+import os
+
+# ==================================================
+# CSS
+# ==================================================
+def carregar_css():
+
+    try:
+
+        caminho_css = os.path.join(
+            os.path.dirname(__file__),
+            "styles",
+            "styles.css"
+        )
+
+        with open(caminho_css, encoding="utf-8") as f:
+
+            st.markdown(
+                f"<style>{f.read()}</style>",
+                unsafe_allow_html=True
+            )
+
+    except Exception as e:
+
+        st.error(f"Erro CSS: {e}")
+
+carregar_css()
+# ==================================================
+# FALLBACK USUÁRIOS
 # ==================================================
 try:
-
     from telas.usuarios import tela_usuarios
-
 except:
-
     def tela_usuarios():
-
-        st.title("👤 Usuários")
-
-        st.info(
-            "Tela de usuários em desenvolvimento."
-        )
+        st.warning("Tela de usuários não encontrada.")
 
 # ==================================================
 # SESSION
 # ==================================================
 if "logado" not in st.session_state:
-
     st.session_state["logado"] = False
 
 # ==================================================
 # LOGIN
 # ==================================================
 if not st.session_state["logado"]:
-
     tela_login()
-
     st.stop()
 
 # ==================================================
 # PERFIL
 # ==================================================
-perfil = str(
-    st.session_state.get(
-        "perfil",
-        ""
-    )
-).strip().lower()
-
-admin_total = perfil in [
-    "admin",
-    "diretor"
-]
+perfil = str(st.session_state.get("perfil", "")).lower()
+admin_total = perfil in ["admin", "diretor"]
 
 # ==================================================
 # MENU
 # ==================================================
-menu_opcoes = []
+menu_opcoes = ["🏠 Dashboard"]
 
-menu_opcoes.append("🏠 Dashboard")
-
-if admin_total or st.session_state.get("pode_caixa"):
-
+if admin_total or st.session_state.get("pode_caixa", False):
     menu_opcoes.append("💰 Caixa")
 
-if admin_total or st.session_state.get("pode_clientes"):
-
+if admin_total or st.session_state.get("pode_clientes", False):
     menu_opcoes.append("👥 Clientes")
 
-if admin_total or st.session_state.get("pode_produtos"):
+if admin_total or st.session_state.get("pode_produtos", False):
+    menu_opcoes += ["📦 Produtos", "💰 Formação de Preço", "🚚 Fornecedores", "📥 Compras"]
 
-    menu_opcoes.append("📦 Produtos")
-    menu_opcoes.append("💰 Formação de Preço")
-    menu_opcoes.append("🚚 Fornecedores")
-    menu_opcoes.append("📥 Compras")
-
-if admin_total:
-
-    menu_opcoes.append("👤 Usuários")
-
-if admin_total or st.session_state.get("pode_movimentacoes"):
-
+if admin_total or st.session_state.get("pode_movimentacoes", False):
     menu_opcoes.append("💰 Movimentações")
 
-if admin_total or st.session_state.get("pode_vendas"):
-
+if admin_total or st.session_state.get("pode_vendas", False):
     menu_opcoes.append("🛒 Vendas")
 
-if admin_total or st.session_state.get("pode_financeiro"):
+if admin_total or st.session_state.get("pode_financeiro", False):
+    menu_opcoes.append("🏦 Contas Bancárias")
 
-    menu_opcoes.append("🏦 Contas")
-
-if admin_total or st.session_state.get("pode_contas_pagar"):
-
+if admin_total or st.session_state.get("pode_contas_pagar", False):
     menu_opcoes.append("📤 Contas a Pagar")
 
-if admin_total or st.session_state.get("pode_contas_receber"):
-
+if admin_total or st.session_state.get("pode_contas_receber", False):
     menu_opcoes.append("📥 Contas a Receber")
 
-if admin_total:
-
-    menu_opcoes.append("📊 Fechamento de Caixa")
-
-if admin_total or st.session_state.get("pode_relatorios"):
-
+if admin_total or st.session_state.get("pode_relatorios", False):
     menu_opcoes.append("📊 Relatórios")
 
-if admin_total or st.session_state.get("pode_configuracoes"):
-
+if admin_total or st.session_state.get("pode_configuracoes", False):
     menu_opcoes.append("⚙️ Configurações")
 
+if admin_total or st.session_state.get("pode_fechamento_caixa", False):
+    menu_opcoes.append("📊 Fechamento de Caixa")
+
+if admin_total or st.session_state.get("pode_usuarios", False):
+    menu_opcoes.append("👤 Usuários")
+
 if admin_total:
-
     menu_opcoes.append("🔐 Permissões")
-
-# ==================================================
-# PROTEÇÃO
-# ==================================================
-if len(menu_opcoes) <= 1:
-
-    st.error(
-        "⛔ Usuário sem permissões."
-    )
-
-    st.stop()
 
 # ==================================================
 # SIDEBAR
@@ -193,194 +156,129 @@ if len(menu_opcoes) <= 1:
 with st.sidebar:
 
     try:
-
-        st.image(
-            "assets/Logo.png",
-            width=180
-        )
-
+        st.image("assets/Logo.png", width=180)
     except:
-
         pass
 
-    st.markdown(
-        """
-        <div class='sidebar-title'>
-            ERP Verde Infância
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("<b>ERP Verde Infância</b>", unsafe_allow_html=True)
 
-    st.success(
-        f"👤 {st.session_state.get('usuario', 'Usuário')}"
-    )
+    st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
 
     st.divider()
 
-    menu = st.radio(
-        "Menu",
-        menu_opcoes
-    )
+    menu = st.radio("Menu", menu_opcoes)
 
     st.divider()
 
-    if st.button(
-        "🚪 Sair",
-        use_container_width=True
-    ):
-
+    if st.button("🚪 Sair", use_container_width=True):
         st.session_state.clear()
-
         st.rerun()
 
 # ==================================================
-# FUNÇÃO BLOQUEIO
+# BLOQUEIO
 # ==================================================
 def bloquear(permissao):
-
-    if not (
-        admin_total
-        or
-        st.session_state.get(
-            permissao,
-            False
-        )
-    ):
-
-        st.error(
-            "⛔ Você não possui permissão."
-        )
-
+    if not (admin_total or st.session_state.get(permissao, False)):
+        st.error("⛔ Sem permissão")
         st.stop()
 
 # ==================================================
 # ROTAS
 # ==================================================
 if menu == "🏠 Dashboard":
-
     tela_dashboard()
 
 elif menu == "💰 Caixa":
-
     bloquear("pode_caixa")
-
     tela_caixa()
 
 elif menu == "👥 Clientes":
-
     bloquear("pode_clientes")
-
     tela_clientes()
 
 elif menu == "📦 Produtos":
-
     bloquear("pode_produtos")
-
     tela_produtos()
 
 elif menu == "💰 Formação de Preço":
-
-    bloquear("pode_formacao_preco")
-
+    bloquear("pode_produtos")
     tela_formacao_preco()
 
 elif menu == "🚚 Fornecedores":
-
-    bloquear("pode_fornecedores")
-
+    bloquear("pode_produtos")
     tela_fornecedores()
 
 elif menu == "📥 Compras":
-
-    bloquear("pode_compras")
-
+    bloquear("pode_produtos")
     tela_compras()
 
-elif menu == "👤 Usuários":
-
-    tela_usuarios()
-
 elif menu == "💰 Movimentações":
-
+    bloquear("pode_movimentacoes")
     tela_movimentacoes()
 
 elif menu == "🛒 Vendas":
-
     bloquear("pode_vendas")
-
     tela_vendas()
 
-elif menu == "🏦 Contas":
-
+elif menu == "🏦 Contas Bancárias":
     bloquear("pode_financeiro")
-
-    tela_contas()
+    tela_contas_bancarias()
 
 elif menu == "📤 Contas a Pagar":
-
     bloquear("pode_contas_pagar")
-
     tela_contas_pagar()
 
 elif menu == "📥 Contas a Receber":
-
     bloquear("pode_contas_receber")
-
     tela_contas_receber()
 
 elif menu == "📊 Fechamento de Caixa":
-
     bloquear("pode_fechamento_caixa")
-
     tela_fechamento_caixa()
+
 # ==================================================
-# RELATÓRIOS
+# RELATÓRIOS (CORRIGIDO)
 # ==================================================
 elif menu == "📊 Relatórios":
 
-    st.title(
-        "📊 Central de Relatórios"
-    )
+    bloquear("pode_relatorios")
 
-    relatorio = st.selectbox(
-        "Selecione o relatório",
-        [
-            "Caixa",
-            "Vendas",
-            "Vendas com lucro",
-            "Produtos PDF"
-        ]
-    )
+    st.title("📊 Central de Relatórios")
+
+    relatorio = st.selectbox("Relatório", [
+        "Caixa",
+        "Vendas",
+        "Vendas com lucro",
+        "Produtos PDF",
+        "Contas a Pagar",
+        "Contas a Receber"
+    ])
 
     if relatorio == "Caixa":
-
         tela_relatorio_caixa()
 
     elif relatorio == "Vendas":
-
         tela_relatorio_vendas()
 
     elif relatorio == "Vendas com lucro":
-
         tela_relatorio_vendas_lucro()
 
     elif relatorio == "Produtos PDF":
-
         tela_relatorio_produtos_pdf()
 
+    elif relatorio == "Contas a Pagar":
+        tela_relatorio_contas_pagar()
+
+    elif relatorio == "Contas a Receber":
+        tela_relatorio_contas_receber()
+
 elif menu == "⚙️ Configurações":
-
     bloquear("pode_configuracoes")
-
     tela_configuracoes()
 
+elif menu == "👤 Usuários":
+    bloquear("pode_usuarios")
+    tela_usuarios()
+
 elif menu == "🔐 Permissões":
-
     tela_painel_permissoes()
-
-elif menu == "📥 Contas a Receber":
-
-    bloquear("pode_contas_receber")
-
-    tela_contas_receber()

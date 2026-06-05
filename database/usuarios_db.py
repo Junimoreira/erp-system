@@ -175,86 +175,82 @@ def autenticar_usuario(usuario, senha):
     try:
 
         cursor.execute("""
-
-            SELECT
-                id,
-                nome,
-                usuario,
-                senha,
-                perfil,
-                ativo,
-
-                pode_dashboard,
-                pode_caixa,
-                pode_clientes,
-                pode_produtos,
-                pode_vendas,
-                pode_financeiro,
-                pode_contas_pagar,
-                pode_contas_receber,
-                pode_despesas,
-                pode_configuracoes
-
+            SELECT *
             FROM usuarios
-
             WHERE usuario = %s
-
         """, (usuario,))
 
         dados = cursor.fetchone()
 
         if dados is None:
-
-            print("Usuário não encontrado.")
-
             return None
 
         senha_hash = dados[3]
 
-        # Valida senha bcrypt
-        senha_valida = bcrypt.checkpw(
+        if not bcrypt.checkpw(
             senha.encode(),
             senha_hash.encode()
-        )
-
-        if not senha_valida:
-
-            print("Senha inválida.")
-
+        ):
             return None
 
-        # Verifica se usuário está ativo
         if not dados[5]:
-
-            print("Usuário inativo.")
-
             return None
 
-        usuario_logado = {
+        return {
 
             "id": dados[0],
             "nome": dados[1],
             "usuario": dados[2],
-            "perfil": dados[4],
+            "perfil": dados[16],
 
-            "pode_dashboard": dados[6],
-            "pode_caixa": dados[7],
-            "pode_clientes": dados[8],
-            "pode_produtos": dados[9],
-            "pode_vendas": dados[10],
-            "pode_financeiro": dados[11],
-            "pode_contas_pagar": dados[12],
-            "pode_contas_receber": dados[13],
-            "pode_despesas": dados[14],
-            "pode_configuracoes": dados[15]
+            # ==================================
+            # MAPEAMENTO PARA O APP.PY
+            # ==================================
+            "pode_caixa":
+                bool(dados[7]) or bool(dados[8]),
+
+            "pode_clientes":
+                bool(dados[10]),
+
+            "pode_produtos":
+                bool(dados[15]),
+
+            "pode_vendas":
+                bool(dados[9]),
+
+            "pode_financeiro":
+                bool(dados[11]),
+
+            "pode_contas_pagar":
+                bool(dados[12]),
+
+            "pode_contas_receber":
+                bool(dados[18]),
+
+            "pode_configuracoes":
+                bool(dados[13]),
+
+            "pode_usuarios":
+                bool(dados[14]),
+
+            "pode_movimentacoes":
+                bool(dados[20]),
+
+            "pode_fechamento_caixa":
+                bool(dados[21]),
+
+            # liberados temporariamente
+            "pode_dashboard": True,
+            "pode_relatorios": True
 
         }
 
-        return usuario_logado
-
     except Exception as erro:
 
-        print(f"Erro ao autenticar usuário: {erro}")
+        print(
+            "Erro ao autenticar usuário:",
+            erro
+        )
 
         return None
 

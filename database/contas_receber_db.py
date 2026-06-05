@@ -4,7 +4,6 @@ import pandas as pd
 from database.connection import conectar
 from database.caixa_db import verificar_caixa_aberto
 from database.movimentacoes_db import registrar_movimentacao
-from database.contas_bancarias import listar_contas as listar_bancos
 
 
 # ==================================================
@@ -28,14 +27,12 @@ def cadastrar_conta_receber(
 ):
 
     conn = conectar()
-
     if conn is None:
         return False
 
     cursor = conn.cursor()
 
     try:
-
         descricao = tratar_texto(descricao)
         observacoes = tratar_texto(observacoes)
         valor = float(valor)
@@ -53,11 +50,7 @@ def cadastrar_conta_receber(
                 status,
                 criado_em
             )
-            VALUES (
-                %s, %s, %s, %s, %s,
-                'Pendente',
-                NOW()
-            )
+            VALUES (%s, %s, %s, %s, %s, 'Pendente', NOW())
         """, (
             cliente_id,
             descricao,
@@ -80,39 +73,25 @@ def cadastrar_conta_receber(
 
 
 # ==================================================
-# LISTAR CONTAS A RECEBER
+# LISTAR CONTAS
 # ==================================================
 def listar_contas():
 
     conn = conectar()
-
     if conn is None:
         return pd.DataFrame()
 
     try:
-
-        query = """
-            SELECT
-                id,
-                cliente_id,
-                descricao,
-                valor,
-                vencimento,
-                status,
-                observacoes,
-                criado_em,
-                forma_pagamento,
-                data_recebimento,
-                data_pagamento
+        df = pd.read_sql("""
+            SELECT *
             FROM contas_receber
             ORDER BY vencimento ASC
-        """
+        """, conn)
 
-        df = pd.read_sql(query, conn)
         return df.fillna("")
 
     except Exception as erro:
-        print("Erro listar contas receber:", erro)
+        print("Erro listar contas:", erro)
         return pd.DataFrame()
 
     finally:
@@ -120,12 +99,11 @@ def listar_contas():
 
 
 # ==================================================
-# RECEBER CONTA (VERSÃO CORRIGIDA FUTURA)
+# RECEBER CONTA (AGORA COMPLETO)
 # ==================================================
 def receber_conta(conta_id, origem_financeira="CAIXA", conta_bancaria_id=None):
 
     conn = conectar()
-
     if conn is None:
         return False
 
@@ -150,6 +128,8 @@ def receber_conta(conta_id, origem_financeira="CAIXA", conta_bancaria_id=None):
 
         if status == "recebido":
             raise ValueError("Conta já recebida.")
+
+        caixa_id = None
 
         # ==========================================
         # CAIXA
@@ -191,14 +171,22 @@ def receber_conta(conta_id, origem_financeira="CAIXA", conta_bancaria_id=None):
             raise ValueError("Origem inválida.")
 
         # ==========================================
-        # ATUALIZA CONTA
+        # SALVAR ORIGEM
         # ==========================================
         cursor.execute("""
             UPDATE contas_receber
             SET status = 'Recebido',
-                data_recebimento = NOW()
+                data_recebimento = NOW(),
+                forma_pagamento = %s,
+                caixa_id = %s,
+                conta_bancaria_id = %s
             WHERE id = %s
-        """, (conta_id,))
+        """, (
+            origem_financeira,
+            caixa_id,
+            conta_bancaria_id,
+            conta_id
+        ))
 
         conn.commit()
         return True
@@ -214,12 +202,11 @@ def receber_conta(conta_id, origem_financeira="CAIXA", conta_bancaria_id=None):
 
 
 # ==================================================
-# ATUALIZAR CONTA
+# ATUALIZAR CONTA (COM ESTORNO REAL)
 # ==================================================
-def atualizar_conta_receber(conta_id, descricao, valor, vencimento):
+def atualizar_conta_receber(conta_id, descricao, valor, vencimento, status):
 
     conn = conectar()
-
     if conn is None:
         return False
 
@@ -227,16 +214,82 @@ def atualizar_conta_receber(conta_id, descricao, valor, vencimento):
 
     try:
 
+        descricao = tratar_texto(descricao)
+        valor = float(valor)
+        status = tratar_texto(status).lower()
+
+        # ==========================================
+        # BUSCAR DADOS
+        # ==========================================
+        cursor.execute("""
+            SELECT status, valor, forma_pagamento, caixa_id, conta_bancaria_id
+            FROM contas_receber
+            WHERE id = %s
+        """, (conta_id,))
+
+        conta = cursor.fetchone()
+
+        if not conta:
+            raise ValueError("Conta não encontrada.")
+
+        status_antigo = tratar_texto(conta[0]).lower()
+        valor_antigo = float(conta[1])
+        forma_pagamento = tratar_texto(conta[2]).upper()
+        caixa_id = conta[3]
+        conta_banco_id = conta[4]
+
+        # ==========================================
+        # ESTORNO AUTOMÁTICO
+        # ==========================================
+        if status_antigo == "recebido" and status == "pendente":
+
+            # 🔹 CAIXA
+            if forma_pagamento == "CAIXA" and caixa_id:
+
+                registrar_movimentacao(
+                    caixa_id=caixa_id,
+                    tipo="saida",
+                    valor=valor_antigo,
+                    descricao=f"Estorno: {descricao}",
+                    categoria="estorno",
+                    origem="contas_receber",
+                    data_movimentacao=datetime.now()
+                )
+
+            # 🔹 BANCO
+            elif forma_pagamento == "BANCO" and conta_banco_id:
+
+                cursor.execute("""
+                    UPDATE contas_bancarias
+                    SET saldo = saldo - %s
+                    WHERE id = %s
+                """, (valor_antigo, conta_banco_id))
+
+        # ==========================================
+        # DATA RECEBIMENTO
+        # ==========================================
+        if status == "recebido":
+            data_recebimento = datetime.now()
+        else:
+            data_recebimento = None
+
+        # ==========================================
+        # UPDATE FINAL
+        # ==========================================
         cursor.execute("""
             UPDATE contas_receber
             SET descricao = %s,
                 valor = %s,
-                vencimento = %s
+                vencimento = %s,
+                status = %s,
+                data_recebimento = %s
             WHERE id = %s
         """, (
             descricao,
-            float(valor),
+            valor,
             vencimento,
+            status.capitalize(),
+            data_recebimento,
             conta_id
         ))
 
@@ -259,7 +312,6 @@ def atualizar_conta_receber(conta_id, descricao, valor, vencimento):
 def excluir_conta_receber(conta_id):
 
     conn = conectar()
-
     if conn is None:
         return False
 
@@ -293,49 +345,6 @@ def excluir_conta_receber(conta_id):
         conn.rollback()
         print("Erro excluir conta:", erro)
         return False
-
-    finally:
-        cursor.close()
-        conn.close()
-
-
-# ==================================================
-# RESUMO CONTAS A RECEBER
-# ==================================================
-def resumo_contas_receber():
-
-    conn = conectar()
-
-    if conn is None:
-        return {"pendente": 0, "recebido": 0, "total": 0}
-
-    cursor = conn.cursor()
-
-    try:
-
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor), 0)
-            FROM contas_receber
-            WHERE LOWER(status) = 'pendente'
-        """)
-        pendente = float(cursor.fetchone()[0])
-
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor), 0)
-            FROM contas_receber
-            WHERE LOWER(status) = 'recebido'
-        """)
-        recebido = float(cursor.fetchone()[0])
-
-        return {
-            "pendente": pendente,
-            "recebido": recebido,
-            "total": pendente + recebido
-        }
-
-    except Exception as erro:
-        print("Erro resumo contas receber:", erro)
-        return {"pendente": 0, "recebido": 0, "total": 0}
 
     finally:
         cursor.close()

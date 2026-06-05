@@ -31,9 +31,13 @@ def listar_usuarios():
             usuarios,
             cadastrar_produto,
             ver_contas,
-            ver_despesas
+            ver_despesas,
+            pode_movimentacoes,
+            pode_fechamento_caixa,
+            pode_contas_receber_editar
 
         FROM usuarios
+
         ORDER BY nome
     """)
 
@@ -74,7 +78,9 @@ def salvar_permissoes(user_id, dados):
                 usuarios = %s,
                 cadastrar_produto = %s,
                 ver_contas = %s,
-                ver_despesas = %s
+                ver_despesas = %s,
+                pode_movimentacoes = %s,
+                pode_fechamento_caixa = %s
             WHERE id = %s
         """, (
 
@@ -89,8 +95,10 @@ def salvar_permissoes(user_id, dados):
             dados["cadastrar_produto"],
             dados["ver_contas"],
             dados["ver_despesas"],
-
+            dados["pode_movimentacoes"],
+            dados["pode_fechamento_caixa"],
             user_id
+
         ))
 
         conn.commit()
@@ -110,7 +118,6 @@ def salvar_permissoes(user_id, dados):
 
         cur.close()
         conn.close()
-
 
 # =====================================
 # TELA ADMIN
@@ -144,7 +151,9 @@ def tela_painel_permissoes():
 
     st.divider()
 
-    st.subheader(f"👤 {user['nome']}")
+    st.subheader(
+        f"👤 {user['nome']}"
+    )
 
     # =====================================
     # ADMIN / DIRETOR
@@ -165,12 +174,9 @@ def tela_painel_permissoes():
 
         return
 
-    # =====================================
-    # CHECKBOXES
-    # =====================================
-    col1, col2 = st.columns(2)
-
     permissoes = {}
+
+    col1, col2 = st.columns(2)
 
     # =====================================
     # COLUNA 1
@@ -203,7 +209,7 @@ def tela_painel_permissoes():
         )
 
         permissoes["ver_contas"] = st.checkbox(
-            "Contas",
+            "Ver Contas",
             value=bool(user["ver_contas"])
         )
 
@@ -233,14 +239,34 @@ def tela_painel_permissoes():
         )
 
         permissoes["ver_despesas"] = st.checkbox(
-            "Despesas",
+            "Ver Despesas",
             value=bool(user["ver_despesas"])
+        )
+
+        permissoes["pode_movimentacoes"] = st.checkbox(
+            "Movimentações",
+            value=bool(user["pode_movimentacoes"])
+        )
+
+        permissoes["pode_fechamento_caixa"] = st.checkbox(
+            "Fechamento de Caixa",
+            value=bool(user["pode_fechamento_caixa"])
+        )
+
+        permissoes["pode_contas_receber_editar"] = st.checkbox(
+            "Contas a Receber",
+            value=bool(
+                user.get(
+                    "pode_contas_receber_editar",
+                    False
+                )
+            )
         )
 
     st.divider()
 
     # =====================================
-    # BOTÃO SALVAR
+    # SALVAR
     # =====================================
     if st.button(
         "💾 Salvar Permissões",
