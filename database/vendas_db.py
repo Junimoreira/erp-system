@@ -199,6 +199,18 @@ def salvar_venda(
                 valor_final
             )
 
+        from database.movimentacoes_db import registrar_movimentacao
+
+        registrar_movimentacao(
+            caixa_id=caixa_id,
+            tipo="entrada",
+            valor=float(valor_final),
+            descricao=f"Venda #{venda_id}",
+            categoria="Venda",
+            data_movimentacao=datetime.now(),
+            origem="VENDA"
+        )
+
         conn.commit()
 
         return True

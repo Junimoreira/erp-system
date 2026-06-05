@@ -179,12 +179,20 @@ def tela_caixa():
                 else caixa.get("saldo_inicial", 0) or 0
             )
 
-            resumo = resumo_caixa(caixa_id)
+            entradas = float(
+                caixa[5] if isinstance(caixa, tuple)
+                else caixa.get("total_entradas", 0) or 0
+            )
 
-            entradas = resumo["entradas"]
-            saidas = resumo["saidas"]
+            saidas = float(
+                caixa[6] if isinstance(caixa, tuple)
+                else caixa.get("total_saidas", 0) or 0
+            )
 
-            saldo_atual = saldo_inicial + entradas - saidas
+            saldo_atual = float(
+                caixa[7] if isinstance(caixa, tuple)
+                else caixa.get("saldo_final", 0) or 0
+            )
 
             st.success("🟢 Caixa Aberto")
 
