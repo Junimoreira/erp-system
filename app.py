@@ -160,7 +160,7 @@ with st.sidebar:
     except:
         pass
 
-    st.markdown("<b>ERP Verde Infância</b>", unsafe_allow_html=True)
+    st.markdown("<b>Gestão</b>", unsafe_allow_html=True)
 
     st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
 

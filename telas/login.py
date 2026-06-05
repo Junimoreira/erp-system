@@ -2,8 +2,20 @@
 
 import os
 import base64
+from datetime import datetime
+
 import streamlit as st
 from database.usuarios_db import autenticar_usuario
+from frases import FRASES
+
+
+# ==================================================
+# RETORNA FRASE DO DIA
+# ==================================================
+def obter_frase_do_dia():
+    dia_ano = datetime.now().timetuple().tm_yday
+    indice = (dia_ano - 1) % len(FRASES)
+    return FRASES[indice]
 
 
 # ==================================================
@@ -58,18 +70,35 @@ def tela_login():
             )
 
         # ==========================================
-        # TÍTULO
+        # FRASE DO DIA
         # ==========================================
+        frase_do_dia = obter_frase_do_dia()
+
         st.markdown(
-            """
-            <h2 style="
+            f"""
+            <h2 style='
                 text-align:center;
                 color:#071633;
-                margin-bottom:30px;
+                margin-bottom:5px;
                 font-weight:700;
-            ">
-                ERP - Verde Infância
+            '>
+                {frase_do_dia}
             </h2>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown(
+            """
+            <p style='
+                text-align:center;
+                color:#66bb44;
+                font-size:15px;
+                font-weight:600;
+                margin-bottom:25px;
+            '>
+                🌱 Palavra que Inspira
+            </p>
             """,
             unsafe_allow_html=True
         )

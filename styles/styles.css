@@ -306,6 +306,6 @@ hr {
 }
 
 /* Ajuste fino para o centro visual da logo */
-[data-testid="stImage"] img[src*="logo"] {
+[data-testid="stImage"] img[src*="logo2"] {
     transform: translateX(12px);
 }
