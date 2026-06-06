@@ -185,57 +185,109 @@ def bloquear(permissao):
 # ==================================================
 # ROTAS
 # ==================================================
-if menu == "🏠 Dashboard":
-    tela_dashboard()
+try:
 
-elif menu == "💰 Caixa":
-    bloquear("pode_caixa")
-    tela_caixa()
+    if menu == "🏠 Dashboard":
+        tela_dashboard()
 
-elif menu == "👥 Clientes":
-    bloquear("pode_clientes")
-    tela_clientes()
+    elif menu == "💰 Caixa":
+        bloquear("pode_caixa")
+        tela_caixa()
 
-elif menu == "📦 Produtos":
-    bloquear("pode_produtos")
-    tela_produtos()
+    elif menu == "👥 Clientes":
+        bloquear("pode_clientes")
+        tela_clientes()
 
-elif menu == "💰 Formação de Preço":
-    bloquear("pode_produtos")
-    tela_formacao_preco()
+    elif menu == "📦 Produtos":
+        bloquear("pode_produtos")
+        tela_produtos()
 
-elif menu == "🚚 Fornecedores":
-    bloquear("pode_produtos")
-    tela_fornecedores()
+    elif menu == "💰 Formação de Preço":
+        bloquear("pode_produtos")
+        tela_formacao_preco()
 
-elif menu == "📥 Compras":
-    bloquear("pode_produtos")
-    tela_compras()
+    elif menu == "🚚 Fornecedores":
+        bloquear("pode_produtos")
+        tela_fornecedores()
 
-elif menu == "💰 Movimentações":
-    bloquear("pode_movimentacoes")
-    tela_movimentacoes()
+    elif menu == "📥 Compras":
+        bloquear("pode_produtos")
+        tela_compras()
 
-elif menu == "🛒 Vendas":
-    bloquear("pode_vendas")
-    tela_vendas()
+    elif menu == "💰 Movimentações":
+        bloquear("pode_movimentacoes")
+        tela_movimentacoes()
 
-elif menu == "🏦 Contas Bancárias":
-    bloquear("pode_financeiro")
-    tela_contas_bancarias()
+    elif menu == "🛒 Vendas":
+        bloquear("pode_vendas")
+        tela_vendas()
 
-elif menu == "📤 Contas a Pagar":
-    bloquear("pode_contas_pagar")
-    tela_contas_pagar()
+    elif menu == "🏦 Contas Bancárias":
+        bloquear("pode_financeiro")
+        tela_contas_bancarias()
 
-elif menu == "📥 Contas a Receber":
-    bloquear("pode_contas_receber")
-    tela_contas_receber()
+    elif menu == "📤 Contas a Pagar":
+        bloquear("pode_contas_pagar")
+        tela_contas_pagar()
 
-elif menu == "📊 Fechamento de Caixa":
-    bloquear("pode_fechamento_caixa")
-    tela_fechamento_caixa()
+    elif menu == "📥 Contas a Receber":
+        bloquear("pode_contas_receber")
+        tela_contas_receber()
 
+    elif menu == "📊 Fechamento de Caixa":
+        bloquear("pode_fechamento_caixa")
+        tela_fechamento_caixa()
+
+    elif menu == "📊 Relatórios":
+
+        bloquear("pode_relatorios")
+
+        st.title("📊 Central de Relatórios")
+
+        relatorio = st.selectbox(
+            "Relatório",
+            [
+                "Caixa",
+                "Vendas",
+                "Vendas com lucro",
+                "Produtos PDF",
+                "Contas a Pagar",
+                "Contas a Receber"
+            ]
+        )
+
+        if relatorio == "Caixa":
+            tela_relatorio_caixa()
+
+        elif relatorio == "Vendas":
+            tela_relatorio_vendas()
+
+        elif relatorio == "Vendas com lucro":
+            tela_relatorio_vendas_lucro()
+
+        elif relatorio == "Produtos PDF":
+            tela_relatorio_produtos_pdf()
+
+        elif relatorio == "Contas a Pagar":
+            tela_relatorio_contas_pagar()
+
+        elif relatorio == "Contas a Receber":
+            tela_relatorio_contas_receber()
+
+    elif menu == "⚙️ Configurações":
+        bloquear("pode_configuracoes")
+        tela_configuracoes()
+
+    elif menu == "👤 Usuários":
+        bloquear("pode_usuarios")
+        tela_usuarios()
+
+    elif menu == "🔐 Permissões":
+        tela_painel_permissoes()
+
+except Exception as e:
+    st.error(f"Erro na tela: {e}")
+    st.exception(e)
 # ==================================================
 # RELATÓRIOS (CORRIGIDO)
 # ==================================================
