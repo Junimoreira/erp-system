@@ -51,7 +51,7 @@ def identificar_coluna_data(df):
 def resumo_caixa(caixa_id):
 
     try:
-        df = listar_movimentacoes_caixa(caixa_id)
+        df = db_listar_movimentacoes_caixa(caixa_id)
 
         if df is None or df.empty:
             return {"entradas": 0, "saidas": 0}
@@ -82,7 +82,7 @@ def resumo_caixa(caixa_id):
 def obter_movimentacoes_caixa(caixa_id):
 
     try:
-        df = listar_movimentacoes_caixa(caixa_id)
+        df = db_listar_movimentacoes_caixa(caixa_id)
 
         if df is None or df.empty:
             return pd.DataFrame()
@@ -217,7 +217,7 @@ def tela_caixa():
             # ==================================================
             st.subheader("📋 Últimas Movimentações")
 
-            df = listar_movimentacoes_caixa(caixa_id)
+            df = db_listar_movimentacoes_caixa(caixa_id)
 
             if df is not None and not df.empty:
 
