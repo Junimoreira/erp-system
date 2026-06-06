@@ -6,7 +6,7 @@ from datetime import datetime
 
 from database.movimentacoes_db import (
     registrar_movimentacao,
-    listar_movimentacoes_caixa,
+    listar_movimentacoes_caixa as db_listar_movimentacoes_caixa,
     atualizar_movimentacao,
     excluir_movimentacao
 )
@@ -79,7 +79,7 @@ def resumo_caixa(caixa_id):
 # ==================================================
 # LISTAR MOVIMENTAÇÕES CAIXA
 # ==================================================
-def listar_movimentacoes_caixa(caixa_id):
+def obter_movimentacoes_caixa(caixa_id):
 
     try:
         df = listar_movimentacoes_caixa(caixa_id)
@@ -346,42 +346,86 @@ def tela_caixa():
     with abas[2]:
 
         st.subheader("📋 Consulta Caixa")
-
-        busca = st.text_input("🔎 Buscar movimentação")
-
-        df = listar_movimentacoes_caixa(caixa_id)
-
-        if df is None or df.empty:
-            st.info("Nenhuma movimentação encontrada.")
-
+    
+        caixa = verificar_caixa_aberto()
+    
+        if caixa is None:
+    
+            st.info("Nenhum caixa aberto para consulta.")
+    
         else:
-
-            df = df.fillna("")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                filtro_tipo = st.selectbox("Tipo", ["Todos", "entrada", "saida"])
-
-            with col2:
-                filtro_data = st.date_input("Data")
-
-            if busca and "descricao" in df.columns:
-                df = df[df["descricao"].astype(str).str.contains(busca, case=False, na=False)]
-
-            if filtro_tipo != "Todos":
-                df = df[df["tipo"].astype(str).str.lower() == filtro_tipo]
-
-            coluna_data = identificar_coluna_data(df)
-
-            if coluna_data:
-                df[coluna_data] = pd.to_datetime(df[coluna_data], errors="coerce")
-                df = df[df[coluna_data].dt.date == filtro_data]
-
-            df = ordenar_dataframe(df)
-
-            st.dataframe(df, use_container_width=True, height=500)
-
+    
+            caixa_id = (
+                caixa[0]
+                if isinstance(caixa, tuple)
+                else caixa["id"]
+            )
+    
+            busca = st.text_input("🔎 Buscar movimentação")
+    
+            df = obter_movimentacoes_caixa(caixa_id)
+    
+            if df is None or df.empty:
+    
+                st.info("Nenhuma movimentação encontrada.")
+    
+            else:
+    
+                df = df.fillna("")
+    
+                col1, col2 = st.columns(2)
+    
+                with col1:
+                    filtro_tipo = st.selectbox(
+                        "Tipo",
+                        ["Todos", "entrada", "saida"]
+                    )
+    
+                with col2:
+                    filtro_data = st.date_input("Data")
+    
+                if busca and "descricao" in df.columns:
+                    df = df[
+                        df["descricao"]
+                        .astype(str)
+                        .str.contains(
+                            busca,
+                            case=False,
+                            na=False
+                        )
+                    ]
+    
+                if filtro_tipo != "Todos":
+                    df = df[
+                        df["tipo"]
+                        .astype(str)
+                        .str.lower()
+                        == filtro_tipo
+                    ]
+    
+                coluna_data = identificar_coluna_data(df)
+    
+                if coluna_data:
+    
+                    df[coluna_data] = pd.to_datetime(
+                        df[coluna_data],
+                        errors="coerce"
+                    )
+    
+                    df = df[
+                        df[coluna_data]
+                        .dt.date
+                        == filtro_data
+                    ]
+    
+                df = ordenar_dataframe(df)
+    
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    height=500
+                )
+    
     # ==================================================
     # ABA RELATÓRIO
     # ==================================================
