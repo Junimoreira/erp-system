@@ -96,13 +96,102 @@ def tela_fornecedores():
     # ABA 1 - LISTA
     # ==================================================
     with tab1:
-        st.subheader("Lista de Fornecedores")
 
-        df = conn.cursor()
-        df.execute("SELECT id, razao_social, cnpj, cidade, estado FROM fornecedores ORDER BY id DESC")
-        dados = df.fetchall()
+        st.subheader("📋 Lista de Fornecedores")
 
-        st.dataframe(dados, use_container_width=True)
+        busca = st.text_input(
+            "🔍 Buscar por Razão Social ou CNPJ",
+            placeholder="Digite o nome ou CNPJ..."
+        )
+
+    try:
+
+        cur = conn.cursor()
+
+        if busca:
+
+            cur.execute("""
+                SELECT
+                    id,
+                    razao_social,
+                    cnpj,
+                    cidade,
+                    estado,
+                    ativo
+                FROM fornecedores
+                WHERE
+                    razao_social ILIKE %s
+                    OR cnpj ILIKE %s
+                ORDER BY razao_social
+            """, (
+                f"%{busca}%",
+                f"%{busca}%"
+            ))
+
+        else:
+
+            cur.execute("""
+                SELECT
+                    id,
+                    razao_social,
+                    cnpj,
+                    cidade,
+                    estado,
+                    ativo
+                FROM fornecedores
+                ORDER BY razao_social
+            """)
+
+        dados = cur.fetchall()
+
+        if dados:
+
+            import pandas as pd
+
+            df = pd.DataFrame(
+                dados,
+                columns=[
+                    "ID",
+                    "Razão Social",
+                    "CNPJ",
+                    "Cidade",
+                    "Estado",
+                    "Ativo"
+                ]
+            )
+
+            col1, col2, col3 = st.columns(3)
+
+            col1.metric(
+                "Total",
+                len(df)
+            )
+
+            col2.metric(
+                "Ativos",
+                len(df[df["Ativo"] == True])
+            )
+
+            col3.metric(
+                "Inativos",
+                len(df[df["Ativo"] == False])
+            )
+
+            st.dataframe(
+                df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info("Nenhum fornecedor encontrado.")
+
+        cur.close()
+
+    except Exception as e:
+
+        st.error(f"Erro ao carregar fornecedores: {e}")
 
 
     # ==================================================
