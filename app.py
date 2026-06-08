@@ -77,7 +77,7 @@ def carregar_css():
 
         st.error(f"Erro CSS: {e}")
 
-carregar_css()
+#carregar_css()
 # ==================================================
 # FALLBACK USUÁRIOS
 # ==================================================

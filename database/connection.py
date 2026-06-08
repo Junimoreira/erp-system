@@ -35,9 +35,13 @@ else:
     )
 
 
-print(f"\n🌎 Ambiente atual: {ERP_ENV}")
-
-print(f"🔗 DATABASE_URL: {DATABASE_URL}\n")
+# =====================================
+# LOG INICIAL
+# =====================================
+print("\n" + "=" * 60)
+print(f"🌎 Ambiente atual: {ERP_ENV}")
+print(f"🔗 DATABASE_URL: {DATABASE_URL}")
+print("=" * 60 + "\n")
 
 
 # =====================================
@@ -47,17 +51,29 @@ def conectar():
 
     try:
 
-        conn = psycopg2.connect(
-            DATABASE_URL,
-            sslmode="require"
-        )
+        print("\n🔄 Tentando conectar ao banco...")
+
+        if ERP_ENV == "PROD":
+
+            conn = psycopg2.connect(
+                DATABASE_URL,
+                sslmode="require"
+            )
+
+        else:
+
+            conn = psycopg2.connect(
+                DATABASE_URL
+            )
+
+        print("✅ Conexão realizada com sucesso!")
 
         return conn
 
     except Exception as erro:
 
         print("\n❌ ERRO AO CONECTAR NO BANCO:")
-
+        print(type(erro).__name__)
         print(erro)
 
         return None
