@@ -1,19 +1,21 @@
 import streamlit as st
 import pandas as pd
+
 from database.movimentacoes_db import (
     listar_movimentacoes,
     resumo_movimentacoes
 )
 
 
-
-
-st.warning(
-    "A consulta geral de movimentações ainda não foi implementada."
-)
-return
+def tela_movimentacoes():
 
     st.title("💰 Movimentações Financeiras")
+
+    # ==================================================
+    # AVISO (se quiser manter como alerta inicial)
+    # ==================================================
+    # Se isso era só teste, pode remover depois
+    # st.warning("A consulta geral de movimentações ainda não foi implementada.")
 
     # ==================================================
     # RESUMO
@@ -39,7 +41,8 @@ return
         st.info("Nenhuma movimentação encontrada.")
         return
 
-    # formatar visual
-    df["valor"] = df["valor"].apply(lambda x: f"R$ {x:,.2f}")
+    # formatação visual do valor
+    if "valor" in df.columns:
+        df["valor"] = df["valor"].apply(lambda x: f"R$ {float(x):,.2f}" if x != "" else "")
 
     st.dataframe(df, use_container_width=True)
