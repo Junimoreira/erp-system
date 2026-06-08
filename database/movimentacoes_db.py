@@ -260,10 +260,18 @@ def resumo_movimentacoes():
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT COALESCE(SUM(valor),0) FROM movimentacoes WHERE LOWER(tipo)='entrada'")
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor),0)
+            FROM movimentacoes
+            WHERE LOWER(tipo)='entrada'
+        """)
         entradas = float(cursor.fetchone()[0])
 
-        cursor.execute("SELECT COALESCE(SUM(valor),0) FROM movimentacoes WHERE LOWER(tipo)='saida'")
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor),0)
+            FROM movimentacoes
+            WHERE LOWER(tipo)='saida'
+        """)
         saidas = float(cursor.fetchone()[0])
 
         return {
@@ -326,6 +334,7 @@ def resumo_por_periodo(data_inicio, data_fim):
         cursor.close()
         conn.close()
 
+
 # ==================================================
 # LISTAR TODAS MOVIMENTAÇÕES
 # ==================================================
@@ -337,7 +346,6 @@ def listar_movimentacoes():
         return pd.DataFrame()
 
     try:
-
         query = """
             SELECT *
             FROM movimentacoes
@@ -352,15 +360,11 @@ def listar_movimentacoes():
         return df.fillna("")
 
     except Exception as erro:
-
         print("Erro ao listar movimentações:", erro)
-
         return pd.DataFrame()
 
     finally:
-
         conn.close()
-
 
 
 # ==================================================
