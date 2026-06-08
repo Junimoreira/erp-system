@@ -76,14 +76,14 @@ def tela_login():
 
         st.markdown(
             f"""
-            <h2 style='
+            <h4 style='
                 text-align:center;
                 color:#071633;
                 margin-bottom:5px;
-                font-weight:700;
+                font-weight:500;
             '>
                 {frase_do_dia}
-            </h2>
+            </h4>
             """,
             unsafe_allow_html=True
         )
