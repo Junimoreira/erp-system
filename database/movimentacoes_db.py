@@ -326,6 +326,42 @@ def resumo_por_periodo(data_inicio, data_fim):
         cursor.close()
         conn.close()
 
+# ==================================================
+# LISTAR TODAS MOVIMENTAÇÕES
+# ==================================================
+def listar_movimentacoes():
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+
+        query = """
+            SELECT *
+            FROM movimentacoes
+            ORDER BY data_movimentacao DESC, id DESC
+        """
+
+        df = pd.read_sql(query, conn)
+
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        return df.fillna("")
+
+    except Exception as erro:
+
+        print("Erro ao listar movimentações:", erro)
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()
+
+
 
 # ==================================================
 # RESUMO CAIXA

@@ -1,0 +1,5 @@
+senha: @verde@@2026
+
+Region: South America (se disponível)
+https://phgotjnzpchjivzflafi.supabase.co
+postgresql://postgres:@verde@@2026@db.phgotjnzpchjivzflafi.supabase.co:5432/postgres
