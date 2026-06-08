@@ -23,6 +23,9 @@ from telas.relatorios.relatorio_produtos_pdf import tela_relatorio_produtos_pdf
 from telas.relatorios.relatorio_vendas_pdf import tela_relatorio_vendas_lucro
 from telas.relatorios.relatorio_contas_pagar_pdf import tela_relatorio_contas_pagar
 from telas.relatorios.relatorio_contas_receber_pdf import tela_relatorio_contas_receber
+#from telas.importar_fornecedores_xml import tela_importar_fornecedores_xml
+
+#tela_importar_fornecedores_xml()
 
 import streamlit as st
 import sys

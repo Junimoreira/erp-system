@@ -1,444 +1,186 @@
 import streamlit as st
-import pandas as pd
-
-from database.fornecedores_db import (
-    listar_fornecedores,
-    cadastrar_fornecedor,
-    atualizar_fornecedor,
-    excluir_fornecedor
-)
+import xml.etree.ElementTree as ET
+from database.connection import conectar
 
 
 # ==================================================
-# TELA FORNECEDORES ERP
+# XML -> FORNECEDOR
+# ==================================================
+def extrair_fornecedor_xml(arquivo):
+
+    tree = ET.parse(arquivo)
+    root = tree.getroot()
+
+    ns = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
+
+    emit = root.find(".//nfe:emit", ns)
+    if emit is None:
+        return None
+
+    endereco = emit.find("nfe:enderEmit", ns)
+
+    return {
+        "cnpj": emit.findtext("nfe:CNPJ", default="", namespaces=ns),
+        "razao_social": emit.findtext("nfe:xNome", default="", namespaces=ns),
+        "nome_fantasia": emit.findtext("nfe:xFant", default="", namespaces=ns),
+        "inscricao_estadual": emit.findtext("nfe:IE", default="", namespaces=ns),
+
+        "endereco": endereco.findtext("nfe:xLgr", default="", namespaces=ns) if endereco is not None else "",
+        "numero": endereco.findtext("nfe:nro", default="", namespaces=ns) if endereco is not None else "",
+        "bairro": endereco.findtext("nfe:xBairro", default="", namespaces=ns) if endereco is not None else "",
+        "cidade": endereco.findtext("nfe:xMun", default="", namespaces=ns) if endereco is not None else "",
+        "estado": endereco.findtext("nfe:UF", default="", namespaces=ns) if endereco is not None else "",
+        "cep": endereco.findtext("nfe:CEP", default="", namespaces=ns) if endereco is not None else "",
+        "ativo": True
+    }
+
+
+# ==================================================
+# BANCO
+# ==================================================
+def salvar_fornecedor(conn, f):
+
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO fornecedores (
+            cnpj, razao_social, nome_fantasia,
+            inscricao_estadual,
+            endereco, numero, bairro, cidade, estado, cep,
+            ativo, data_cadastro
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+        ON CONFLICT (cnpj) DO UPDATE SET
+            razao_social = EXCLUDED.razao_social,
+            nome_fantasia = EXCLUDED.nome_fantasia,
+            inscricao_estadual = EXCLUDED.inscricao_estadual,
+            endereco = EXCLUDED.endereco,
+            numero = EXCLUDED.numero,
+            bairro = EXCLUDED.bairro,
+            cidade = EXCLUDED.cidade,
+            estado = EXCLUDED.estado,
+            cep = EXCLUDED.cep
+    """, (
+        f["cnpj"],
+        f["razao_social"],
+        f["nome_fantasia"],
+        f["inscricao_estadual"],
+        f["endereco"],
+        f["numero"],
+        f["bairro"],
+        f["cidade"],
+        f["estado"],
+        f["cep"],
+        f["ativo"]
+    ))
+
+    conn.commit()
+
+
+# ==================================================
+# TELA PRINCIPAL
 # ==================================================
 def tela_fornecedores():
 
-    st.title("🚚 Fornecedores")
+    st.title("🏢 Fornecedores")
 
-    abas = st.tabs([
-        "➕ Novo Fornecedor",
+    conn = conectar()
+
+    tab1, tab2, tab3 = st.tabs([
         "📋 Lista",
-        "✏️ Editar"
+        "➕ Cadastro",
+        "📥 Importar XML"
     ])
 
     # ==================================================
-    # NOVO FORNECEDOR
+    # ABA 1 - LISTA
     # ==================================================
-    with abas[0]:
+    with tab1:
+        st.subheader("Lista de Fornecedores")
 
-        with st.form(
-            "form_fornecedor",
-            clear_on_submit=True,
-            enter_to_submit=False
-        ):
+        df = conn.cursor()
+        df.execute("SELECT id, razao_social, cnpj, cidade, estado FROM fornecedores ORDER BY id DESC")
+        dados = df.fetchall()
 
-            st.subheader(
-                "Cadastro de Fornecedor"
-            )
+        st.dataframe(dados, use_container_width=True)
 
-            col1, col2 = st.columns(2)
 
-            with col1:
+    # ==================================================
+    # ABA 2 - CADASTRO MANUAL
+    # ==================================================
+    with tab2:
+        st.subheader("Cadastro Manual")
 
-                razao_social = st.text_input(
-                    "Razão Social"
-                )
+        with st.form("form_fornecedor"):
 
-                nome_fantasia = st.text_input(
-                    "Nome Fantasia"
-                )
+            razao = st.text_input("Razão Social")
+            fantasia = st.text_input("Nome Fantasia")
+            cnpj = st.text_input("CNPJ")
 
-                cnpj = st.text_input(
-                    "CNPJ"
-                )
+            cidade = st.text_input("Cidade")
+            estado = st.text_input("Estado")
 
-                inscricao_estadual = st.text_input(
-                    "Inscrição Estadual"
-                )
+            enviar = st.form_submit_button("Salvar")
 
-                telefone = st.text_input(
-                    "Telefone"
-                )
+            if enviar:
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO fornecedores (razao_social, nome_fantasia, cnpj, cidade, estado, ativo, data_cadastro)
+                    VALUES (%s,%s,%s,%s,%s,true,NOW())
+                """, (razao, fantasia, cnpj, cidade, estado))
 
-                email = st.text_input(
-                    "Email"
-                )
+                conn.commit()
+                st.success("Fornecedor cadastrado com sucesso!")
 
-            with col2:
 
-                endereco = st.text_input(
-                    "Endereço"
-                )
+    # ==================================================
+    # ABA 3 - IMPORTAÇÃO XML
+    # ==================================================
+    with tab3:
 
-                numero = st.text_input(
-                    "Número"
-                )
+        st.subheader("Importar Fornecedores via XML")
 
-                bairro = st.text_input(
-                    "Bairro"
-                )
+        arquivos = st.file_uploader(
+            "Selecione XMLs de NF-e",
+            type=["xml"],
+            accept_multiple_files=True
+        )
 
-                cidade = st.text_input(
-                    "Cidade"
-                )
+        if arquivos:
 
-                estado = st.text_input(
-                    "Estado"
-                )
+            progresso = st.progress(0)
 
-                cep = st.text_input(
-                    "CEP"
-                )
+            criados = 0
+            atualizados = 0
+            ignorados = 0
 
-            contato = st.text_input(
-                "Contato Responsável"
-            )
+            for i, arquivo in enumerate(arquivos):
 
-            observacoes = st.text_area(
-                "Observações"
-            )
+                try:
+                    f = extrair_fornecedor_xml(arquivo)
 
-            salvar = st.form_submit_button(
-                "💾 Salvar Fornecedor",
-                use_container_width=True
-            )
+                    if not f or not f["cnpj"]:
+                        ignorados += 1
+                        continue
 
-            if salvar:
+                    cur = conn.cursor()
+                    cur.execute("SELECT id FROM fornecedores WHERE cnpj = %s", (f["cnpj"],))
+                    existe = cur.fetchone()
 
-                if not razao_social.strip():
+                    salvar_fornecedor(conn, f)
 
-                    st.warning(
-                        "Informe a razão social."
-                    )
-
-                else:
-
-                    sucesso = cadastrar_fornecedor(
-                        razao_social,
-                        nome_fantasia,
-                        cnpj,
-                        inscricao_estadual,
-                        telefone,
-                        email,
-                        endereco,
-                        numero,
-                        bairro,
-                        cidade,
-                        estado,
-                        cep,
-                        contato,
-                        observacoes
-                    )
-
-                    if sucesso:
-
-                        st.success(
-                            "✅ Fornecedor cadastrado!"
-                        )
-
-                        st.rerun()
-
+                    if existe:
+                        atualizados += 1
                     else:
+                        criados += 1
 
-                        st.error(
-                            "Erro ao cadastrar fornecedor."
-                        )
+                except Exception as e:
+                    st.error(f"Erro: {arquivo.name} - {str(e)}")
+                    ignorados += 1
 
-    # ==================================================
-    # LISTAGEM
-    # ==================================================
-    with abas[1]:
+                progresso.progress((i + 1) / len(arquivos))
 
-        st.subheader(
-            "📋 Lista de Fornecedores"
-        )
-
-        busca = st.text_input(
-            "🔎 Buscar fornecedor"
-        )
-
-        df = listar_fornecedores()
-
-        if df.empty:
-
-            st.info(
-                "Nenhum fornecedor cadastrado."
-            )
-
-        else:
-
-            if busca:
-
-                busca = busca.lower()
-
-                df = df[
-                    df["razao_social"]
-                    .astype(str)
-                    .str.lower()
-                    .str.contains(busca, na=False)
-                ]
-
-            st.dataframe(
-                df,
-                use_container_width=True,
-                height=500
-            )
-
-    # ==================================================
-    # EDITAR
-    # ==================================================
-    with abas[2]:
-
-        st.subheader(
-            "✏️ Editar Fornecedor"
-        )
-
-        df = listar_fornecedores()
-
-        if df.empty:
-
-            st.info(
-                "Nenhum fornecedor cadastrado."
-            )
-
-            return
-
-        fornecedores = {
-            f"{row['id']} - {row['razao_social']}": row
-            for _, row in df.iterrows()
-        }
-
-        selecionado = st.selectbox(
-            "Selecione o fornecedor",
-            list(fornecedores.keys())
-        )
-
-        fornecedor = fornecedores[selecionado]
-
-        with st.form(
-            "form_editar_fornecedor",
-            enter_to_submit=False
-        ):
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-
-                razao_social = st.text_input(
-                    "Razão Social",
-                    value=str(
-                        fornecedor.get(
-                            "razao_social",
-                            ""
-                        )
-                    )
-                )
-
-                nome_fantasia = st.text_input(
-                    "Nome Fantasia",
-                    value=str(
-                        fornecedor.get(
-                            "nome_fantasia",
-                            ""
-                        )
-                    )
-                )
-
-                cnpj = st.text_input(
-                    "CNPJ",
-                    value=str(
-                        fornecedor.get(
-                            "cnpj",
-                            ""
-                        )
-                    )
-                )
-
-                inscricao_estadual = st.text_input(
-                    "Inscrição Estadual",
-                    value=str(
-                        fornecedor.get(
-                            "inscricao_estadual",
-                            ""
-                        )
-                    )
-                )
-
-                telefone = st.text_input(
-                    "Telefone",
-                    value=str(
-                        fornecedor.get(
-                            "telefone",
-                            ""
-                        )
-                    )
-                )
-
-                email = st.text_input(
-                    "Email",
-                    value=str(
-                        fornecedor.get(
-                            "email",
-                            ""
-                        )
-                    )
-                )
-
-            with col2:
-
-                endereco = st.text_input(
-                    "Endereço",
-                    value=str(
-                        fornecedor.get(
-                            "endereco",
-                            ""
-                        )
-                    )
-                )
-
-                numero = st.text_input(
-                    "Número",
-                    value=str(
-                        fornecedor.get(
-                            "numero",
-                            ""
-                        )
-                    )
-                )
-
-                bairro = st.text_input(
-                    "Bairro",
-                    value=str(
-                        fornecedor.get(
-                            "bairro",
-                            ""
-                        )
-                    )
-                )
-
-                cidade = st.text_input(
-                    "Cidade",
-                    value=str(
-                        fornecedor.get(
-                            "cidade",
-                            ""
-                        )
-                    )
-                )
-
-                estado = st.text_input(
-                    "Estado",
-                    value=str(
-                        fornecedor.get(
-                            "estado",
-                            ""
-                        )
-                    )
-                )
-
-                cep = st.text_input(
-                    "CEP",
-                    value=str(
-                        fornecedor.get(
-                            "cep",
-                            ""
-                        )
-                    )
-                )
-
-            contato = st.text_input(
-                "Contato Responsável",
-                value=str(
-                    fornecedor.get(
-                        "contato_responsavel",
-                        ""
-                    )
-                )
-            )
-
-            observacoes = st.text_area(
-                "Observações",
-                value=str(
-                    fornecedor.get(
-                        "observacoes",
-                        ""
-                    )
-                )
-            )
-
-            col_btn1, col_btn2 = st.columns(2)
-
-            with col_btn1:
-
-                salvar = st.form_submit_button(
-                    "💾 Salvar Alterações",
-                    use_container_width=True
-                )
-
-            with col_btn2:
-
-                excluir = st.form_submit_button(
-                    "🗑️ Excluir Fornecedor",
-                    use_container_width=True
-                )
-
-            # ==========================================
-            # SALVAR
-            # ==========================================
-            if salvar:
-
-                sucesso = atualizar_fornecedor(
-                    fornecedor["id"],
-                    razao_social,
-                    nome_fantasia,
-                    cnpj,
-                    inscricao_estadual,
-                    telefone,
-                    email,
-                    endereco,
-                    numero,
-                    bairro,
-                    cidade,
-                    estado,
-                    cep,
-                    contato,
-                    observacoes
-                )
-
-                if sucesso:
-
-                    st.success(
-                        "✅ Fornecedor atualizado!"
-                    )
-
-                    st.rerun()
-
-                else:
-
-                    st.error(
-                        "Erro ao atualizar fornecedor."
-                    )
-
-            # ==========================================
-            # EXCLUIR
-            # ==========================================
-            if excluir:
-
-                sucesso = excluir_fornecedor(
-                    fornecedor["id"]
-                )
-
-                if sucesso:
-
-                    st.success(
-                        "🗑️ Fornecedor excluído!"
-                    )
-
-                    st.rerun()
-
-                else:
-
-                    st.error(
-                        "Erro ao excluir fornecedor."
-                    )
+            st.success("Importação finalizada!")
+            st.write(f"Criados: {criados}")
+            st.write(f"Atualizados: {atualizados}")
+            st.write(f"Ignorados: {ignorados}")
