@@ -271,52 +271,74 @@ def tela_usuarios():
     # ==================================================
     # NOVO USUÁRIO
     # ==================================================
-    with abas[1]:
+    pode_caixa = st.checkbox(
+        "Caixa",
+        value=True,
+        key="novo_pode_caixa"
+    )
 
-        nome = st.text_input("Nome")
-        usuario = st.text_input("Login")
-        senha = st.text_input("Senha", type="password")
+    pode_clientes = st.checkbox(
+        "Clientes",
+        value=True,
+        key="novo_pode_clientes"
+    )
 
-        perfil = st.selectbox("Perfil", ["diretor", "admin", "atendente"])
+    pode_produtos = st.checkbox(
+        "Produtos",
+        value=True,
+        key="novo_pode_produtos"
+    )
 
-        st.subheader("Permissões")
+    pode_vendas = st.checkbox(
+        "Vendas",
+        value=True,
+        key="novo_pode_vendas"
+    )
 
-        pode_caixa = st.checkbox("Caixa", True)
-        pode_clientes = st.checkbox("Clientes", True)
-        pode_produtos = st.checkbox("Produtos", True)
-        pode_vendas = st.checkbox("Vendas", True)
+    pode_financeiro = st.checkbox(
+        "Financeiro",
+        value=False,
+        key="novo_pode_financeiro"
+    )
 
-        pode_financeiro = st.checkbox("Financeiro")
-        pode_contas_pagar = st.checkbox("Contas a Pagar")
-        pode_contas_receber = st.checkbox("Contas a Receber")
-        pode_movimentacoes = st.checkbox("Movimentações")
+    pode_contas_pagar = st.checkbox(
+        "Contas a Pagar",
+        value=False,
+        key="novo_pode_contas_pagar"
+    )
 
-        pode_relatorios = st.checkbox("Relatórios")
-        pode_configuracoes = st.checkbox("Configurações")
-        pode_usuarios = st.checkbox("Usuários")
-        pode_fechamento_caixa = st.checkbox("Fechamento Caixa")
+    pode_contas_receber = st.checkbox(
+        "Contas a Receber",
+        value=False,
+        key="novo_pode_contas_receber"
+    )
 
-        if st.button("🚀 Criar Usuário"):
+    pode_movimentacoes = st.checkbox(
+        "Movimentações",
+        value=False,
+        key="novo_pode_movimentacoes"
+    )
 
-            if not nome or not usuario or not senha:
-                st.warning("Preencha todos os campos.")
-                return
+    pode_relatorios = st.checkbox(
+        "Relatórios",
+        value=False,
+        key="novo_pode_relatorios"
+    )
 
-            permissoes = {
-                "pode_caixa": pode_caixa,
-                "pode_clientes": pode_clientes,
-                "pode_produtos": pode_produtos,
-                "pode_vendas": pode_vendas,
-                "pode_financeiro": pode_financeiro,
-                "pode_contas_pagar": pode_contas_pagar,
-                "pode_contas_receber": pode_contas_receber,
-                "pode_movimentacoes": pode_movimentacoes,
-                "pode_relatorios": pode_relatorios,
-                "pode_configuracoes": pode_configuracoes,
-                "pode_usuarios": pode_usuarios,
-                "pode_fechamento_caixa": pode_fechamento_caixa
-            }
+    pode_configuracoes = st.checkbox(
+        "Configurações",
+        value=False,
+        key="novo_pode_configuracoes"
+    )
 
-            if criar_usuario(nome, usuario, senha, perfil, permissoes):
-                st.success("✅ Usuário criado!")
-                st.rerun()
+    pode_usuarios = st.checkbox(
+        "Usuários",
+        value=False,
+        key="novo_pode_usuarios"
+    )
+
+    pode_fechamento_caixa = st.checkbox(
+        "Fechamento Caixa",
+        value=False,
+        key="novo_pode_fechamento_caixa"
+    )

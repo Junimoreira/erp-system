@@ -4,11 +4,23 @@ import pandas as pd
 from datetime import datetime
 
 from database.connection import conectar
+
 from database.caixa_db import (
     verificar_caixa_aberto,
     registrar_entrada_caixa
 )
 
+from database.contas_bancarias import (
+    adicionar_saldo
+)
+
+from database.movimentacoes_bancarias_db import (
+    registrar_movimentacao_bancaria
+)
+
+from database.contas_receber_db import (
+    cadastrar_conta_receber
+)
 
 # ==================================================
 # LISTAR CLIENTES
@@ -79,6 +91,7 @@ def listar_produtos():
         conn.close()
 
 
+
 # ==================================================
 # SALVAR VENDA
 # ==================================================
@@ -110,32 +123,27 @@ def salvar_venda(
         # ==========================================
         cursor.execute("""
             INSERT INTO vendas (
-
                 cliente_id,
                 valor_total,
                 desconto,
                 valor_final,
                 forma_pagamento,
                 data_venda
-
             )
             VALUES (%s, %s, %s, %s, %s, %s)
-
             RETURNING id
         """, (
-
             cliente_id,
             valor_total,
             desconto,
             valor_final,
             forma_pagamento,
             data_venda
-
         ))
 
         venda_id = int(cursor.fetchone()[0])
 
-                # ==========================================
+        # ==========================================
         # ITENS DA VENDA
         # ==========================================
         for item in itens:
@@ -145,78 +153,145 @@ def salvar_venda(
             subtotal = float(item["subtotal"])
             produto_id = int(item["produto_id"])
 
-            # ======================================
-            # ITEM VENDA
-            # ======================================
             cursor.execute("""
                 INSERT INTO itens_venda (
-
                     venda_id,
                     produto_id,
                     quantidade,
                     preco_unitario,
                     subtotal
-
                 )
                 VALUES (%s, %s, %s, %s, %s)
             """, (
-
                 venda_id,
                 produto_id,
                 quantidade,
                 preco,
                 subtotal
-
             ))
 
-            # ======================================
-            # BAIXA ESTOQUE
-            # ======================================
             cursor.execute("""
                 UPDATE produtos
-
                 SET estoque = COALESCE(estoque, 0) - %s
-
                 WHERE id = %s
             """, (
-
                 quantidade,
                 produto_id
-
             ))
 
         # ==========================================
-        # REGISTRAR ENTRADA NO CAIXA
+        # VERIFICA CAIXA
         # ==========================================
         caixa = verificar_caixa_aberto()
 
-        if caixa:
+        caixa_id = None
 
+        if caixa is not None:
             caixa_id = int(caixa[0])
 
-            registrar_entrada_caixa(
-                caixa_id,
+        forma = str(forma_pagamento).upper().strip()
+
+        # ==========================================
+        # DINHEIRO -> CAIXA
+        # ==========================================
+        if forma == "DINHEIRO":
+
+            if caixa_id:
+
+                registrar_entrada_caixa(
+                    caixa_id,
+                    valor_final
+                )
+
+                try:
+
+                    from database.movimentacoes_db import registrar_movimentacao
+
+                    registrar_movimentacao(
+                        caixa_id=caixa_id,
+                        tipo="entrada",
+                        valor=float(valor_final),
+                        descricao=f"Venda #{venda_id}",
+                        categoria="Venda",
+                        origem="DINHEIRO",
+                        data_movimentacao=datetime.now()
+                    )
+
+                except Exception as erro_mov:
+
+                    print(
+                        "Erro movimentação caixa:",
+                        erro_mov
+                    )
+
+        # ==========================================
+        # BANCO
+        # PIX / DÉBITO / BOLETO / TRANSFERÊNCIA
+        # ==========================================
+        elif forma in [
+
+            "PIX",
+            "CARTÃO DÉBITO",
+            "CARTAO DÉBITO",
+            "CARTAO DEBITO",
+            "TRANSFERÊNCIA",
+            "TRANSFERENCIA",
+            "BOLETO"
+
+        ]:
+
+            cursor.execute("""
+                SELECT id
+                FROM contas_bancarias
+                ORDER BY id
+                LIMIT 1
+            """)
+
+            conta = cursor.fetchone()
+
+            if not conta:
+
+                raise Exception(
+                    "Nenhuma conta bancária cadastrada."
+                )
+
+            conta_bancaria_id = int(conta[0])
+
+            adicionar_saldo(
+                conta_bancaria_id,
                 valor_final
             )
 
-        from database.movimentacoes_db import registrar_movimentacao
-
-        registrar_movimentacao(
-            caixa_id=caixa_id,
-            tipo="entrada",
-            valor=float(valor_final),
-            descricao=f"Venda #{venda_id}",
-            categoria="Venda",
-            data_movimentacao=datetime.now(),
-            origem="VENDA"
-        )
-
-        conn.commit()
-
-        return True
+            registrar_movimentacao_bancaria(
+                conta_id=conta_bancaria_id,
+                tipo="entrada",
+                valor=float(valor_final),
+                descricao=f"Venda #{venda_id} - {forma}"
+            )
 
         # ==========================================
-        # FINALIZA TRANSAÇÃO
+        # CONTAS A RECEBER
+        # CRÉDITO / PRAZO
+        # ==========================================
+        elif forma in [
+
+            "CARTÃO CRÉDITO",
+            "CARTAO CRÉDITO",
+            "CARTAO CREDITO",
+            "PRAZO"
+
+        ]:
+
+            cadastrar_conta_receber(
+                cliente_id=cliente_id,
+                descricao=f"Venda #{venda_id}",
+                valor=float(valor_final),
+                vencimento=data_venda,
+                observacoes=f"Gerado automaticamente pela venda #{venda_id}"
+            )
+
+        # ==========================================
+        # COMMIT
         # ==========================================
         conn.commit()
 
@@ -297,7 +372,10 @@ def historico_vendas():
 
     except Exception as erro:
 
-        print("Erro no histórico:", erro)
+        print(
+            "Erro no histórico de vendas:",
+            erro
+        )
 
         return pd.DataFrame()
 

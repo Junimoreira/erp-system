@@ -68,7 +68,7 @@ def tela_vendas():
         # ==============================================
         forma_pagamento = st.selectbox(
             "Forma de Pagamento",
-            ["Dinheiro", "PIX", "Cartão", "Prazo"],
+            ["Dinheiro", "PIX", "Cartão Débito", "Cartão Crédito","Boleto","Transferência", "Prazo"],
             key="forma_pagamento"
         )
 
