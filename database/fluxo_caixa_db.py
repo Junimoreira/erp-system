@@ -1,113 +1,11 @@
 import pandas as pd
-from datetime import datetime
-
 from database.connection import conectar
 
 
 # ==================================================
-# TRATAMENTO TEXTO
+# LISTAR CONTAS A PAGAR FUTURAS / EM ABERTO
 # ==================================================
-def tratar_texto(valor):
-
-    if valor is None:
-        return ""
-
-    return str(valor).strip()
-
-
-# ==================================================
-# REGISTRAR FLUXO DE CAIXA
-# ==================================================
-def registrar_fluxo_caixa(
-    tipo,
-    valor,
-    descricao,
-    origem,
-    categoria_id=None
-):
-
-    conn = conectar()
-
-    if conn is None:
-        return False
-
-    cursor = conn.cursor()
-
-    try:
-
-        tipo = tratar_texto(tipo).lower()
-
-        descricao = tratar_texto(descricao)
-
-        origem = tratar_texto(origem)
-
-        valor = float(valor)
-
-        if valor <= 0:
-
-            raise ValueError(
-                "Valor inválido."
-            )
-
-        query = """
-            INSERT INTO fluxo_caixa (
-
-                tipo,
-                valor,
-                descricao,
-                origem,
-                categoria_id,
-                data_lancamento
-
-            )
-            VALUES (
-
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s
-
-            )
-        """
-
-        cursor.execute(query, (
-
-            tipo,
-            valor,
-            descricao,
-            origem,
-            categoria_id,
-            datetime.now()
-
-        ))
-
-        conn.commit()
-
-        return True
-
-    except Exception as erro:
-
-        conn.rollback()
-
-        print(
-            "Erro ao registrar fluxo caixa:",
-            erro
-        )
-
-        return False
-
-    finally:
-
-        cursor.close()
-        conn.close()
-
-
-# ==================================================
-# LISTAR FLUXO CAIXA
-# ==================================================
-def listar_fluxo_caixa():
+def listar_pagar_previsto(data_inicio=None, data_fim=None):
 
     conn = conectar()
 
@@ -115,295 +13,203 @@ def listar_fluxo_caixa():
         return pd.DataFrame()
 
     try:
-
-        query = """
-            SELECT
-
-                id,
-                tipo,
-                valor,
-                descricao,
-                origem,
-                categoria_id,
-                data_lancamento
-
-            FROM fluxo_caixa
-
-            ORDER BY data_lancamento DESC
+        filtros = """
+            WHERE UPPER(COALESCE(status, '')) NOT IN ('PAGO', 'PAGA')
         """
 
-        df = pd.read_sql(
-            query,
-            conn
-        )
+        params = []
+
+        if data_inicio:
+            filtros += " AND vencimento >= %s"
+            params.append(data_inicio)
+
+        if data_fim:
+            filtros += " AND vencimento <= %s"
+            params.append(data_fim)
+
+        query = f"""
+            SELECT
+                id,
+                descricao,
+                valor,
+                vencimento,
+                categoria,
+                status,
+                observacoes
+            FROM contas_pagar
+            {filtros}
+            ORDER BY vencimento ASC
+        """
+
+        return pd.read_sql(query, conn, params=params)
+
+    except Exception as erro:
+        print("Erro ao listar contas a pagar previstas:", erro)
+        return pd.DataFrame()
+
+    finally:
+        conn.close()
+
+
+# ==================================================
+# LISTAR CONTAS A RECEBER FUTURAS / EM ABERTO
+# ==================================================
+def listar_receber_previsto(data_inicio=None, data_fim=None):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+        filtros = """
+            WHERE UPPER(COALESCE(status, '')) NOT IN ('RECEBIDO', 'RECEBIDA')
+        """
+
+        params = []
+
+        if data_inicio:
+            filtros += " AND vencimento >= %s"
+            params.append(data_inicio)
+
+        if data_fim:
+            filtros += " AND vencimento <= %s"
+            params.append(data_fim)
+
+        query = f"""
+            SELECT
+                id,
+                cliente,
+                descricao,
+                valor,
+                vencimento,
+                status,
+                observacoes
+            FROM contas_receber
+            {filtros}
+            ORDER BY vencimento ASC
+        """
+
+        return pd.read_sql(query, conn, params=params)
+
+    except Exception as erro:
+        print("Erro ao listar contas a receber previstas:", erro)
+        return pd.DataFrame()
+
+    finally:
+        conn.close()
+
+
+# ==================================================
+# RESUMO MENSAL PREVISTO
+# ==================================================
+def resumo_fluxo_caixa_previsto(data_inicio=None, data_fim=None):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+        params_pagar = []
+        params_receber = []
+
+        filtro_pagar = """
+            WHERE UPPER(COALESCE(status, '')) NOT IN ('PAGO', 'PAGA')
+        """
+
+        filtro_receber = """
+            WHERE UPPER(COALESCE(status, '')) NOT IN ('RECEBIDO', 'RECEBIDA')
+        """
+
+        if data_inicio:
+            filtro_pagar += " AND vencimento >= %s"
+            filtro_receber += " AND vencimento >= %s"
+            params_pagar.append(data_inicio)
+            params_receber.append(data_inicio)
+
+        if data_fim:
+            filtro_pagar += " AND vencimento <= %s"
+            filtro_receber += " AND vencimento <= %s"
+            params_pagar.append(data_fim)
+            params_receber.append(data_fim)
+
+        query = f"""
+            WITH receber AS (
+                SELECT
+                    DATE_TRUNC('month', vencimento)::date AS mes,
+                    SUM(valor) AS total_receber
+                FROM contas_receber
+                {filtro_receber}
+                GROUP BY DATE_TRUNC('month', vencimento)
+            ),
+            pagar AS (
+                SELECT
+                    DATE_TRUNC('month', vencimento)::date AS mes,
+                    SUM(valor) AS total_pagar
+                FROM contas_pagar
+                {filtro_pagar}
+                GROUP BY DATE_TRUNC('month', vencimento)
+            ),
+            meses AS (
+                SELECT mes FROM receber
+                UNION
+                SELECT mes FROM pagar
+            )
+            SELECT
+                meses.mes,
+                COALESCE(receber.total_receber, 0) AS total_receber,
+                COALESCE(pagar.total_pagar, 0) AS total_pagar,
+                COALESCE(receber.total_receber, 0)
+                    - COALESCE(pagar.total_pagar, 0) AS saldo_previsto
+            FROM meses
+            LEFT JOIN receber ON receber.mes = meses.mes
+            LEFT JOIN pagar ON pagar.mes = meses.mes
+            ORDER BY meses.mes ASC
+        """
+
+        params = params_receber + params_pagar
+
+        df = pd.read_sql(query, conn, params=params)
 
         if df.empty:
-            return pd.DataFrame()
+            return df
 
-        return df.fillna("")
+        df["saldo_acumulado"] = df["saldo_previsto"].cumsum()
+
+        return df
 
     except Exception as erro:
-
-        print(
-            "Erro listar fluxo caixa:",
-            erro
-        )
-
+        print("Erro ao gerar resumo do fluxo de caixa previsto:", erro)
         return pd.DataFrame()
 
     finally:
-
         conn.close()
 
 
 # ==================================================
-# LISTAR FLUXO POR PERÍODO
+# RESUMO GERAL DO PERÍODO
 # ==================================================
-def listar_fluxo_por_periodo(
-    data_inicio,
-    data_fim
-):
+def resumo_geral_fluxo(data_inicio=None, data_fim=None):
 
-    conn = conectar()
+    df_resumo = resumo_fluxo_caixa_previsto(data_inicio, data_fim)
 
-    if conn is None:
-        return pd.DataFrame()
-
-    try:
-
-        query = """
-            SELECT
-
-                id,
-                tipo,
-                valor,
-                descricao,
-                origem,
-                categoria_id,
-                data_lancamento
-
-            FROM fluxo_caixa
-
-            WHERE DATE(data_lancamento)
-            BETWEEN %s AND %s
-
-            ORDER BY data_lancamento DESC
-        """
-
-        df = pd.read_sql(
-            query,
-            conn,
-            params=(
-                data_inicio,
-                data_fim
-            )
-        )
-
-        if df.empty:
-            return pd.DataFrame()
-
-        return df.fillna("")
-
-    except Exception as erro:
-
-        print(
-            "Erro listar fluxo período:",
-            erro
-        )
-
-        return pd.DataFrame()
-
-    finally:
-
-        conn.close()
-
-
-# ==================================================
-# RESUMO FLUXO CAIXA
-# ==================================================
-def resumo_fluxo_caixa():
-
-    conn = conectar()
-
-    if conn is None:
-
+    if df_resumo.empty:
         return {
-
-            "entradas": 0,
-            "saidas": 0,
-            "saldo": 0
-
+            "total_receber": 0,
+            "total_pagar": 0,
+            "saldo_previsto": 0,
+            "saldo_acumulado": 0
         }
 
-    cursor = conn.cursor()
+    total_receber = float(df_resumo["total_receber"].sum())
+    total_pagar = float(df_resumo["total_pagar"].sum())
+    saldo_previsto = total_receber - total_pagar
+    saldo_acumulado = float(df_resumo["saldo_acumulado"].iloc[-1])
 
-    try:
-
-        # ==========================================
-        # ENTRADAS
-        # ==========================================
-        cursor.execute("""
-
-            SELECT COALESCE(SUM(valor), 0)
-
-            FROM fluxo_caixa
-
-            WHERE LOWER(tipo) = 'entrada'
-
-        """)
-
-        entradas = float(
-            cursor.fetchone()[0]
-        )
-
-        # ==========================================
-        # SAÍDAS
-        # ==========================================
-        cursor.execute("""
-
-            SELECT COALESCE(SUM(valor), 0)
-
-            FROM fluxo_caixa
-
-            WHERE LOWER(tipo) = 'saida'
-
-        """)
-
-        saidas = float(
-            cursor.fetchone()[0]
-        )
-
-        saldo = entradas - saidas
-
-        return {
-
-            "entradas": entradas,
-            "saidas": saidas,
-            "saldo": saldo
-
-        }
-
-    except Exception as erro:
-
-        print(
-            "Erro resumo fluxo caixa:",
-            erro
-        )
-
-        return {
-
-            "entradas": 0,
-            "saidas": 0,
-            "saldo": 0
-
-        }
-
-    finally:
-
-        cursor.close()
-        conn.close()
-
-
-# ==================================================
-# RESUMO FLUXO POR PERÍODO
-# ==================================================
-def resumo_fluxo_periodo(
-    data_inicio,
-    data_fim
-):
-
-    conn = conectar()
-
-    if conn is None:
-
-        return {
-
-            "entradas": 0,
-            "saidas": 0,
-            "saldo": 0
-
-        }
-
-    cursor = conn.cursor()
-
-    try:
-
-        # ==========================================
-        # ENTRADAS
-        # ==========================================
-        cursor.execute("""
-
-            SELECT COALESCE(SUM(valor), 0)
-
-            FROM fluxo_caixa
-
-            WHERE LOWER(tipo) = 'entrada'
-
-            AND DATE(data_lancamento)
-            BETWEEN %s AND %s
-
-        """, (
-
-            data_inicio,
-            data_fim
-
-        ))
-
-        entradas = float(
-            cursor.fetchone()[0]
-        )
-
-        # ==========================================
-        # SAÍDAS
-        # ==========================================
-        cursor.execute("""
-
-            SELECT COALESCE(SUM(valor), 0)
-
-            FROM fluxo_caixa
-
-            WHERE LOWER(tipo) = 'saida'
-
-            AND DATE(data_lancamento)
-            BETWEEN %s AND %s
-
-        """, (
-
-            data_inicio,
-            data_fim
-
-        ))
-
-        saidas = float(
-            cursor.fetchone()[0]
-        )
-
-        saldo = entradas - saidas
-
-        return {
-
-            "entradas": entradas,
-            "saidas": saidas,
-            "saldo": saldo
-
-        }
-
-    except Exception as erro:
-
-        print(
-            "Erro resumo período:",
-            erro
-        )
-
-        return {
-
-            "entradas": 0,
-            "saidas": 0,
-            "saldo": 0
-
-        }
-
-    finally:
-
-        cursor.close()
-        conn.close()
+    return {
+        "total_receber": total_receber,
+        "total_pagar": total_pagar,
+        "saldo_previsto": saldo_previsto,
+        "saldo_acumulado": saldo_acumulado
+    }
