@@ -37,6 +37,7 @@ from telas.configuracoes import tela_configuracoes
 from telas.fechamento_caixa import tela_fechamento_caixa
 from telas.painel_admin_permissoes import tela_painel_permissoes
 from telas.relatorios.financeiro_diario import tela_relatorios
+from telas.marketing import tela_marketing
 
 
 # ==================================================
@@ -95,6 +96,8 @@ if admin_total or st.session_state.get("pode_movimentacoes"):
 
 if admin_total or st.session_state.get("pode_vendas"):
     menu_opcoes.append("🛒 Vendas")
+if admin_total or st.session_state.get("pode_vendas"):
+    menu_opcoes.append("📢 Marketing")
 
 if admin_total or st.session_state.get("pode_financeiro"):
     menu_opcoes.append("🏦 Contas Bancárias")
@@ -205,6 +208,9 @@ try:
 
     elif menu == "🔐 Permissões":
         tela_painel_permissoes()
+
+    elif menu == "📢 Marketing":
+        tela_marketing()
 
 except Exception as e:
     st.error("Erro geral na aplicação")

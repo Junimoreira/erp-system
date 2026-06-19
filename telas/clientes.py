@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+from datetime import date
 
 from database.clientes_db import (
     listar_clientes,
@@ -7,10 +9,6 @@ from database.clientes_db import (
     excluir_cliente
 )
 
-
-# ==================================================
-# TELA CLIENTES
-# ==================================================
 
 def tela_clientes():
 
@@ -21,10 +19,6 @@ def tela_clientes():
         "🗑️ Excluir Cliente"
     ])
 
-    # ==================================================
-    # LISTAR CLIENTES
-    # ==================================================
-
     with abas[0]:
 
         st.subheader("📋 Clientes Cadastrados")
@@ -32,21 +26,9 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-
-            st.info(
-                "Nenhum cliente cadastrado."
-            )
-
+            st.info("Nenhum cliente cadastrado.")
         else:
-
-            st.dataframe(
-                df,
-                use_container_width=True
-            )
-
-    # ==================================================
-    # NOVO CLIENTE
-    # ==================================================
+            st.dataframe(df, use_container_width=True)
 
     with abas[1]:
 
@@ -55,50 +37,43 @@ def tela_clientes():
         with st.form("form_cliente"):
 
             nome = st.text_input("Nome")
+            telefone = st.text_input("Telefone")
+            email = st.text_input("Email")
+            cidade = st.text_input("Cidade", key="cidade_novo_cliente")
 
-            telefone = st.text_input(
-                "Telefone"
+            informar_aniversario = st.checkbox(
+                "Informar data de nascimento/aniversário"
             )
 
-            email = st.text_input(
-                "Email"
-            )
+            data_nascimento = None
 
-            cidade = st.text_input(
-                "Cidade",
-                key="cidade_novo_cliente"
-            )
+            if informar_aniversario:
+                data_nascimento = st.date_input(
+                    "Data de nascimento",
+                    value=date(2000, 1, 1),
+                    format="DD/MM/YYYY"
+                )
 
-            salvar = st.form_submit_button(
-                "💾 Salvar Cliente"
-            )
+            salvar = st.form_submit_button("💾 Salvar Cliente")
 
             if salvar:
 
                 if nome.strip() == "":
-
-                    st.warning(
-                        "Informe o nome."
-                    )
-
+                    st.warning("Informe o nome.")
                 else:
-
-                    cadastrar_cliente(
-                        nome,
-                        telefone,
-                        email,
-                        cidade
+                    sucesso = cadastrar_cliente(
+                        nome=nome,
+                        telefone=telefone,
+                        email=email,
+                        cidade=cidade,
+                        data_nascimento=data_nascimento
                     )
 
-                    st.success(
-                        "Cliente cadastrado com sucesso!"
-                    )
-
-                    st.rerun()
-
-    # ==================================================
-    # EDITAR CLIENTE
-    # ==================================================
+                    if sucesso:
+                        st.success("Cliente cadastrado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("Erro ao cadastrar cliente.")
 
     with abas[2]:
 
@@ -107,11 +82,7 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-
-            st.info(
-                "Nenhum cliente cadastrado."
-            )
-
+            st.info("Nenhum cliente cadastrado.")
         else:
 
             clientes = {
@@ -124,74 +95,76 @@ def tela_clientes():
                 list(clientes.keys())
             )
 
-            cliente = clientes[
-                cliente_selecionado
-            ]
+            cliente = clientes[cliente_selecionado]
 
-            with st.form(
-                "form_editar_cliente"
-            ):
+            with st.form("form_editar_cliente"):
 
                 nome = st.text_input(
                     "Nome",
-                    value=cliente.get(
-                        "nome",
-                        ""
-                    )
+                    value=str(cliente.get("nome", ""))
                 )
 
                 telefone = st.text_input(
                     "Telefone",
-                    value=cliente.get(
-                        "telefone",
-                        ""
-                    )
+                    value=str(cliente.get("telefone", ""))
                 )
 
                 email = st.text_input(
                     "Email",
-                    value=cliente.get(
-                        "email",
-                        ""
-                    )
+                    value=str(cliente.get("email", ""))
                 )
 
-                cidade = ""
+                cidade = st.text_input(
+                    "Cidade",
+                    value=str(cliente.get("cidade", "")),
+                    key="cidade_editar_cliente"
+                )
 
-                if "cidade" in df.columns:
+                data_atual = cliente.get("data_nascimento", None)
 
-                    cidade = st.text_input(
-                        "Cidade",
-                        value=cliente.get(
-                            "cidade",
-                            ""
-                        ),
-                        key="cidade_editar_cliente"
+                if pd.isna(data_atual) or data_atual in ["", None]:
+                    informar_aniversario = st.checkbox(
+                        "Informar data de nascimento/aniversário",
+                        value=False,
+                        key="editar_informar_aniversario"
+                    )
+                    data_nascimento = None
+
+                    if informar_aniversario:
+                        data_nascimento = st.date_input(
+                            "Data de nascimento",
+                            value=date(2000, 1, 1),
+                            format="DD/MM/YYYY",
+                            key="editar_data_nascimento"
+                        )
+                else:
+                    data_nascimento = pd.to_datetime(data_atual).date()
+
+                    data_nascimento = st.date_input(
+                        "Data de nascimento",
+                        value=data_nascimento,
+                        format="DD/MM/YYYY",
+                        key="editar_data_nascimento"
                     )
 
-                atualizar = st.form_submit_button(
-                    "💾 Atualizar Cliente"
-                )
+                atualizar = st.form_submit_button("💾 Atualizar Cliente")
 
                 if atualizar:
 
-                    atualizar_cliente(
-                        cliente.get("id"),
-                        nome,
-                        telefone,
-                        email,
-                        cidade
+                    sucesso = atualizar_cliente(
+                        cliente_id=cliente.get("id"),
+                        nome=nome,
+                        telefone=telefone,
+                        email=email,
+                        cidade=cidade,
+                        data_nascimento=data_nascimento
                     )
 
-                    st.success(
-                        "Cliente atualizado com sucesso!"
-                    )
-
-                    st.rerun()
-
-    # ==================================================
-    # EXCLUIR CLIENTE
-    # ==================================================
+                    if sucesso:
+                        st.success("Cliente atualizado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("Erro ao atualizar cliente.")
 
     with abas[3]:
 
@@ -200,11 +173,7 @@ def tela_clientes():
         df = listar_clientes()
 
         if df.empty:
-
-            st.info(
-                "Nenhum cliente cadastrado."
-            )
-
+            st.info("Nenhum cliente cadastrado.")
         else:
 
             clientes = {
@@ -217,38 +186,32 @@ def tela_clientes():
                 list(clientes.keys())
             )
 
-            cliente = clientes[
-                cliente_selecionado
-            ]
+            cliente = clientes[cliente_selecionado]
 
             st.warning(
                 f"Tem certeza que deseja excluir o cliente: {cliente.get('nome')}?"
             )
 
-            if st.button(
-                "🗑️ Excluir Cliente"
-            ):
+            confirmar = st.checkbox(
+                "Confirmo que desejo excluir este cliente"
+            )
 
-                resultado = excluir_cliente(
-                    cliente.get("id")
-                )
+            if st.button("🗑️ Excluir Cliente"):
 
-                if resultado == True:
+                if not confirmar:
+                    st.warning("Marque a confirmação antes de excluir.")
+                    return
 
-                    st.success(
-                        "Cliente excluído com sucesso!"
-                    )
+                resultado = excluir_cliente(cliente.get("id"))
 
+                if resultado is True:
+                    st.success("Cliente excluído com sucesso!")
                     st.rerun()
 
                 elif resultado == "possui_vendas":
-
                     st.error(
                         "Não é possível excluir cliente com vendas vinculadas."
                     )
 
                 else:
-
-                    st.error(
-                        "Erro ao excluir cliente."
-                    )
+                    st.error("Erro ao excluir cliente.")

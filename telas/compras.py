@@ -4,6 +4,7 @@ import pandas as pd
 from database.connection import conectar
 from services.xml_nfe_service import ler_xml_nfe
 from database.xml_import_db import importar_nfe_xml
+from services.xml_nfe_service import ler_xml_nfe
 
 from database.compras_db import (
     cadastrar_compra,

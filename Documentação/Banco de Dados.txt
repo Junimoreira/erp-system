@@ -4,3 +4,44 @@ DB_NAME:bd_erp_system
 DB_PASSWORD:QEEydMjHue8CdduUnbcjOnSdKp7dQSbG
 DB_PORT:5432
 DB_USER:bd_erp_system_user
+
+
+############para gerar backup:
+
+PS C:\Users\Public\Documents> $env:PGPASSWORD="QEEydMjHue8CdduUnbcjOnSdKp7dQSbG"  
+PS C:\Users\Public\Documents> & "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h dpg-d7uc7aho3t8c73fao0rg-a.virginia-postgres.render.com -U bd_erp_system_user -d bd_erp_system -F c -f backup.dump
+
+############## comando para entrar no postgresql# powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d erp_local
+
+
+& "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" `
+-U postgres `
+-d erp_local `
+"H:\backup\backup.dump"
+
+acessar e executar sql no psql
+PS C:\Program Files\PostgreSQL\18\bin> .\psql.exe -U postgres -d erp_local
+Senha para o usuário postgres:
+
+
+=================================
+Função abaixo o que faz?
+==============================================
+****Select-String -Path database\*.py -Pattern "cadastrar_conta_receber"
+
+funciona como um "procurar em arquivos".
+
+Ele procura a palavra:
+cadastrar_conta_receber
+em todos os arquivos .py dentro da pasta:
+
+
+====================ero_local - Trabalho=====================================
+
+
+UPDATE usuarios
+SET senha = '$2b$12$bZitKsulJKy6GGa6pKWN8uRzHEodfjIWWf/Zsyqf.9ajlLq0ilExO',
+    ativo = true
+WHERE usuario = 'admin';
+
