@@ -13,7 +13,7 @@ sys.path.append(BASE_DIR)
 # ==================================================
 st.set_page_config(
     page_title="ERP Verde Infância",
-    page_icon="🚀",
+    page_icon="assets/favicon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
