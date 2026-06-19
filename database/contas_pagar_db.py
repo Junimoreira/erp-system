@@ -1,32 +1,61 @@
-import pandas as pd
 from datetime import datetime
+import pandas as pd
 
 from database.connection import conectar
-from database.caixa_db import verificar_caixa_aberto
-from database.movimentacoes_db import registrar_movimentacao
-from database.fluxo_caixa_db import registrar_fluxo_caixa
+from database.finance_engine import registrar_movimentacao_financeira
+from database.contas_bancarias import remover_saldo
 
 
 # ==================================================
-# TRATAMENTO TEXTO
+# LISTAR CONTAS A PAGAR
 # ==================================================
-def tratar_texto(valor):
+def listar_contas():
 
-    if valor is None:
-        return ""
+    conn = conectar()
 
-    return str(valor).strip()
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+        query = """
+            SELECT
+                id,
+                descricao,
+                valor,
+                vencimento,
+                categoria,
+                tipo,
+                status,
+                observacoes,
+                data_pagamento,
+                origem_pagamento,
+                conta_bancaria_id,
+                criado_em
+            FROM contas_pagar
+            ORDER BY vencimento ASC, id ASC
+        """
+
+        return pd.read_sql(query, conn)
+
+    except Exception as erro:
+        print("Erro listar_contas_pagar:", erro)
+        return pd.DataFrame()
+
+    finally:
+        conn.close()
 
 
 # ==================================================
-# CADASTRAR CONTA
+# CADASTRAR CONTA A PAGAR
+# categoria = FIXA ou VARIAVEL
+# tipo = ALUGUEL, SALARIO, FORNECEDOR etc.
 # ==================================================
 def cadastrar_conta(
     descricao,
     valor,
     vencimento,
     categoria=None,
-    forma_pagamento=None,
+    tipo=None,
     observacoes=None
 ):
 
@@ -38,6 +67,8 @@ def cadastrar_conta(
     cursor = conn.cursor()
 
     try:
+        categoria = str(categoria).upper().strip() if categoria else None
+        tipo = str(tipo).upper().strip() if tipo else None
 
         cursor.execute("""
             INSERT INTO contas_pagar (
@@ -45,45 +76,97 @@ def cadastrar_conta(
                 valor,
                 vencimento,
                 categoria,
-                forma_pagamento,
+                tipo,
+                status,
                 observacoes,
-                status
+                criado_em
             )
-            VALUES (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                'Pendente'
-            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             descricao,
             float(valor),
             vencimento,
             categoria,
-            forma_pagamento,
-            observacoes
+            tipo,
+            "PENDENTE",
+            observacoes,
+            datetime.now()
         ))
 
         conn.commit()
         return True
 
     except Exception as erro:
-
         conn.rollback()
-        print("Erro ao cadastrar conta:", erro)
+        print("Erro cadastrar_conta_pagar:", erro)
         return False
 
     finally:
-
         cursor.close()
         conn.close()
 
 
 # ==================================================
-# PAGAR CONTA
+# ATUALIZAR CONTA A PAGAR
+# ==================================================
+def atualizar_conta(
+    conta_id,
+    descricao,
+    valor,
+    vencimento,
+    categoria=None,
+    tipo=None,
+    status="PENDENTE",
+    observacoes=None
+):
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+        categoria = str(categoria).upper().strip() if categoria else None
+        tipo = str(tipo).upper().strip() if tipo else None
+
+        cursor.execute("""
+            UPDATE contas_pagar
+            SET descricao = %s,
+                valor = %s,
+                vencimento = %s,
+                categoria = %s,
+                tipo = %s,
+                status = %s,
+                observacoes = %s
+            WHERE id = %s
+        """, (
+            descricao,
+            float(valor),
+            vencimento,
+            categoria,
+            tipo,
+            status,
+            observacoes,
+            conta_id
+        ))
+
+        conn.commit()
+        return True
+
+    except Exception as erro:
+        conn.rollback()
+        print("Erro atualizar_conta_pagar:", erro)
+        return False
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# PAGAR / BAIXAR CONTA
 # ==================================================
 def pagar_conta(
     conta_id,
@@ -99,13 +182,8 @@ def pagar_conta(
     cursor = conn.cursor()
 
     try:
-
         cursor.execute("""
-            SELECT
-                descricao,
-                valor,
-                categoria,
-                status
+            SELECT valor, descricao, status
             FROM contas_pagar
             WHERE id = %s
         """, (conta_id,))
@@ -113,232 +191,99 @@ def pagar_conta(
         conta = cursor.fetchone()
 
         if not conta:
-            raise ValueError(
-                "Conta não encontrada."
-            )
+            return False
 
-        descricao = tratar_texto(conta[0])
-        valor = float(conta[1])
-        categoria = tratar_texto(conta[2]) or "despesa"
-        status = tratar_texto(conta[3]).lower()
+        valor, descricao, status = conta
 
-        if status == "pago":
-            raise ValueError(
-                "Conta já está paga."
-            )
+        if str(status).upper().strip() == "PAGO":
+            print("Conta já está paga.")
+            return False
 
-        # ==========================================
-        # PAGAMENTO PELO CAIXA
-        # ==========================================
-        if origem_financeira.upper() == "CAIXA":
+        origem_financeira = str(origem_financeira).upper().strip()
 
-            caixa = verificar_caixa_aberto()
+        formas_banco = [
+            "BANCO",
+            "PIX",
+            "BOLETO",
+            "TRANSFERÊNCIA",
+            "TRANSFERENCIA",
+            "CARTÃO",
+            "CARTAO",
+            "DÉBITO",
+            "DEBITO",
+            "CARTÃO DÉBITO",
+            "CARTAO DEBITO"
+        ]
 
-            if caixa is None:
-                raise ValueError(
-                    "Nenhum caixa aberto."
-                )
-
-            caixa_id = caixa[0]
-
-            cursor.execute("""
-                UPDATE contas_pagar
-                SET
-                    status = 'Pago',
-                    data_pagamento = NOW(),
-                    origem_pagamento = 'CAIXA',
-                    caixa_id = %s
-                WHERE id = %s
-            """, (
-                caixa_id,
-                conta_id
-            ))
-
-            registrar_movimentacao(
-                caixa_id=caixa_id,
-                tipo="saida",
-                valor=valor,
-                descricao=descricao,
-                categoria=categoria,
-                origem="contas_pagar",
-                data_movimentacao=datetime.now()
-            )
-
-            cursor.execute("""
-                UPDATE caixa
-                SET total_saidas = COALESCE(total_saidas,0) + %s
-                WHERE id = %s
-                """, (
-                valor,
-                caixa_id
-           ))
-
-            registrar_fluxo_caixa(
-                tipo="saida",
-                valor=valor,
-                descricao=descricao,
-                origem="contas_pagar"
-            )
-
-        # ==========================================
-        # PAGAMENTO PELO BANCO
-        # ==========================================
-        elif origem_financeira.upper() == "BANCO":
+        if origem_financeira in formas_banco:
 
             if conta_bancaria_id is None:
-                raise ValueError(
-                    "Conta bancária não informada."
-                )
+                print("Conta bancária não informada para pagamento via banco.")
+                conn.rollback()
+                return False
 
-            cursor.execute("""
-                SELECT saldo
-                FROM contas_bancarias
-                WHERE id = %s
-            """, (conta_bancaria_id,))
-
-            resultado = cursor.fetchone()
-
-            if not resultado:
-                raise ValueError(
-                    "Conta bancária não encontrada."
-                )
-
-            saldo_atual = float(
-                resultado[0] or 0
+            sucesso_banco = remover_saldo(
+                conta_id=conta_bancaria_id,
+                valor=valor,
+                conn_externa=conn
             )
 
-            if saldo_atual < valor:
-                raise ValueError(
-                    "Saldo insuficiente."
-                )
+            if not sucesso_banco:
+                conn.rollback()
+                return False
 
-            cursor.execute("""
-              UPDATE contas_bancarias
-              SET saldo = saldo - %s
-              WHERE id = %s
-              AND saldo >= %s
-              """, (
-              valor,
-              conta_bancaria_id,
-              valor
-            ))
-
-            cursor.execute("""
-                UPDATE contas_pagar
-                SET
-                    status = 'Pago',
-                    data_pagamento = NOW(),
-                    origem_pagamento = 'BANCO',
-                    conta_bancaria_id = %s
-                WHERE id = %s
-            """, (
-                conta_bancaria_id,
-                conta_id
-            ))
-
-            cursor.execute("""
-                INSERT INTO movimentacoes_bancarias (
-                    conta_id,
-                    categoria_id,
-                    tipo,
-                    descricao,
-                    valor,
-                    data_movimentacao
-                )
-                VALUES (
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s
-                )
-            """, (
-                conta_bancaria_id,
-                None,
-                "saida",
-                descricao,
-                valor,
-                datetime.now()
-            ))
+            meio = "BANCO"
 
         else:
+            meio = "CAIXA"
 
-            raise ValueError(
-                "Origem financeira inválida."
-            )
+        cursor.execute("""
+            UPDATE contas_pagar
+            SET status = 'PAGO',
+                data_pagamento = %s,
+                origem_pagamento = %s,
+                conta_bancaria_id = %s
+            WHERE id = %s
+        """, (
+            datetime.now(),
+            origem_financeira,
+            conta_bancaria_id,
+            conta_id
+        ))
+
+        sucesso = registrar_movimentacao_financeira(
+            tipo="SAIDA",
+            valor=valor,
+            descricao=f"Pagamento conta: {descricao}",
+            origem=origem_financeira,
+            categoria="CONTAS_A_PAGAR",
+            referencia_id=conta_id,
+            referencia_tipo="CONTAS_PAGAR",
+            conta_bancaria_id=conta_bancaria_id,
+            meio=meio,
+            caixa_id=None,
+            conn_externa=conn
+        )
+
+        if not sucesso:
+            conn.rollback()
+            return False
 
         conn.commit()
-
         return True
 
     except Exception as erro:
-
         conn.rollback()
-
-        print(
-            "Erro ao pagar conta:",
-            erro
-        )
-
+        print("Erro pagar_conta:", erro)
         return False
 
     finally:
-
         cursor.close()
         conn.close()
 
 
 # ==================================================
-# LISTAR CONTAS
-# ==================================================
-def listar_contas():
-
-    conn = conectar()
-
-    if conn is None:
-        return pd.DataFrame()
-
-    try:
-
-        query = """
-            SELECT
-                id,
-                descricao,
-                categoria,
-                valor,
-                vencimento,
-                status,
-                forma_pagamento,
-                data_pagamento,
-                observacoes,
-                origem_pagamento,
-                conta_bancaria_id,
-                caixa_id
-           FROM contas_pagar
-           ORDER BY vencimento ASC
-        """
-
-        return pd.read_sql(
-            query,
-            conn
-        )
-
-    except Exception as erro:
-
-        print(
-            f"Erro listar_contas: {erro}"
-        )
-
-        return pd.DataFrame()
-
-    finally:
-
-        conn.close()
-
-
-# ==================================================
-# EXCLUIR CONTA
+# EXCLUIR CONTA A PAGAR
 # ==================================================
 def excluir_conta(conta_id):
 
@@ -350,104 +295,19 @@ def excluir_conta(conta_id):
     cursor = conn.cursor()
 
     try:
-
-        cursor.execute("""
-            SELECT status
-            FROM contas_pagar
-            WHERE id = %s
-        """, (conta_id,))
-
-        conta = cursor.fetchone()
-
-        if conta and str(conta[0]).strip().lower() == "pago":
-            raise ValueError(
-                "Conta paga não pode ser excluída."
-            )
-
         cursor.execute("""
             DELETE FROM contas_pagar
             WHERE id = %s
         """, (conta_id,))
 
         conn.commit()
-
         return True
 
     except Exception as erro:
-
         conn.rollback()
-
-        print(
-            "Erro excluir conta:",
-            erro
-        )
-
+        print("Erro excluir_conta_pagar:", erro)
         return False
 
     finally:
-
-        cursor.close()
-        conn.close()
-
-
-# ==================================================
-# ATUALIZAR CONTA
-# ==================================================
-def atualizar_conta(
-    conta_id,
-    descricao,
-    valor,
-    vencimento,
-    categoria=None,
-    forma_pagamento=None,
-    observacoes=None
-):
-
-    conn = conectar()
-
-    if conn is None:
-        return False
-
-    cursor = conn.cursor()
-
-    try:
-
-        cursor.execute("""
-            UPDATE contas_pagar
-            SET
-                descricao = %s,
-                valor = %s,
-                vencimento = %s,
-                categoria = %s,
-                forma_pagamento = %s,
-                observacoes = %s
-            WHERE id = %s
-        """, (
-            descricao,
-            float(valor),
-            vencimento,
-            categoria,
-            forma_pagamento,
-            observacoes,
-            conta_id
-        ))
-
-        conn.commit()
-
-        return True
-
-    except Exception as erro:
-
-        conn.rollback()
-
-        print(
-            "Erro atualizar conta:",
-            erro
-        )
-
-        return False
-
-    finally:
-
         cursor.close()
         conn.close()

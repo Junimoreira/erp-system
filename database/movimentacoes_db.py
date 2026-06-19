@@ -33,7 +33,8 @@ def registrar_movimentacao(
     descricao,
     categoria,
     origem,
-    data_movimentacao
+    data_movimentacao,
+    meio="CAIXA"
 ):
 
     conn = conectar()

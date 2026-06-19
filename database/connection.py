@@ -3,12 +3,10 @@ import psycopg2
 
 from dotenv import load_dotenv
 
-
 # =====================================
 # CARREGA .ENV
 # =====================================
 load_dotenv()
-
 
 # =====================================
 # DEFINE AMBIENTE
@@ -17,7 +15,6 @@ ERP_ENV = os.getenv(
     "ERP_ENV",
     "TESTE"
 ).upper()
-
 
 # =====================================
 # DEFINE URL CONFORME AMBIENTE
@@ -33,7 +30,6 @@ else:
     DATABASE_URL = os.getenv(
         "DATABASE_URL_TESTE"
     )
-
 
 # =====================================
 # LOG INICIAL
@@ -66,7 +62,18 @@ def conectar():
                 DATABASE_URL
             )
 
-        print("✅ Conexão realizada com sucesso!")
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT current_database(), current_user;
+        """)
+
+        banco, usuario = cursor.fetchone()
+
+        print(f"✅ Banco conectado: {banco}")
+        print(f"👤 Usuário: {usuario}")
+
+        cursor.close()
 
         return conn
 

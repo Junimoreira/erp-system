@@ -1,81 +1,106 @@
 /* ==================================================
-   OCULTAR ELEMENTOS PADRÃO DO STREAMLIT
+   VERDE INFÂNCIA - TEMA MODERNO
+================================================== */
+
+:root {
+    --verde: #44D62C;
+    --rosa: #D5066F;
+    --azul: #008ACD;
+    --navy: #071633;
+    --navy-2: #0B1F45;
+    --fundo: #F6F8FB;
+    --card: #FFFFFF;
+    --texto: #071633;
+    --borda: #DCE3EA;
+}
+
+/* ==================================================
+   ELEMENTOS PADRÃO STREAMLIT
 ================================================== */
 
 header[data-testid="stHeader"] {
-    display: none !important;
+    background: transparent !important;
 }
 
-[data-testid="stToolbar"] {
-    display: none !important;
-}
-
-#MainMenu {
-    visibility: hidden;
-}
-
+[data-testid="stToolbar"],
+#MainMenu,
 footer {
-    visibility: hidden;
+    visibility: hidden !important;
 }
 
 /* ==================================================
-   AJUSTE GLOBAL
-================================================== */
-
-.block-container {
-    padding-top: 1rem !important;
-    padding-bottom: 2rem !important;
-}
-
-/* ==================================================
-   FUNDO SISTEMA
+   FUNDO GLOBAL
 ================================================== */
 
 .stApp {
-    background-color: #f7f9fc;
+    background:
+        radial-gradient(circle at top left, rgba(68,214,44,.10), transparent 30%),
+        radial-gradient(circle at top right, rgba(0,138,205,.10), transparent 35%),
+        var(--fundo);
+    color: var(--texto);
+}
+
+.block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1280px !important;
 }
 
 /* ==================================================
-   SIDEBAR VERDE INFÂNCIA
+   SIDEBAR
 ================================================== */
 
 section[data-testid="stSidebar"] {
+    display: block !important;
+    visibility: visible !important;
     background: linear-gradient(
         180deg,
-        #071633 0%,
-        #0B1F45 40%,
-        #008ACD 100%
-    );
-    border-right: 3px solid #44D62C;
+        var(--navy) 0%,
+        var(--navy-2) 55%,
+        var(--azul) 100%
+    ) !important;
+    border-right: 4px solid var(--verde) !important;
+    box-shadow: 6px 0 22px rgba(7,22,51,.18);
 }
 
-/* ==================================================
-   SIDEBAR TEXTO
-================================================== */
+section[data-testid="stSidebar"] > div {
+    display: block !important;
+    visibility: visible !important;
+}
 
 section[data-testid="stSidebar"] * {
-    color: white !important;
+    color: #ffffff !important;
+}
+
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: #ffffff !important;
+}
+
+section[data-testid="stSidebar"] .stSuccess {
+    background: rgba(68,214,44,.18) !important;
+    border: 1px solid rgba(68,214,44,.45) !important;
 }
 
 /* ==================================================
-   LOGO SIDEBAR
-================================================== */
-
-section[data-testid="stSidebar"] img {
-    margin-bottom: 10px;
-}
-
-/* ==================================================
-   RADIO MENU
+   MENU RADIO
 ================================================== */
 
 div[role="radiogroup"] label {
-    border-radius: 12px !important;
-    padding: 8px !important;
+    border-radius: 14px !important;
+    padding: 10px 12px !important;
+    margin-bottom: 6px !important;
+    transition: all .2s ease !important;
 }
 
 div[role="radiogroup"] label:hover {
-    background-color: rgba(255,255,255,0.10);
+    background-color: rgba(255,255,255,.12) !important;
+    transform: translateX(3px);
+}
+
+div[role="radiogroup"] label[data-baseweb="radio"] {
+    border: 1px solid transparent !important;
 }
 
 /* ==================================================
@@ -83,106 +108,59 @@ div[role="radiogroup"] label:hover {
 ================================================== */
 
 .stButton > button {
-
-    background: linear-gradient(
-        90deg,
-        #44D62C 0%,
-        #008ACD 100%
-    ) !important;
-
+    background: linear-gradient(90deg, var(--verde), var(--azul)) !important;
     color: white !important;
-
     border: none !important;
-
-    border-radius: 12px !important;
-
+    border-radius: 14px !important;
     font-weight: 700 !important;
-
-    min-height: 46px !important;
-
+    min-height: 44px !important;
+    box-shadow: 0 8px 18px rgba(0,138,205,.22);
     transition: all .25s ease !important;
 }
 
 .stButton > button:hover {
-
-    background: linear-gradient(
-        90deg,
-        #39C122 0%,
-        #0078B8 100%
-    ) !important;
-
     transform: translateY(-2px);
-
-    box-shadow: 0 4px 12px rgba(0,138,205,.35);
+    box-shadow: 0 12px 24px rgba(0,138,205,.32);
+    filter: brightness(.98);
 }
 
 /* ==================================================
-   INPUTS
+   INPUTS / SELECTS
 ================================================== */
 
 .stTextInput input,
 .stNumberInput input,
 .stDateInput input,
 .stTextArea textarea {
-
-    border-radius: 12px !important;
-
-    border: 2px solid #44D62C !important;
-
-    background-color: white !important;
+    border-radius: 14px !important;
+    border: 1.8px solid rgba(68,214,44,.75) !important;
+    background-color: #ffffff !important;
+    color: var(--texto) !important;
 }
 
 .stTextInput input:focus,
 .stNumberInput input:focus,
 .stDateInput input:focus,
 .stTextArea textarea:focus {
-
-    border-color: #008ACD !important;
-
-    box-shadow: 0 0 8px rgba(0,138,205,.35) !important;
+    border-color: var(--azul) !important;
+    box-shadow: 0 0 0 3px rgba(0,138,205,.15) !important;
 }
-
-/* ==================================================
-   SELECTBOX
-================================================== */
 
 div[data-baseweb="select"] {
-
-    border-radius: 12px !important;
-
-    border: 2px solid #44D62C !important;
+    border-radius: 14px !important;
 }
 
 /* ==================================================
-   MÉTRICAS DASHBOARD
+   CARDS / MÉTRICAS
 ================================================== */
 
 div[data-testid="metric-container"] {
-
-    background: white;
-
-    border-left: 6px solid #44D62C;
-
-    border-radius: 14px;
-
-    padding: 18px;
-
-    box-shadow: 0 3px 12px rgba(0,0,0,.08);
-}
-
-/* ==================================================
-   DATAFRAME
-================================================== */
-
-[data-testid="stDataFrame"] {
-
-    border-radius: 14px;
-
-    overflow: hidden;
-
-    border: 1px solid #dce3ea;
-
-    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    background: rgba(255,255,255,.92) !important;
+    border: 1px solid rgba(220,227,234,.9) !important;
+    border-left: 7px solid var(--verde) !important;
+    border-radius: 18px !important;
+    padding: 18px !important;
+    box-shadow: 0 8px 24px rgba(7,22,51,.08);
 }
 
 /* ==================================================
@@ -190,14 +168,22 @@ div[data-testid="metric-container"] {
 ================================================== */
 
 form {
+    background: rgba(255,255,255,.96) !important;
+    padding: 22px !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(220,227,234,.9) !important;
+    box-shadow: 0 8px 24px rgba(7,22,51,.07);
+}
 
-    background: white;
+/* ==================================================
+   TABELAS
+================================================== */
 
-    padding: 20px;
-
-    border-radius: 16px;
-
-    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+[data-testid="stDataFrame"] {
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--borda) !important;
+    box-shadow: 0 8px 22px rgba(7,22,51,.06);
 }
 
 /* ==================================================
@@ -205,18 +191,19 @@ form {
 ================================================== */
 
 h1 {
-    color: #008ACD !important;
-    font-weight: 700 !important;
+    color: var(--azul) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px;
 }
 
 h2 {
-    color: #071633 !important;
-    font-weight: 700 !important;
+    color: var(--navy) !important;
+    font-weight: 750 !important;
 }
 
 h3 {
-    color: #44D62C !important;
-    font-weight: 600 !important;
+    color: var(--verde) !important;
+    font-weight: 700 !important;
 }
 
 /* ==================================================
@@ -227,85 +214,73 @@ h3 {
 .stWarning,
 .stError,
 .stInfo {
-
-    border-radius: 12px !important;
+    border-radius: 16px !important;
 }
 
 /* ==================================================
-   EXPANDERS
-================================================== */
-
-.streamlit-expanderHeader {
-
-    border-radius: 10px !important;
-
-    font-weight: 600 !important;
-}
-
-/* ==================================================
-   TABS
+   TABS / EXPANDERS
 ================================================== */
 
 button[data-baseweb="tab"] {
-
-    border-radius: 10px !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"] {
-
-    background-color: #008ACD !important;
-
+    background: linear-gradient(90deg, var(--azul), var(--verde)) !important;
     color: white !important;
 }
 
-/* ==================================================
-   SEPARADORES
-================================================== */
-
-hr {
-
-    border-color: rgba(68,214,44,.30);
+.streamlit-expanderHeader {
+    border-radius: 12px !important;
+    font-weight: 700 !important;
 }
 
 /* ==================================================
-   SCROLLBAR
+   DIVISORES / SCROLL
 ================================================== */
+
+hr {
+    border-color: rgba(68,214,44,.32) !important;
+}
 
 ::-webkit-scrollbar {
     width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f3f6;
+    background: #eef2f6;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #008ACD;
+    background: linear-gradient(180deg, var(--azul), var(--verde));
     border-radius: 20px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #006fa4;
+    background: var(--azul);
 }
 
 /* ==================================================
-   LOGO LOGIN CENTRALIZADA
+   LOGOS / IMAGENS
 ================================================== */
 
-/* Centraliza qualquer imagem do Streamlit */
 [data-testid="stImage"] {
     width: 100%;
     text-align: center !important;
 }
 
-/* Centraliza a imagem */
 [data-testid="stImage"] img {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
 
-/* Ajuste fino para o centro visual da logo */
-[data-testid="stImage"] img[src*="logo2"] {
-    transform: translateX(12px);
+/* ==================================================
+   COMPATIBILIDADE STREAMLIT NOVO
+================================================== */
+
+[data-testid="collapsedControl"] {
+    display: block !important;
+    visibility: visible !important;
 }

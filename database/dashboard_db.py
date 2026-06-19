@@ -3,346 +3,239 @@
 from database.connection import conectar
 
 
-# ==================================================
-# UTIL
-# ==================================================
 def safe_fetchone(cursor, default=0):
-
-    try:
-
-        resultado = cursor.fetchone()
-
-        if resultado is None:
-            return default
-
-        return resultado[0] if resultado[0] is not None else default
-
-    except Exception:
-
+    resultado = cursor.fetchone()
+    if resultado is None:
         return default
+    return resultado[0] if resultado[0] is not None else default
 
 
-# ==================================================
-# DASHBOARD MENSAL
-# ==================================================
+def _valor(cursor, query):
+    cursor.execute(query)
+    return float(safe_fetchone(cursor, 0))
+
+
 def obter_dashboard_mensal():
 
     conn = conectar()
-
     if conn is None:
         return {}
 
     cursor = conn.cursor()
-
     dados = {}
 
     try:
-
-        # ==========================================
         # VENDAS DO MÊS
-        # ==========================================
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor_total), 0)
+        dados["vendas_mes"] = _valor(cursor, """
+            SELECT COALESCE(SUM(valor_final), 0)
             FROM vendas
-            WHERE DATE_TRUNC('month', data_venda)
-            = DATE_TRUNC('month', CURRENT_DATE)
+            WHERE DATE_TRUNC('month', data_venda) = DATE_TRUNC('month', CURRENT_DATE)
+              AND UPPER(COALESCE(status, '')) <> 'CANCELADA'
         """)
 
-        dados["vendas_mes"] = float(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # CONTAS A RECEBER DO MÊS
-        # ==========================================
-        cursor.execute("""
+        # CONTAS A RECEBER PENDENTES DO MÊS
+        dados["receber_mes"] = _valor(cursor, """
             SELECT COALESCE(SUM(valor), 0)
             FROM contas_receber
-            WHERE LOWER(status) = 'pendente'
-            AND DATE_TRUNC('month', vencimento)
-            = DATE_TRUNC('month', CURRENT_DATE)
+            WHERE UPPER(TRIM(status)) IN ('PENDENTE', 'ABERTO')
+              AND DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
-        dados["receber_mes"] = float(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # CONTAS A PAGAR DO MÊS
-        # ==========================================
-        cursor.execute("""
+        # OBRIGAÇÕES TOTAIS DO MÊS
+        dados["pagar_mes"] = _valor(cursor, """
             SELECT COALESCE(SUM(valor), 0)
             FROM contas_pagar
-            WHERE LOWER(status) = 'pendente'
-            AND DATE_TRUNC('month', vencimento)
-            = DATE_TRUNC('month', CURRENT_DATE)
+            WHERE DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
-        dados["pagar_mes"] = float(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # CLIENTES
-        # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM clientes
+        # CONTAS FIXAS DO MÊS
+        dados["despesas_fixas_mes"] = _valor(cursor, """
+            SELECT COALESCE(SUM(valor), 0)
+            FROM contas_pagar
+            WHERE DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
+              AND UPPER(TRIM(COALESCE(categoria, ''))) = 'FIXA'
         """)
 
-        dados["clientes"] = int(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # FORNECEDORES
-        # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM fornecedores
+        # CONTAS VARIÁVEIS DO MÊS
+        dados["despesas_variaveis_mes"] = _valor(cursor, """
+            SELECT COALESCE(SUM(valor), 0)
+            FROM contas_pagar
+            WHERE DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
+              AND UPPER(TRIM(COALESCE(categoria, ''))) <> 'FIXA'
         """)
 
-        dados["fornecedores"] = int(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # PRODUTOS
-        # ==========================================
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM produtos
+        # CONTAS PENDENTES DO MÊS
+        dados["pagar_pendente_mes"] = _valor(cursor, """
+            SELECT COALESCE(SUM(valor), 0)
+            FROM contas_pagar
+            WHERE UPPER(TRIM(status)) IN ('PENDENTE', 'ABERTO', 'VENCIDO', 'AGENDADO')
+              AND DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
         """)
 
-        dados["produtos"] = int(
-            safe_fetchone(cursor)
-        )
+        # CADASTROS
+        cursor.execute("SELECT COUNT(*) FROM clientes")
+        dados["clientes"] = int(safe_fetchone(cursor, 0))
 
-        # ==========================================
-        # ESTOQUE BAIXO
-        # ==========================================
+        cursor.execute("SELECT COUNT(*) FROM fornecedores")
+        dados["fornecedores"] = int(safe_fetchone(cursor, 0))
+
+        cursor.execute("SELECT COUNT(*) FROM produtos")
+        dados["produtos"] = int(safe_fetchone(cursor, 0))
+
         cursor.execute("""
             SELECT COUNT(*)
             FROM produtos
-            WHERE estoque <= estoque_minimo
+            WHERE COALESCE(estoque, 0) <= 5
+        """)
+        dados["estoque_baixo"] = int(safe_fetchone(cursor, 0))
+
+        # CAIXA ATUAL ABERTO
+        dados["caixa_atual"] = _valor(cursor, """
+            SELECT COALESCE(saldo_final, saldo_inicial, 0)
+            FROM caixa
+            WHERE LOWER(status) = 'aberto'
+            ORDER BY id DESC
+            LIMIT 1
         """)
 
-        dados["estoque_baixo"] = int(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # CAIXA ATUAL
-        # ==========================================
-        cursor.execute("""
-            SELECT
-                COALESCE(
-                    SUM(
-                        CASE
-                            WHEN LOWER(tipo) = 'entrada'
-                            THEN valor
-                            ELSE 0
-                        END
-                    ),
-                    0
-                )
-                -
-                COALESCE(
-                    SUM(
-                        CASE
-                            WHEN LOWER(tipo) = 'saida'
-                            THEN valor
-                            ELSE 0
-                        END
-                    ),
-                    0
-                )
-            FROM movimentacoes
-        """)
-
-        dados["caixa_atual"] = float(
-            safe_fetchone(cursor)
-        )
-
-        # ==========================================
-        # LUCRO ESTIMADO DO MÊS
-        # ==========================================
         dados["lucro_mes"] = round(
-            dados["vendas_mes"] -
-            dados["pagar_mes"],
+            dados["vendas_mes"] - dados["pagar_mes"],
             2
         )
 
         return dados
 
     except Exception as erro:
-
-        print(
-            f"Erro dashboard: {erro}"
-        )
-
+        print(f"Erro dashboard: {erro}")
         return {}
 
     finally:
-
         cursor.close()
         conn.close()
 
 
-# ==================================================
-# TOTAL DESPESAS MÊS
-# ==================================================
 def total_despesas_fixas_mes():
 
     conn = conectar()
-
     if conn is None:
         return 0
 
     cursor = conn.cursor()
 
     try:
-
         cursor.execute("""
             SELECT COALESCE(SUM(valor), 0)
             FROM contas_pagar
-            WHERE LOWER(status) = 'pendente'
-            AND DATE_TRUNC('month', vencimento)
-            = DATE_TRUNC('month', CURRENT_DATE)
+            WHERE DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
+              AND UPPER(TRIM(COALESCE(categoria, ''))) = 'FIXA'
         """)
 
-        return float(
-            safe_fetchone(cursor)
-        )
+        return float(safe_fetchone(cursor, 0))
 
     except Exception as erro:
-
-        print(
-            f"Erro despesas mês: {erro}"
-        )
-
+        print(f"Erro despesas fixas mês: {erro}")
         return 0
 
     finally:
-
         cursor.close()
         conn.close()
 
 
-# ==================================================
-# TOTAL VENDIDO MÊS
-# ==================================================
-def total_vendido_mes():
+def total_despesas_variaveis_mes():
 
     conn = conectar()
-
     if conn is None:
         return 0
 
     cursor = conn.cursor()
 
     try:
-
         cursor.execute("""
-            SELECT COALESCE(SUM(valor_total), 0)
-            FROM vendas
-            WHERE DATE_TRUNC('month', data_venda)
-            = DATE_TRUNC('month', CURRENT_DATE)
+            SELECT COALESCE(SUM(valor), 0)
+            FROM contas_pagar
+            WHERE DATE_TRUNC('month', vencimento) = DATE_TRUNC('month', CURRENT_DATE)
+              AND UPPER(TRIM(COALESCE(categoria, ''))) <> 'FIXA'
         """)
 
-        return float(
-            safe_fetchone(cursor)
-        )
+        return float(safe_fetchone(cursor, 0))
 
     except Exception as erro:
-
-        print(
-            f"Erro total vendido: {erro}"
-        )
-
+        print(f"Erro despesas variáveis mês: {erro}")
         return 0
 
     finally:
-
         cursor.close()
         conn.close()
 
 
-# ==================================================
-# META DO MÊS
-# ==================================================
+def total_vendido_mes():
+
+    conn = conectar()
+    if conn is None:
+        return 0
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor_final), 0)
+            FROM vendas
+            WHERE DATE_TRUNC('month', data_venda) = DATE_TRUNC('month', CURRENT_DATE)
+              AND UPPER(COALESCE(status, '')) <> 'CANCELADA'
+        """)
+
+        return float(safe_fetchone(cursor, 0))
+
+    except Exception as erro:
+        print(f"Erro total vendido: {erro}")
+        return 0
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def calcular_meta_mes():
 
-    despesas = total_despesas_fixas_mes()
+    despesas_fixas = total_despesas_fixas_mes()
 
-    margem_lucro = despesas * 0.20
+    meta = despesas_fixas * 1.25
 
-    meta = despesas + margem_lucro
-
-    return round(
-        meta,
-        2
-    )
+    return round(meta, 2)
 
 
-# ==================================================
-# FALTA PARA META
-# ==================================================
 def calcular_falta_meta():
 
     meta = calcular_meta_mes()
-
     vendido = total_vendido_mes()
 
     falta = meta - vendido
 
-    return max(
-        round(falta, 2),
-        0
-    )
+    return max(round(falta, 2), 0)
 
 
-# ==================================================
-# PERCENTUAL META
-# ==================================================
 def percentual_meta():
 
     meta = calcular_meta_mes()
-
     vendido = total_vendido_mes()
 
     if meta <= 0:
         return 0
 
-    percentual = (
-        vendido / meta
-    ) * 100
-
-    return round(
-        percentual,
-        2
-    )
+    return round((vendido / meta) * 100, 2)
 
 
-# ==================================================
-# LUCRO ESTIMADO
-# ==================================================
 def lucro_estimado():
 
     vendido = total_vendido_mes()
+    despesas_fixas = total_despesas_fixas_mes()
+    despesas_variaveis = total_despesas_variaveis_mes()
 
-    despesas = total_despesas_fixas_mes()
+    lucro = vendido - despesas_fixas - despesas_variaveis
 
-    lucro = vendido - despesas
+    return round(lucro, 2)
 
-    return round(
-        lucro,
-        2
-    )
 
-# ==================================================
-# ALERTAS FINANCEIROS
-# ==================================================
 def obter_alertas_financeiros():
 
     conn = conectar()
@@ -357,45 +250,32 @@ def obter_alertas_financeiros():
     cursor = conn.cursor()
 
     try:
-
-        # CONTAS VENCIDAS
         cursor.execute("""
-            SELECT
-                descricao,
-                valor,
-                vencimento
+            SELECT descricao, valor, vencimento
             FROM contas_pagar
-            WHERE LOWER(status) = 'pendente'
-            AND vencimento < CURRENT_DATE
+            WHERE UPPER(TRIM(status)) IN ('PENDENTE', 'ABERTO', 'VENCIDO', 'AGENDADO')
+              AND vencimento < CURRENT_DATE
             ORDER BY vencimento
         """)
 
         vencidas = cursor.fetchall()
 
-        # VENCEM HOJE
         cursor.execute("""
-            SELECT
-                descricao,
-                valor,
-                vencimento
+            SELECT descricao, valor, vencimento
             FROM contas_pagar
-            WHERE LOWER(status) = 'pendente'
-            AND vencimento = CURRENT_DATE
+            WHERE UPPER(TRIM(status)) IN ('PENDENTE', 'ABERTO', 'VENCIDO', 'AGENDADO')
+              AND vencimento = CURRENT_DATE
             ORDER BY vencimento
         """)
 
         hoje = cursor.fetchall()
 
-        # PRÓXIMOS 7 DIAS
         cursor.execute("""
-            SELECT
-                descricao,
-                valor,
-                vencimento
+            SELECT descricao, valor, vencimento
             FROM contas_pagar
-            WHERE LOWER(status) = 'pendente'
-            AND vencimento > CURRENT_DATE
-            AND vencimento <= CURRENT_DATE + INTERVAL '7 days'
+            WHERE UPPER(TRIM(status)) IN ('PENDENTE', 'ABERTO', 'VENCIDO', 'AGENDADO')
+              AND vencimento > CURRENT_DATE
+              AND vencimento <= CURRENT_DATE + INTERVAL '7 days'
             ORDER BY vencimento
         """)
 
@@ -408,11 +288,7 @@ def obter_alertas_financeiros():
         }
 
     except Exception as erro:
-
-        print(
-            f"Erro alertas: {erro}"
-        )
-
+        print(f"Erro alertas: {erro}")
         return {
             "vencidas": [],
             "hoje": [],
@@ -420,6 +296,5 @@ def obter_alertas_financeiros():
         }
 
     finally:
-
         cursor.close()
         conn.close()

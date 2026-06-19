@@ -11,12 +11,36 @@ from database.vendas_db import (
 )
 
 from database.produto_db import buscar_produto_por_codigo
+from database.contas_bancarias import listar_contas as listar_bancos
+from database.caixa_db import verificar_caixa_aberto
 
 
 # ==================================================
-# TELA VENDAS
+# NORMALIZAR TEXTO
+# ==================================================
+def normalizar_forma(forma):
+
+    texto = str(forma).upper().strip()
+
+    texto = texto.replace("Á", "A")
+    texto = texto.replace("Ã", "A")
+    texto = texto.replace("É", "E")
+    texto = texto.replace("Ê", "E")
+    texto = texto.replace("Í", "I")
+    texto = texto.replace("Ó", "O")
+    texto = texto.replace("Õ", "O")
+    texto = texto.replace("Ú", "U")
+    texto = texto.replace("Ç", "C")
+
+    return texto
+
+
+# ==================================================
+# TELA DE VENDAS
 # ==================================================
 def tela_vendas():
+
+    st.title("🛒 Vendas")
 
     abas = st.tabs([
         "➕ Nova Venda",
@@ -24,224 +48,306 @@ def tela_vendas():
     ])
 
     # ==================================================
-    # NOVA VENDA
+    # ABA NOVA VENDA
     # ==================================================
     with abas[0]:
 
-        st.subheader("🛒 Nova Venda")
-
         clientes = listar_clientes()
         produtos = listar_produtos()
+        df_bancos = listar_bancos()
 
         if clientes.empty:
-            st.warning("Cadastre clientes primeiro.")
+            st.warning("Nenhum cliente cadastrado.")
             return
 
         if produtos.empty:
-            st.warning("Cadastre produtos primeiro.")
+            st.warning("Nenhum produto cadastrado.")
             return
 
-        # ==============================================
-        # DATA DA VENDA
-        # ==============================================
-        data_venda = st.date_input(
-            "📅 Data da Venda",
-            value=datetime.today(),
-            key="data_venda"
-        )
-
-        # ==============================================
-        # CLIENTE
-        # ==============================================
-        cliente_nome = st.selectbox(
-            "Cliente",
-            clientes["nome"],
-            key="cliente_venda"
-        )
-
-        cliente_id = clientes[
-            clientes["nome"] == cliente_nome
-        ]["id"].values[0]
-
-        # ==============================================
-        # FORMA PAGAMENTO
-        # ==============================================
-        forma_pagamento = st.selectbox(
-            "Forma de Pagamento",
-            ["Dinheiro", "PIX", "Cartão Débito", "Cartão Crédito","Boleto","Transferência", "Prazo"],
-            key="forma_pagamento"
-        )
-
-        # ==============================================
-        # CARRINHO
-        # ==============================================
         if "carrinho" not in st.session_state:
             st.session_state.carrinho = []
+
+        st.subheader("🧾 Dados da Venda")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            data_venda = st.date_input(
+                "📅 Data da Venda",
+                value=datetime.today(),
+                format="DD/MM/YYYY"
+            )
+
+        with col2:
+            forma_pagamento = st.selectbox(
+                "💳 Forma de Pagamento",
+                [
+                    "Dinheiro",
+                    "PIX",
+                    "Cartão Débito",
+                    "Cartão Crédito",
+                    "Transferência",
+                    "Boleto",
+                    "Prazo"
+                ]
+            )
+
+        forma_normalizada = normalizar_forma(forma_pagamento)
+
+        cliente_nome = st.selectbox(
+            "👤 Cliente",
+            clientes["nome"]
+        )
+
+        cliente_id = clientes.loc[
+            clientes["nome"] == cliente_nome,
+            "id"
+        ].values[0]
+
+        conta_bancaria_id = None
+        numero_parcelas = 1
+
+        formas_banco = [
+            "PIX",
+            "CARTAO DEBITO",
+            "TRANSFERENCIA",
+            "BOLETO"
+        ]
+
+        formas_parceladas = [
+            "CARTAO CREDITO",
+            "PRAZO",
+            "FIADO"
+        ]
+
+        if forma_normalizada == "DINHEIRO":
+
+            caixa_aberto = verificar_caixa_aberto()
+
+            if caixa_aberto:
+                st.success("✅ Caixa aberto. Venda em dinheiro será somada ao caixa.")
+            else:
+                st.error("⚠️ Não há caixa aberto. Abra o caixa antes de vender em dinheiro.")
+
+        elif forma_normalizada in formas_banco:
+
+            st.info("Essa venda será lançada em conta bancária.")
+
+            if df_bancos.empty:
+                st.error("Nenhuma conta bancária cadastrada. Cadastre uma conta bancária antes de finalizar essa venda.")
+            else:
+                df_bancos = df_bancos.copy()
+                df_bancos["opcao"] = df_bancos.apply(
+                    lambda row: f'{row["id"]} - {row["banco"]} | Ag: {row["agencia"]} | Conta: {row["conta"]} | Saldo: R$ {float(row["saldo"]):,.2f}',
+                    axis=1
+                )
+
+                banco_opcao = st.selectbox(
+                    "🏦 Conta Bancária",
+                    df_bancos["opcao"].tolist(),
+                    key="conta_bancaria_venda"
+                )
+
+                conta_bancaria_id = int(banco_opcao.split(" - ")[0])
+
+        elif forma_normalizada in formas_parceladas:
+
+            st.info("Essa venda será registrada em Contas a Receber.")
+
+            numero_parcelas = st.number_input(
+                "Nº de parcelas",
+                min_value=1,
+                max_value=24,
+                value=1,
+                step=1,
+                key="numero_parcelas_venda"
+            )
+
+            st.caption("A 1ª parcela vencerá em 30 dias. As demais vencem mês a mês.")
 
         st.divider()
 
         # ==================================================
-        # PRODUTO (PDV COM CÓDIGO DE BARRAS)
+        # ADICIONAR PRODUTO
         # ==================================================
         st.subheader("📦 Adicionar Produto")
 
-        codigo_barras = st.text_input(
-            "📷 Código de Barras (escaneie ou digite)",
-            key="codigo_barras_venda"
+        codigo = st.text_input(
+            "Código de Barras",
+            key="codigo_barras"
         )
 
         produto = None
 
-        produto_id = None
-        produto_nome = None
-        produto_preco = 0
-        produto_estoque = 0
+        if codigo:
+            produto = buscar_produto_por_codigo(codigo)
 
-        # ==============================================
-        # BUSCA POR CÓDIGO DE BARRAS
-        # ==============================================
-        if codigo_barras:
+            if produto is None:
+                st.error("Produto não encontrado.")
 
-            produto = buscar_produto_por_codigo(codigo_barras)
+        if produto is None:
 
-            if produto:
-
-                st.success(f"Produto encontrado: {produto[1]}")
-
-                produto_id = produto[0]
-                produto_nome = produto[1]
-                produto_preco = produto[2]
-                produto_estoque = produto[3]
-
-            else:
-
-                st.error("Produto não encontrado pelo código de barras")
-
-        # ==============================================
-        # FALLBACK MANUAL
-        # ==============================================
-        if not produto_id:
-
-            produto_nome_select = st.selectbox(
-                "Selecione o Produto",
-                produtos["nome"],
-                key="produto_venda"
+            produto_nome = st.selectbox(
+                "Produto",
+                produtos["nome"]
             )
 
-            produto = produtos[
-                produtos["nome"] == produto_nome_select
+            produto_linha = produtos[
+                produtos["nome"] == produto_nome
             ].iloc[0]
 
-            produto_id = produto["id"]
-            produto_nome = produto["nome"]
-            produto_preco = produto["preco"]
-            produto_estoque = produto["estoque"]
+            produto = {
+                "id": produto_linha["id"],
+                "nome": produto_linha["nome"],
+                "preco": produto_linha["preco"],
+                "estoque": produto_linha["estoque"]
+            }
 
-        # ==============================================
-        # QUANTIDADE
-        # ==============================================
+        st.success(f"Produto: {produto['nome']}")
+        st.info(f"Estoque: {produto['estoque']}")
+
         quantidade = st.number_input(
             "Quantidade",
             min_value=1,
-            step=1,
-            key="quantidade_venda"
+            value=1,
+            step=1
         )
 
-        # ==============================================
-        # DESCONTO
-        # ==============================================
-        desconto = st.number_input(
-            "Desconto",
+        desconto_item = st.number_input(
+            "Desconto no item",
             min_value=0.0,
-            value=0.0,
-            format="%.2f",
-            key="desconto_venda"
+            value=0.00,
+            step=0.01,
+            format="%.2f"
         )
 
-        subtotal = float(produto_preco) * quantidade
-        valor_final = subtotal - desconto
+        preco = float(produto["preco"])
+        subtotal = preco * quantidade
+        valor_item = subtotal - desconto_item
 
-        if valor_final < 0:
-            valor_final = 0
+        if valor_item < 0:
+            valor_item = 0
 
-        st.info(f"💰 Subtotal: R$ {subtotal:,.2f}")
-        st.info(f"🏷️ Valor Final: R$ {valor_final:,.2f}")
+        col1, col2, col3 = st.columns(3)
 
-        # ==============================================
-        # ADICIONAR AO CARRINHO
-        # ==============================================
-        if st.button("➕ Adicionar ao Carrinho"):
+        with col1:
+            st.metric("Preço Unitário", f"R$ {preco:,.2f}")
 
-            if quantidade > produto_estoque:
+        with col2:
+            st.metric("Subtotal", f"R$ {subtotal:,.2f}")
 
-                st.error("❌ Estoque insuficiente!")
+        with col3:
+            st.metric("Valor do Item", f"R$ {valor_item:,.2f}")
+
+        if st.button("➕ Adicionar ao Carrinho", use_container_width=True):
+
+            if quantidade > int(produto["estoque"]):
+                st.error("Estoque insuficiente.")
 
             else:
-
                 st.session_state.carrinho.append({
-
-                    "produto_id": int(produto_id),
-                    "produto": produto_nome,
+                    "produto_id": int(produto["id"]),
+                    "produto": produto["nome"],
                     "quantidade": int(quantidade),
-                    "preco": float(produto_preco),
+                    "preco": float(preco),
                     "subtotal": float(subtotal),
-                    "desconto": float(desconto),
-                    "valor_final": float(valor_final)
+                    "desconto": float(desconto_item),
+                    "valor_final": float(valor_item)
                 })
 
-                st.success("✅ Produto adicionado!")
+                st.success("Produto adicionado ao carrinho.")
                 st.rerun()
 
-        # ==============================================
+        # ==================================================
         # CARRINHO
-        # ==============================================
+        # ==================================================
         st.divider()
         st.subheader("🛒 Carrinho")
 
         if st.session_state.carrinho:
 
-            df_carrinho = pd.DataFrame(st.session_state.carrinho)
+            df = pd.DataFrame(st.session_state.carrinho)
 
-            st.dataframe(df_carrinho, use_container_width=True)
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
 
-            total = df_carrinho["valor_final"].sum()
-            desconto_total = df_carrinho["desconto"].sum()
+            total_bruto = df["subtotal"].sum()
+            desconto_total = df["desconto"].sum()
+            total_final = df["valor_final"].sum()
 
-            st.success(f"💰 Total da Venda: R$ {total:,.2f}")
-            st.info(f"🏷️ Desconto Total: R$ {desconto_total:,.2f}")
+            col1, col2, col3 = st.columns(3)
 
-            # ==========================================
-            # FINALIZAR VENDA
-            # ==========================================
-            if st.button("💾 Finalizar Venda"):
+            with col1:
+                st.info(f"Subtotal: R$ {total_bruto:,.2f}")
+
+            with col2:
+                st.warning(f"Descontos: R$ {desconto_total:,.2f}")
+
+            with col3:
+                st.success(f"Total: R$ {total_final:,.2f}")
+
+            if forma_normalizada in formas_parceladas:
+
+                valor_parcela = total_final / int(numero_parcelas)
+
+                st.info(
+                    f"💳 Parcelamento: {int(numero_parcelas)}x de R$ {valor_parcela:,.2f}"
+                )
+
+            if st.button("🧹 Limpar Carrinho", use_container_width=True):
+                st.session_state.carrinho = []
+                st.rerun()
+
+            st.divider()
+
+            confirmar = st.checkbox(
+                "Confirmo que desejo finalizar esta venda",
+                key="confirmar_finalizar_venda"
+            )
+
+            if st.button("💾 Finalizar Venda", use_container_width=True):
+
+                if not confirmar:
+                    st.warning("Marque a confirmação antes de finalizar.")
+                    return
+
+                if forma_normalizada == "DINHEIRO":
+                    caixa_aberto = verificar_caixa_aberto()
+
+                    if not caixa_aberto:
+                        st.error("Não é possível finalizar venda em dinheiro sem caixa aberto.")
+                        return
+
+                if forma_normalizada in formas_banco and conta_bancaria_id is None:
+                    st.error("Selecione uma conta bancária para essa venda.")
+                    return
 
                 sucesso = salvar_venda(
-
                     cliente_id=int(cliente_id),
-                    valor_total=float(total),
+                    valor_total=float(total_bruto),
                     desconto=float(desconto_total),
-                    valor_final=float(total),
+                    valor_final=float(total_final),
                     forma_pagamento=forma_pagamento,
-                    data_venda=data_venda,
-                    itens=st.session_state.carrinho
+                    data_venda=datetime.combine(data_venda, datetime.now().time()),
+                    itens=st.session_state.carrinho,
+                    conta_bancaria_id=conta_bancaria_id,
+                    numero_parcelas=int(numero_parcelas)
                 )
 
                 if sucesso:
-
+                    st.success("Venda realizada com sucesso.")
                     st.session_state.carrinho = []
-                    st.success("✅ Venda finalizada!")
                     st.rerun()
-
                 else:
-
-                    st.error("❌ Erro ao finalizar venda.")
+                    st.error("Erro ao finalizar venda.")
 
         else:
-
             st.info("Carrinho vazio.")
 
     # ==================================================
-    # HISTÓRICO
+    # ABA HISTÓRICO
     # ==================================================
     with abas[1]:
 
@@ -249,69 +355,72 @@ def tela_vendas():
 
         df = historico_vendas()
 
-        # ==============================================
-        # FILTRO POR DATA
-        # ==============================================
+        if df.empty:
+            st.info("Nenhuma venda cadastrada.")
+            return
+
         col1, col2 = st.columns(2)
 
         with col1:
             data_inicio = st.date_input(
                 "Data Inicial",
                 value=datetime.today(),
-                key="data_inicio"
+                key="hist_inicio"
             )
 
         with col2:
             data_fim = st.date_input(
                 "Data Final",
                 value=datetime.today(),
-                key="data_fim"
+                key="hist_fim"
             )
 
-        # ==============================================
-        # FILTRO PEDIDO
-        # ==============================================
-        filtro = st.text_input("🔎 Buscar pedido")
+        pesquisa = st.text_input(
+            "🔎 Buscar Pedido ou Cliente"
+        )
 
-        # ==============================================
-        # FILTRO DATA
-        # ==============================================
-        if not df.empty and "data_venda" in df.columns:
+        df["data_venda"] = pd.to_datetime(df["data_venda"])
 
-            df["data_venda"] = pd.to_datetime(df["data_venda"])
+        df = df[
+            (df["data_venda"].dt.date >= data_inicio)
+            &
+            (df["data_venda"].dt.date <= data_fim)
+        ]
+
+        if pesquisa:
+
+            pesquisa = pesquisa.lower()
 
             df = df[
-                (df["data_venda"].dt.date >= data_inicio) &
-                (df["data_venda"].dt.date <= data_fim)
+                df["pedido"].astype(str).str.lower().str.contains(pesquisa)
+                |
+                df["cliente"].astype(str).str.lower().str.contains(pesquisa)
             ]
 
-        # ==============================================
-        # FILTRO PEDIDO
-        # ==============================================
-        if filtro and "pedido" in df.columns:
-            df = df[df["pedido"].astype(str).str.contains(filtro)]
-
-        # ==============================================
-        # FORMATAÇÃO
-        # ==============================================
         if not df.empty:
 
-            if "data_venda" in df.columns:
-                df["data_venda"] = df["data_venda"].dt.strftime("%d/%m/%Y")
+            df["data_venda"] = df["data_venda"].dt.strftime(
+                "%d/%m/%Y %H:%M"
+            )
 
-            if "valor_unitario" in df.columns:
-                df["valor_unitario"] = df["valor_unitario"].map(
-                    lambda x: f"R$ {x:,.2f}"
-                )
+            df["valor_unitario"] = df["valor_unitario"].map(
+                lambda x: f"R$ {float(x):,.2f}"
+            )
 
-            if "subtotal" in df.columns:
-                df["subtotal"] = df["subtotal"].map(
-                    lambda x: f"R$ {x:,.2f}"
-                )
+            df["subtotal"] = df["subtotal"].map(
+                lambda x: f"R$ {float(x):,.2f}"
+            )
 
-            if "valor_final" in df.columns:
-                df["valor_final"] = df["valor_final"].map(
-                    lambda x: f"R$ {x:,.2f}"
-                )
+            df["desconto"] = df["desconto"].map(
+                lambda x: f"R$ {float(x):,.2f}"
+            )
 
-        st.dataframe(df, use_container_width=True)
+            df["valor_final"] = df["valor_final"].map(
+                lambda x: f"R$ {float(x):,.2f}"
+            )
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True
+        )

@@ -257,3 +257,47 @@ def adicionar_saldo(
 
         cursor.close()
         conn.close()
+
+# ==================================================
+# REMOVER / DEBITAR SALDO
+# ==================================================
+def remover_saldo(
+    conta_id,
+    valor,
+    conn_externa=None
+):
+
+    conn = conn_externa if conn_externa else conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE contas_bancarias
+            SET saldo = COALESCE(saldo, 0) - %s
+            WHERE id = %s
+        """, (
+            float(valor),
+            int(conta_id)
+        ))
+
+        if conn_externa is None:
+            conn.commit()
+
+        return True
+
+    except Exception as erro:
+        if conn_externa is None:
+            conn.rollback()
+
+        print("Erro remover saldo:", erro)
+        return False
+
+    finally:
+        cursor.close()
+
+        if conn_externa is None:
+            conn.close()
