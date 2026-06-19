@@ -7,25 +7,51 @@ from datetime import datetime
 from database.movimentacoes_db import (
     registrar_movimentacao,
     listar_movimentacoes_caixa as db_listar_movimentacoes_caixa,
-    atualizar_movimentacao,
-    excluir_movimentacao
+    excluir_movimentacao,
+    resumo_caixa as db_resumo_caixa
 )
 
 from database.caixa_db import (
     abrir_caixa,
     fechar_caixa,
     verificar_caixa_aberto,
-    listar_historico_caixa
+    listar_historico_caixa,
+    saldo_caixa_atual
 )
+
+
+# ==================================================
+# VALOR SEGURO
+# ==================================================
+def valor_seguro(valor):
+    try:
+        if valor is None:
+            return 0.0
+
+        if pd.isna(valor):
+            return 0.0
+
+        return float(valor)
+
+    except Exception:
+        return 0.0
 
 
 # ==================================================
 # TRATAMENTO TEXTO
 # ==================================================
 def tratar_texto(valor):
-    if pd.isna(valor):
+    try:
+        if valor is None:
+            return ""
+
+        if pd.isna(valor):
+            return ""
+
+        return str(valor).strip()
+
+    except Exception:
         return ""
-    return str(valor).strip()
 
 
 # ==================================================
@@ -46,34 +72,34 @@ def identificar_coluna_data(df):
 
 
 # ==================================================
-# RESUMO CAIXA
+# OBTER ID DO CAIXA
 # ==================================================
-def resumo_caixa(caixa_id):
+def obter_caixa_id(caixa):
 
-    try:
-        df = db_listar_movimentacoes_caixa(caixa_id)
+    if caixa is None:
+        return None
 
-        if df is None or df.empty:
-            return {"entradas": 0, "saidas": 0}
+    if isinstance(caixa, tuple):
+        return caixa[0]
 
-        df = df[df["caixa_id"] == caixa_id]
+    return caixa.get("id")
 
-        entradas = df[
-            df["tipo"].astype(str).str.lower() == "entrada"
-        ]["valor"].sum()
 
-        saidas = df[
-            df["tipo"].astype(str).str.lower() == "saida"
-        ]["valor"].sum()
+# ==================================================
+# OBTER SALDO INICIAL
+# ==================================================
+def obter_saldo_inicial(caixa):
 
-        return {
-            "entradas": float(entradas or 0),
-            "saidas": float(saidas or 0)
-        }
+    if caixa is None:
+        return 0.0
 
-    except Exception as erro:
-        print("Erro resumo_caixa:", erro)
-        return {"entradas": 0, "saidas": 0}
+    if isinstance(caixa, tuple):
+        try:
+            return valor_seguro(caixa[4])
+        except Exception:
+            return 0.0
+
+    return valor_seguro(caixa.get("saldo_inicial", 0))
 
 
 # ==================================================
@@ -88,7 +114,6 @@ def obter_movimentacoes_caixa(caixa_id):
             return pd.DataFrame()
 
         if "caixa_id" not in df.columns:
-            print("Coluna caixa_id não existe em movimentacoes")
             return pd.DataFrame()
 
         return df[df["caixa_id"] == caixa_id]
@@ -96,6 +121,7 @@ def obter_movimentacoes_caixa(caixa_id):
     except Exception as erro:
         print("Erro listar_movimentacoes_caixa:", erro)
         return pd.DataFrame()
+
 
 # ==================================================
 # ORDENAÇÃO SEGURA
@@ -109,8 +135,15 @@ def ordenar_dataframe(df):
         coluna_data = identificar_coluna_data(df)
 
         if coluna_data:
-            df[coluna_data] = pd.to_datetime(df[coluna_data], errors="coerce")
-            df = df.sort_values(by=coluna_data, ascending=False)
+            df[coluna_data] = pd.to_datetime(
+                df[coluna_data],
+                errors="coerce"
+            )
+
+            df = df.sort_values(
+                by=coluna_data,
+                ascending=False
+            )
 
         return df
 
@@ -155,11 +188,22 @@ def tela_caixa():
                 format="%.2f"
             )
 
-            usuario = st.text_input("Operador", value="Administrador")
+            usuario_padrao = st.session_state.get(
+                "usuario",
+                "Administrador"
+            )
+
+            usuario = st.text_input(
+                "Operador",
+                value=usuario_padrao
+            )
 
             if st.button("🚀 Abrir Caixa"):
 
-                sucesso = abrir_caixa(usuario, float(valor_inicial))
+                sucesso = abrir_caixa(
+                    usuario,
+                    float(valor_inicial)
+                )
 
                 if sucesso:
                     st.success("Caixa aberto com sucesso!")
@@ -172,26 +216,21 @@ def tela_caixa():
         # ==================================================
         else:
 
-            caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
+            caixa_id = obter_caixa_id(caixa)
+            saldo_inicial = obter_saldo_inicial(caixa)
 
-            saldo_inicial = float(
-                caixa[4] if isinstance(caixa, tuple)
-                else caixa.get("saldo_inicial", 0) or 0
+            resumo = db_resumo_caixa(caixa_id)
+
+            entradas = valor_seguro(
+                resumo.get("entradas", 0)
             )
 
-            entradas = float(
-                caixa[5] if isinstance(caixa, tuple)
-                else caixa.get("total_entradas", 0) or 0
+            saidas = valor_seguro(
+                resumo.get("saidas", 0)
             )
 
-            saidas = float(
-                caixa[6] if isinstance(caixa, tuple)
-                else caixa.get("total_saidas", 0) or 0
-            )
-
-            saldo_atual = float(
-                caixa[7] if isinstance(caixa, tuple)
-                else caixa.get("saldo_final", 0) or 0
+            saldo_atual = valor_seguro(
+                saldo_caixa_atual(caixa_id)
             )
 
             st.success("🟢 Caixa Aberto")
@@ -199,16 +238,28 @@ def tela_caixa():
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric("Saldo Inicial", f"R$ {saldo_inicial:,.2f}")
+                st.metric(
+                    "Saldo Inicial",
+                    f"R$ {saldo_inicial:,.2f}"
+                )
 
             with col2:
-                st.metric("Entradas", f"R$ {entradas:,.2f}")
+                st.metric(
+                    "Entradas",
+                    f"R$ {entradas:,.2f}"
+                )
 
             with col3:
-                st.metric("Saídas", f"R$ {saidas:,.2f}")
+                st.metric(
+                    "Saídas",
+                    f"R$ {saidas:,.2f}"
+                )
 
             with col4:
-                st.metric("Saldo Atual", f"R$ {saldo_atual:,.2f}")
+                st.metric(
+                    "Saldo Atual",
+                    f"R$ {saldo_atual:,.2f}"
+                )
 
             st.divider()
 
@@ -224,14 +275,19 @@ def tela_caixa():
                 df = df.fillna("")
                 df = ordenar_dataframe(df)
 
-                st.dataframe(df, use_container_width=True, height=300)
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    height=300
+                )
 
                 st.divider()
 
-                # ==================================================
-                # EXCLUIR MOVIMENTAÇÃO
-                # ==================================================
                 st.subheader("🗑️ Excluir Movimentação")
+
+                st.warning(
+                    "Atenção: excluir movimentação pode alterar a conferência do caixa."
+                )
 
                 if "id" in df.columns:
 
@@ -240,15 +296,32 @@ def tela_caixa():
                         df["id"].tolist()
                     )
 
+                    confirmar_exclusao = st.checkbox(
+                        "Confirmo que desejo excluir esta movimentação",
+                        key="confirmar_excluir_mov_caixa"
+                    )
+
                     if st.button("❌ Excluir Movimentação"):
 
-                        sucesso = excluir_movimentacao(movimentacao_id)
+                        if not confirmar_exclusao:
+                            st.warning(
+                                "Marque a confirmação antes de excluir."
+                            )
+                            return
+
+                        sucesso = excluir_movimentacao(
+                            movimentacao_id
+                        )
 
                         if sucesso:
-                            st.success("Movimentação excluída com sucesso!")
+                            st.success(
+                                "Movimentação excluída com sucesso!"
+                            )
                             st.rerun()
                         else:
-                            st.error("Erro ao excluir movimentação.")
+                            st.error(
+                                "Erro ao excluir movimentação."
+                            )
 
             else:
                 st.info("Nenhuma movimentação registrada.")
@@ -274,9 +347,23 @@ def tela_caixa():
             else:
                 st.success("Sem diferenças.")
 
+            confirmar_fechamento = st.checkbox(
+                "Confirmo o fechamento deste caixa",
+                key="confirmar_fechamento_caixa"
+            )
+
             if st.button("💾 Fechar Caixa"):
 
-                sucesso = fechar_caixa(caixa_id, float(valor_conferido))
+                if not confirmar_fechamento:
+                    st.warning(
+                        "Marque a confirmação antes de fechar o caixa."
+                    )
+                    return
+
+                sucesso = fechar_caixa(
+                    caixa_id,
+                    float(valor_conferido)
+                )
 
                 if sucesso:
                     st.success("Caixa fechado!")
@@ -298,20 +385,34 @@ def tela_caixa():
 
         else:
 
-            caixa_id = caixa[0] if isinstance(caixa, tuple) else caixa["id"]
+            caixa_id = obter_caixa_id(caixa)
 
             col1, col2 = st.columns(2)
 
             with col1:
-                tipo = st.selectbox("Tipo", ["entrada", "saida"])
+                tipo = st.selectbox(
+                    "Tipo",
+                    ["entrada", "saida"]
+                )
 
             with col2:
                 categoria = st.selectbox(
                     "Categoria",
-                    ["Venda", "Sangria", "Suprimento", "Pagamento", "Ajuste"]
+                    [
+                        "Venda",
+                        "Sangria",
+                        "Suprimento",
+                        "Pagamento",
+                        "Ajuste"
+                    ]
                 )
 
-            valor = st.number_input("Valor", min_value=0.0, format="%.2f")
+            valor = st.number_input(
+                "Valor",
+                min_value=0.0,
+                format="%.2f"
+            )
+
             descricao = st.text_input("Descrição")
 
             if st.button("💾 Registrar Movimentação"):
@@ -328,7 +429,8 @@ def tela_caixa():
                             descricao=tratar_texto(descricao),
                             categoria=categoria,
                             data_movimentacao=datetime.now(),
-                            origem="CAIXA"
+                            origem="CAIXA",
+                            meio="CAIXA"
                         )
 
                         if sucesso:
@@ -346,44 +448,38 @@ def tela_caixa():
     with abas[2]:
 
         st.subheader("📋 Consulta Caixa")
-    
+
         caixa = verificar_caixa_aberto()
-    
+
         if caixa is None:
-    
             st.info("Nenhum caixa aberto para consulta.")
-    
+
         else:
-    
-            caixa_id = (
-                caixa[0]
-                if isinstance(caixa, tuple)
-                else caixa["id"]
-            )
-    
+
+            caixa_id = obter_caixa_id(caixa)
+
             busca = st.text_input("🔎 Buscar movimentação")
-    
+
             df = obter_movimentacoes_caixa(caixa_id)
-    
+
             if df is None or df.empty:
-    
                 st.info("Nenhuma movimentação encontrada.")
-    
+
             else:
-    
+
                 df = df.fillna("")
-    
+
                 col1, col2 = st.columns(2)
-    
+
                 with col1:
                     filtro_tipo = st.selectbox(
                         "Tipo",
                         ["Todos", "entrada", "saida"]
                     )
-    
+
                 with col2:
                     filtro_data = st.date_input("Data")
-    
+
                 if busca and "descricao" in df.columns:
                     df = df[
                         df["descricao"]
@@ -394,7 +490,7 @@ def tela_caixa():
                             na=False
                         )
                     ]
-    
+
                 if filtro_tipo != "Todos":
                     df = df[
                         df["tipo"]
@@ -402,30 +498,30 @@ def tela_caixa():
                         .str.lower()
                         == filtro_tipo
                     ]
-    
+
                 coluna_data = identificar_coluna_data(df)
-    
+
                 if coluna_data:
-    
+
                     df[coluna_data] = pd.to_datetime(
                         df[coluna_data],
                         errors="coerce"
                     )
-    
+
                     df = df[
                         df[coluna_data]
                         .dt.date
                         == filtro_data
                     ]
-    
+
                 df = ordenar_dataframe(df)
-    
+
                 st.dataframe(
                     df,
                     use_container_width=True,
                     height=500
                 )
-    
+
     # ==================================================
     # ABA RELATÓRIO
     # ==================================================
@@ -438,4 +534,8 @@ def tela_caixa():
         if historico is None or historico.empty:
             st.warning("Nenhum histórico encontrado.")
         else:
-            st.dataframe(historico, use_container_width=True, height=500)
+            st.dataframe(
+                historico,
+                use_container_width=True,
+                height=500
+            )
