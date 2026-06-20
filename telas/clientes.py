@@ -10,6 +10,11 @@ from database.clientes_db import (
 )
 
 
+DATA_MINIMA = date(1900, 1, 1)
+DATA_MAXIMA = date.today()
+DATA_PADRAO = date(2000, 1, 1)
+
+
 def tela_clientes():
 
     abas = st.tabs([
@@ -50,7 +55,9 @@ def tela_clientes():
             if informar_aniversario:
                 data_nascimento = st.date_input(
                     "Data de nascimento",
-                    value=date(2000, 1, 1),
+                    value=DATA_PADRAO,
+                    min_value=DATA_MINIMA,
+                    max_value=DATA_MAXIMA,
                     format="DD/MM/YYYY"
                 )
 
@@ -123,26 +130,40 @@ def tela_clientes():
                 data_atual = cliente.get("data_nascimento", None)
 
                 if pd.isna(data_atual) or data_atual in ["", None]:
+
                     informar_aniversario = st.checkbox(
                         "Informar data de nascimento/aniversário",
                         value=False,
                         key="editar_informar_aniversario"
                     )
+
                     data_nascimento = None
 
                     if informar_aniversario:
                         data_nascimento = st.date_input(
                             "Data de nascimento",
-                            value=date(2000, 1, 1),
+                            value=DATA_PADRAO,
+                            min_value=DATA_MINIMA,
+                            max_value=DATA_MAXIMA,
                             format="DD/MM/YYYY",
                             key="editar_data_nascimento"
                         )
+
                 else:
+
                     data_nascimento = pd.to_datetime(data_atual).date()
+
+                    if data_nascimento < DATA_MINIMA:
+                        data_nascimento = DATA_MINIMA
+
+                    if data_nascimento > DATA_MAXIMA:
+                        data_nascimento = DATA_MAXIMA
 
                     data_nascimento = st.date_input(
                         "Data de nascimento",
                         value=data_nascimento,
+                        min_value=DATA_MINIMA,
+                        max_value=DATA_MAXIMA,
                         format="DD/MM/YYYY",
                         key="editar_data_nascimento"
                     )
