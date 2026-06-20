@@ -3,9 +3,12 @@ import pandas as pd
 
 from database.produto_db import (
     listar_produtos,
+    listar_produtos_sem_codigo,
     cadastrar_produto,
     atualizar_produto,
-    excluir_produto
+    atualizar_codigo_barras,
+    excluir_produto,
+    buscar_produto_por_codigo
 )
 
 from utils.precificacao import (
@@ -46,7 +49,8 @@ def tela_produtos():
     abas = st.tabs([
         "➕ Novo Produto",
         "📋 Produtos",
-        "✏️ Editar Produto"
+        "✏️ Editar Produto",
+        "🏷️ Código de Barras"
     ])
 
     # ==================================================
@@ -652,3 +656,84 @@ def tela_produtos():
                 )
 
                 st.rerun()
+
+    # ==================================================
+    # ATUALIZAR CÓDIGO DE BARRAS
+    # ==================================================
+    with abas[3]:
+
+        st.subheader("🏷️ Atualizar Código de Barras")
+
+        st.info(
+            "Use esta tela para atualizar rapidamente produtos sem código. "
+            "No celular, abra o ERP e use um leitor/teclado de código de barras. "
+            "Com leitor físico, clique no campo e leia o produto."
+        )
+
+        codigo_lido = st.text_input(
+            "📷 Ler / Digitar Código de Barras",
+            key="codigo_barras_rapido",
+            placeholder="Clique aqui e leia o código"
+        )
+
+        if codigo_lido:
+
+            codigo_lido = codigo_lido.strip()
+
+            produto_existente = buscar_produto_por_codigo(codigo_lido)
+
+            if produto_existente:
+                st.warning(
+                    f"Este código já está cadastrado no produto: "
+                    f"{produto_existente[1]}"
+                )
+
+        df_sem_codigo = listar_produtos_sem_codigo()
+
+        if df_sem_codigo.empty:
+
+            st.success(
+                "✅ Todos os produtos já possuem código de barras."
+            )
+
+        else:
+
+            st.markdown("### Produtos sem código")
+
+            produtos_map = {
+                f"{row['id']} - {row['nome']}": row["id"]
+                for _, row in df_sem_codigo.iterrows()
+            }
+
+            produto_escolhido = st.selectbox(
+                "Selecione o produto",
+                list(produtos_map.keys()),
+                key="produto_codigo_barras_select"
+            )
+
+            produto_id = produtos_map[produto_escolhido]
+
+            st.dataframe(
+                df_sem_codigo,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            if st.button(
+                "💾 Salvar Código neste Produto",
+                use_container_width=True,
+                key="btn_salvar_codigo_barras"
+            ):
+
+                if not codigo_lido:
+                    st.warning("Leia ou digite o código de barras.")
+
+                else:
+                    sucesso = atualizar_codigo_barras(
+                        produto_id,
+                        codigo_lido
+                    )
+
+                    if sucesso:
+                        st.success("✅ Código de barras atualizado com sucesso!")
+                        st.rerun()
