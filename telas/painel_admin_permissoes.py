@@ -26,15 +26,17 @@ def listar_usuarios():
             realizar_venda,
             cadastrar_cliente,
             ver_financeiro,
-            contas_pagar,
             configuracoes,
             usuarios,
             cadastrar_produto,
             ver_contas,
             ver_despesas,
+
             pode_movimentacoes,
             pode_fechamento_caixa,
-            pode_contas_receber_editar
+            pode_contas_pagar,
+            pode_contas_receber,
+            pode_financeiro
 
         FROM usuarios
 
@@ -42,7 +44,6 @@ def listar_usuarios():
     """)
 
     rows = cur.fetchall()
-
     cols = [desc[0] for desc in cur.description]
 
     cur.close()
@@ -73,14 +74,17 @@ def salvar_permissoes(user_id, dados):
                 realizar_venda = %s,
                 cadastrar_cliente = %s,
                 ver_financeiro = %s,
-                contas_pagar = %s,
                 configuracoes = %s,
                 usuarios = %s,
                 cadastrar_produto = %s,
                 ver_contas = %s,
                 ver_despesas = %s,
+
                 pode_movimentacoes = %s,
-                pode_fechamento_caixa = %s
+                pode_fechamento_caixa = %s,
+                pode_contas_pagar = %s,
+                pode_contas_receber = %s,
+                pode_financeiro = %s
             WHERE id = %s
         """, (
 
@@ -89,35 +93,33 @@ def salvar_permissoes(user_id, dados):
             dados["realizar_venda"],
             dados["cadastrar_cliente"],
             dados["ver_financeiro"],
-            dados["contas_pagar"],
             dados["configuracoes"],
             dados["usuarios"],
             dados["cadastrar_produto"],
             dados["ver_contas"],
             dados["ver_despesas"],
+
             dados["pode_movimentacoes"],
             dados["pode_fechamento_caixa"],
+            dados["pode_contas_pagar"],
+            dados["pode_contas_receber"],
+            dados["pode_financeiro"],
             user_id
 
         ))
 
         conn.commit()
-
         return True
 
     except Exception as erro:
-
-        print(
-            "Erro ao salvar permissões:",
-            erro
-        )
-
+        print("Erro ao salvar permissões:", erro)
+        conn.rollback()
         return False
 
     finally:
-
         cur.close()
         conn.close()
+
 
 # =====================================
 # TELA ADMIN
@@ -132,9 +134,6 @@ def tela_painel_permissoes():
         st.warning("Nenhum usuário encontrado.")
         return
 
-    # =====================================
-    # SELECT USUÁRIO
-    # =====================================
     lista_nomes = [
         f"{u['nome']} ({u['perfil']})"
         for u in usuarios
@@ -145,129 +144,103 @@ def tela_painel_permissoes():
         lista_nomes
     )
 
-    user = usuarios[
-        lista_nomes.index(selecionado)
-    ]
+    user = usuarios[lista_nomes.index(selecionado)]
 
     st.divider()
+    st.subheader(f"👤 {user['nome']}")
 
-    st.subheader(
-        f"👤 {user['nome']}"
-    )
-
-    # =====================================
-    # ADMIN / DIRETOR
-    # =====================================
-    perfil = str(
-        user["perfil"]
-    ).strip().lower()
+    perfil = str(user["perfil"]).strip().lower()
 
     if perfil in ["admin", "diretor"]:
-
-        st.success(
-            "Este usuário possui acesso administrativo total."
-        )
-
-        st.info(
-            "Permissões administrativas não precisam ser editadas."
-        )
-
+        st.success("Este usuário possui acesso administrativo total.")
+        st.info("Permissões administrativas não precisam ser editadas.")
         return
 
     permissoes = {}
 
     col1, col2 = st.columns(2)
 
-    # =====================================
-    # COLUNA 1
-    # =====================================
     with col1:
 
         permissoes["abrir_caixa"] = st.checkbox(
             "Abrir Caixa",
-            value=bool(user["abrir_caixa"])
+            value=bool(user.get("abrir_caixa", False))
         )
 
         permissoes["fechar_caixa"] = st.checkbox(
             "Fechar Caixa",
-            value=bool(user["fechar_caixa"])
+            value=bool(user.get("fechar_caixa", False))
         )
 
         permissoes["realizar_venda"] = st.checkbox(
             "Realizar Venda",
-            value=bool(user["realizar_venda"])
+            value=bool(user.get("realizar_venda", False))
         )
 
         permissoes["cadastrar_cliente"] = st.checkbox(
             "Cadastrar Cliente",
-            value=bool(user["cadastrar_cliente"])
+            value=bool(user.get("cadastrar_cliente", False))
         )
 
         permissoes["cadastrar_produto"] = st.checkbox(
             "Cadastrar Produto",
-            value=bool(user["cadastrar_produto"])
+            value=bool(user.get("cadastrar_produto", False))
         )
 
         permissoes["ver_contas"] = st.checkbox(
             "Ver Contas",
-            value=bool(user["ver_contas"])
-        )
-
-    # =====================================
-    # COLUNA 2
-    # =====================================
-    with col2:
-
-        permissoes["ver_financeiro"] = st.checkbox(
-            "Ver Financeiro",
-            value=bool(user["ver_financeiro"])
-        )
-
-        permissoes["contas_pagar"] = st.checkbox(
-            "Contas a Pagar",
-            value=bool(user["contas_pagar"])
-        )
-
-        permissoes["configuracoes"] = st.checkbox(
-            "Configurações",
-            value=bool(user["configuracoes"])
-        )
-
-        permissoes["usuarios"] = st.checkbox(
-            "Usuários",
-            value=bool(user["usuarios"])
-        )
-
-        permissoes["ver_despesas"] = st.checkbox(
-            "Ver Despesas",
-            value=bool(user["ver_despesas"])
+            value=bool(user.get("ver_contas", False))
         )
 
         permissoes["pode_movimentacoes"] = st.checkbox(
             "Movimentações",
-            value=bool(user["pode_movimentacoes"])
+            value=bool(user.get("pode_movimentacoes", False))
+        )
+
+    with col2:
+
+        permissoes["ver_financeiro"] = st.checkbox(
+            "Ver Financeiro",
+            value=bool(user.get("ver_financeiro", False))
+        )
+
+        permissoes["pode_financeiro"] = st.checkbox(
+            "Contas Bancárias / Fluxo de Caixa",
+            value=bool(user.get("pode_financeiro", False))
+        )
+
+        permissoes["pode_contas_pagar"] = st.checkbox(
+            "Contas a Pagar",
+            value=bool(user.get("pode_contas_pagar", False))
+        )
+
+        permissoes["pode_contas_receber"] = st.checkbox(
+            "Contas a Receber",
+            value=bool(user.get("pode_contas_receber", False))
         )
 
         permissoes["pode_fechamento_caixa"] = st.checkbox(
             "Fechamento de Caixa",
-            value=bool(user["pode_fechamento_caixa"])
+            value=bool(user.get("pode_fechamento_caixa", False))
         )
 
-        permissoes["pode_contas_receber_editar"] = st.checkbox(
-            "Contas a Receber",
-            value=bool(
-                user.get(
-                    "pode_contas_receber_editar",
-                    False
-                )
-            )
+        permissoes["configuracoes"] = st.checkbox(
+            "Configurações",
+            value=bool(user.get("configuracoes", False))
+        )
+
+        permissoes["usuarios"] = st.checkbox(
+            "Usuários",
+            value=bool(user.get("usuarios", False))
+        )
+
+        permissoes["ver_despesas"] = st.checkbox(
+            "Ver Despesas",
+            value=bool(user.get("ver_despesas", False))
         )
 
     st.divider()
 
-    # =====================================
-    # SALVAR
-    # =====================================
     if st.button(
         "💾 Salvar Permissões",
         use_container_width=True
@@ -279,15 +252,9 @@ def tela_painel_permissoes():
         )
 
         if sucesso:
-
-            st.success(
-                "✅ Permissões atualizadas com sucesso!"
-            )
-
+            st.success("✅ Permissões atualizadas com sucesso!")
+            st.info("Peça para o usuário sair e entrar novamente no sistema.")
             st.rerun()
 
         else:
-
-            st.error(
-                "❌ Erro ao salvar permissões."
-            )
+            st.error("❌ Erro ao salvar permissões.")
