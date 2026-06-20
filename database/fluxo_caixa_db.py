@@ -1,5 +1,62 @@
 import pandas as pd
 from database.connection import conectar
+from datetime import datetime
+
+# ==================================================
+# REGISTRAR FLUXO DE CAIXA
+# Compatibilidade com services/finance_service.py
+# ==================================================
+def registrar_fluxo_caixa(
+    tipo,
+    valor,
+    descricao,
+    origem=None,
+    categoria_id=None,
+    data_lancamento=None,
+    **kwargs
+):
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+        if data_lancamento is None:
+            data_lancamento = datetime.now()
+
+        cursor.execute("""
+            INSERT INTO fluxo_caixa (
+                tipo,
+                valor,
+                descricao,
+                origem,
+                categoria_id,
+                data_lancamento
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            tipo,
+            float(valor),
+            descricao,
+            origem,
+            categoria_id,
+            data_lancamento
+        ))
+
+        conn.commit()
+        return True
+
+    except Exception as erro:
+        print("Erro ao registrar fluxo de caixa:", erro)
+        conn.rollback()
+        return False
+
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # ==================================================
