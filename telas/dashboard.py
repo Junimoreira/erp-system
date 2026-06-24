@@ -15,6 +15,31 @@ from database.dashboard_db import (
 )
 
 
+def valor_float(valor):
+    try:
+        if valor is None:
+            return 0.0
+        return float(valor)
+    except Exception:
+        return 0.0
+
+
+def valor_int(valor):
+    try:
+        if valor is None:
+            return 0
+        return int(valor)
+    except Exception:
+        return 0
+
+
+def formatar_data(valor):
+    try:
+        return valor.strftime("%d/%m/%Y")
+    except Exception:
+        return str(valor)
+
+
 def tela_dashboard():
 
     st.title("📊 Dashboard Financeiro")
@@ -22,28 +47,31 @@ def tela_dashboard():
     try:
         dados = obter_dashboard_mensal()
 
-        vendido = float(total_vendido_mes() or 0)
-        despesas_fixas = float(total_despesas_fixas_mes() or 0)
-        despesas_variaveis = float(total_despesas_variaveis_mes() or 0)
-        meta = float(calcular_meta_mes() or 0)
-        falta = float(calcular_falta_meta() or 0)
-        percentual = float(percentual_meta() or 0)
-        lucro = float(lucro_estimado() or 0)
+        if dados is None:
+            dados = {}
+
+        vendido = valor_float(total_vendido_mes())
+        despesas_fixas = valor_float(total_despesas_fixas_mes())
+        despesas_variaveis = valor_float(total_despesas_variaveis_mes())
+        meta = valor_float(calcular_meta_mes())
+        falta = valor_float(calcular_falta_meta())
+        percentual = valor_float(percentual_meta())
+        lucro = valor_float(lucro_estimado())
 
     except Exception as erro:
         st.error(f"Erro ao carregar dashboard: {erro}")
         return
 
-    vendas_mes = float(dados.get("vendas_mes", 0) or 0)
-    receber_mes = float(dados.get("receber_mes", 0) or 0)
-    pagar_mes = float(dados.get("pagar_mes", 0) or 0)
-    pagar_pendente_mes = float(dados.get("pagar_pendente_mes", 0) or 0)
-    caixa_atual = float(dados.get("caixa_atual", 0) or 0)
+    vendas_mes = valor_float(dados.get("vendas_mes", 0))
+    receber_mes = valor_float(dados.get("receber_mes", 0))
+    pagar_mes = valor_float(dados.get("pagar_mes", 0))
+    pagar_pendente_mes = valor_float(dados.get("pagar_pendente_mes", 0))
+    caixa_atual = valor_float(dados.get("caixa_atual", 0))
 
-    clientes = int(dados.get("clientes", 0) or 0)
-    fornecedores = int(dados.get("fornecedores", 0) or 0)
-    produtos = int(dados.get("produtos", 0) or 0)
-    estoque_baixo = int(dados.get("estoque_baixo", 0) or 0)
+    clientes = valor_int(dados.get("clientes", 0))
+    fornecedores = valor_int(dados.get("fornecedores", 0))
+    produtos = valor_int(dados.get("produtos", 0))
+    estoque_baixo = valor_int(dados.get("estoque_baixo", 0))
 
     st.subheader("💰 Resumo do Mês")
 
@@ -105,37 +133,47 @@ def tela_dashboard():
 
     st.subheader("🚨 Alertas Financeiros")
 
-    alertas = obter_alertas_financeiros()
+    try:
+        alertas = obter_alertas_financeiros()
 
-    if alertas["vencidas"]:
-        st.error(f"Existem {len(alertas['vencidas'])} contas vencidas.")
+        if alertas is None:
+            alertas = {}
 
-        for descricao, valor, vencimento in alertas["vencidas"]:
+        vencidas = alertas.get("vencidas", [])
+        hoje = alertas.get("hoje", [])
+        proximas = alertas.get("proximas", [])
+
+    except Exception as erro:
+        st.error(f"Erro ao carregar alertas financeiros: {erro}")
+        vencidas = []
+        hoje = []
+        proximas = []
+
+    if vencidas:
+        st.error(f"Existem {len(vencidas)} contas vencidas.")
+
+        for descricao, valor, vencimento in vencidas:
             st.write(
-                f"🔴 {descricao} | R$ {float(valor):,.2f} | {vencimento:%d/%m/%Y}"
+                f"🔴 {descricao} | R$ {valor_float(valor):,.2f} | {formatar_data(vencimento)}"
             )
 
-    if alertas["hoje"]:
-        st.warning(f"Existem {len(alertas['hoje'])} contas vencendo hoje.")
+    if hoje:
+        st.warning(f"Existem {len(hoje)} contas vencendo hoje.")
 
-        for descricao, valor, vencimento in alertas["hoje"]:
+        for descricao, valor, vencimento in hoje:
             st.write(
-                f"🟠 {descricao} | R$ {float(valor):,.2f}"
+                f"🟠 {descricao} | R$ {valor_float(valor):,.2f} | {formatar_data(vencimento)}"
             )
 
-    if alertas["proximas"]:
-        st.info(f"Existem {len(alertas['proximas'])} contas vencendo nos próximos 7 dias.")
+    if proximas:
+        st.info(f"Existem {len(proximas)} contas vencendo nos próximos 7 dias.")
 
-        for descricao, valor, vencimento in alertas["proximas"]:
+        for descricao, valor, vencimento in proximas:
             st.write(
-                f"🟢 {descricao} | R$ {float(valor):,.2f} | {vencimento:%d/%m/%Y}"
+                f"🟢 {descricao} | R$ {valor_float(valor):,.2f} | {formatar_data(vencimento)}"
             )
 
-    if (
-        not alertas["vencidas"]
-        and not alertas["hoje"]
-        and not alertas["proximas"]
-    ):
+    if not vencidas and not hoje and not proximas:
         st.success("Nenhuma conta vencida ou próxima do vencimento.")
 
     with st.expander("🔍 Debug Dashboard"):

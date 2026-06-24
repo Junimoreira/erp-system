@@ -114,6 +114,55 @@ def obter_caixa_aberto_id(conn_externa=None):
             conn.close()
 
 
+def calcular_saldo_caixa(cursor, caixa_id):
+
+    try:
+        cursor.execute("""
+            SELECT COALESCE(saldo_inicial, 0)
+            FROM caixa
+            WHERE id = %s
+        """, (caixa_id,))
+
+        resultado = cursor.fetchone()
+
+        if not resultado:
+            return 0.0
+
+        saldo_inicial = float(resultado[0] or 0)
+
+        cursor.execute("""
+            SELECT
+                COALESCE(SUM(
+                    CASE
+                        WHEN LOWER(tipo) = 'entrada'
+                        THEN valor
+                        ELSE 0
+                    END
+                ), 0) AS entradas,
+
+                COALESCE(SUM(
+                    CASE
+                        WHEN LOWER(tipo) = 'saida'
+                        THEN valor
+                        ELSE 0
+                    END
+                ), 0) AS saidas
+            FROM movimentacoes
+            WHERE caixa_id = %s
+        """, (caixa_id,))
+
+        resumo = cursor.fetchone()
+
+        entradas = float(resumo[0] or 0)
+        saidas = float(resumo[1] or 0)
+
+        return saldo_inicial + entradas - saidas
+
+    except Exception as erro:
+        print("Erro calcular_saldo_caixa:", erro)
+        return 0.0
+
+
 def fechar_caixa(caixa_id, valor_conferido, saldo_final=None):
 
     conn = conectar()
@@ -124,14 +173,7 @@ def fechar_caixa(caixa_id, valor_conferido, saldo_final=None):
 
     try:
         if saldo_final is None:
-            cursor.execute("""
-                SELECT COALESCE(saldo_final, saldo_inicial, 0)
-                FROM caixa
-                WHERE id = %s
-            """, (caixa_id,))
-
-            resultado = cursor.fetchone()
-            saldo_final = resultado[0] if resultado else 0
+            saldo_final = calcular_saldo_caixa(cursor, caixa_id)
 
         diferenca = float(valor_conferido) - float(saldo_final)
 
@@ -180,7 +222,8 @@ def listar_historico_caixa():
                 saldo_inicial,
                 status,
                 valor_conferido,
-                saldo_final
+                saldo_final,
+                diferenca
             FROM caixa
             ORDER BY id DESC
         """, conn)
@@ -197,24 +240,16 @@ def saldo_caixa_atual(caixa_id):
 
     conn = conectar()
     if conn is None:
-        return 0
+        return 0.0
 
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
-            SELECT COALESCE(saldo_final, saldo_inicial, 0)
-            FROM caixa
-            WHERE id = %s
-        """, (caixa_id,))
-
-        resultado = cursor.fetchone()
-
-        return resultado[0] if resultado else 0
+        return calcular_saldo_caixa(cursor, caixa_id)
 
     except Exception as erro:
         print("Erro saldo_caixa_atual:", erro)
-        return 0
+        return 0.0
 
     finally:
         cursor.close()

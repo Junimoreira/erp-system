@@ -229,9 +229,11 @@ def tela_caixa():
                 resumo.get("saidas", 0)
             )
 
-            saldo_atual = valor_seguro(
-                saldo_caixa_atual(caixa_id)
-            )
+            # ==================================================
+            # SALDO ATUAL CORRETO
+            # Saldo Atual = Saldo Inicial + Entradas - Saídas
+            # ==================================================
+            saldo_atual = saldo_inicial + entradas - saidas
 
             st.success("🟢 Caixa Aberto")
 
