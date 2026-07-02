@@ -24,6 +24,11 @@ from database.compras_db import (
 
 from database.produto_db import listar_produtos
 
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda
+)
+
 
 def buscar_fornecedores():
 
@@ -250,7 +255,7 @@ def tela_compras():
                     subtotal = quantidade * custo
                     total_compra += subtotal
 
-                    st.info(f"Subtotal: R$ {subtotal:,.2f}")
+                    st.info(f"Subtotal: {formatar_moeda(subtotal)}")
 
                     produtos_compra.append({
                         "produto_id": int(produto_row["id"]),
@@ -262,7 +267,7 @@ def tela_compras():
 
                 st.metric(
                     "💰 Total da Compra",
-                    f"R$ {total_compra:,.2f}"
+                    formatar_moeda(total_compra)
                 )
 
                 observacoes = st.text_area("Observações")
@@ -325,7 +330,7 @@ def tela_compras():
                 with col_c:
                     st.metric(
                         "Total da NF-e",
-                        f"R$ {float(dados_xml['valor_total']):,.2f}"
+                        formatar_moeda(dados_xml["valor_total"])
                     )
 
                 st.markdown("### 🏢 Fornecedor")
@@ -352,8 +357,14 @@ def tela_compras():
                 if df_previa.empty:
                     st.warning("Não foi possível gerar a prévia de conversão.")
                 else:
-                    st.dataframe(
+                    df_previa_exibicao = formatar_dataframe_brasil(
                         df_previa,
+                        com_hora=False,
+                        moedas=True
+                    )
+
+                    st.dataframe(
+                        df_previa_exibicao,
                         use_container_width=True,
                         hide_index=True
                     )
@@ -433,7 +444,7 @@ def tela_compras():
                         with col3:
                             st.metric(
                                 "Valor Total",
-                                f"R$ {float(resultado.get('valor_total', 0)):,.2f}"
+                                formatar_moeda(resultado.get("valor_total", 0))
                             )
 
                         col4, col5, col6 = st.columns(3)
@@ -468,8 +479,14 @@ def tela_compras():
                         if itens_convertidos:
                             st.markdown("### 🔁 Itens Convertidos")
 
-                            st.dataframe(
+                            itens_convertidos_df = formatar_dataframe_brasil(
                                 pd.DataFrame(itens_convertidos),
+                                com_hora=False,
+                                moedas=True
+                            )
+
+                            st.dataframe(
+                                itens_convertidos_df,
                                 use_container_width=True,
                                 hide_index=True
                             )
@@ -544,8 +561,14 @@ def tela_compras():
                     )
                 ]
 
-            st.dataframe(
+            compras_exibicao = formatar_dataframe_brasil(
                 compras,
+                com_hora=True,
+                moedas=True
+            )
+
+            st.dataframe(
+                compras_exibicao,
                 use_container_width=True,
                 height=400
             )
@@ -565,8 +588,14 @@ def tela_compras():
 
                 st.markdown("### 📦 Itens da Compra")
 
-                st.dataframe(
+                itens_exibicao = formatar_dataframe_brasil(
                     itens,
+                    com_hora=False,
+                    moedas=True
+                )
+
+                st.dataframe(
+                    itens_exibicao,
                     use_container_width=True
                 )
 
@@ -581,7 +610,7 @@ def tela_compras():
 
         else:
             compras_map = {
-                f"{row['id']} | {row['fornecedor']} | R$ {float(row['valor_total']):,.2f}": row["id"]
+                f"{row['id']} | {row['fornecedor']} | {formatar_moeda(row['valor_total'])}": row["id"]
                 for _, row in compras.iterrows()
             }
 

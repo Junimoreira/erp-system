@@ -16,10 +16,12 @@ from utils.precificacao import (
     buscar_margem_padrao
 )
 
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda
+)
 
-# ==================================================
-# TRATAMENTO DE VALORES NULOS
-# ==================================================
+
 def tratar_texto(valor):
 
     if pd.isna(valor):
@@ -28,9 +30,6 @@ def tratar_texto(valor):
     return str(valor).strip()
 
 
-# ==================================================
-# NORMALIZAR CAMPOS
-# ==================================================
 def normalizar_campo(valor):
 
     valor = tratar_texto(valor)
@@ -41,9 +40,6 @@ def normalizar_campo(valor):
     return valor
 
 
-# ==================================================
-# TELA PRODUTOS
-# ==================================================
 def tela_produtos():
 
     abas = st.tabs([
@@ -53,13 +49,9 @@ def tela_produtos():
         "🏷️ Código de Barras"
     ])
 
-    # ==================================================
-    # NOVO PRODUTO
-    # ==================================================
     with abas[0]:
 
         st.subheader("📦 Cadastro de Produto")
-
         st.markdown("## 📦 Dados Básicos")
 
         col1, col2 = st.columns(2)
@@ -120,10 +112,6 @@ def tela_produtos():
             )
 
         st.divider()
-
-        # ==================================================
-        # FINANCEIRO
-        # ==================================================
         st.markdown("## 💰 Financeiro")
 
         col3, col4, col5 = st.columns(3)
@@ -191,9 +179,7 @@ def tela_produtos():
 
         with col5:
 
-            st.info(
-                "💡 Preço calculado automaticamente."
-            )
+            st.info("💡 Preço calculado automaticamente.")
 
             preco = st.number_input(
                 "Preço Venda",
@@ -206,19 +192,15 @@ def tela_produtos():
 
             st.metric(
                 "Preço Automático",
-                f"R$ {preco_automatico:,.2f}"
+                formatar_moeda(preco_automatico)
             )
 
             st.metric(
                 "Lucro Estimado",
-                f"R$ {lucro_estimado:,.2f}"
+                formatar_moeda(lucro_estimado)
             )
 
         st.divider()
-
-        # ==================================================
-        # ESTOQUE
-        # ==================================================
         st.markdown("## 📦 Estoque")
 
         col6, col7 = st.columns(2)
@@ -261,9 +243,6 @@ def tela_produtos():
 
         st.divider()
 
-        # ==================================================
-        # SALVAR PRODUTO
-        # ==================================================
         if st.button(
             "💾 Salvar Produto",
             use_container_width=True,
@@ -272,9 +251,7 @@ def tela_produtos():
 
             if not nome.strip():
 
-                st.warning(
-                    "Informe o nome do produto."
-                )
+                st.warning("Informe o nome do produto.")
 
             else:
 
@@ -310,15 +287,9 @@ def tela_produtos():
                     observacoes=observacoes
                 )
 
-                st.success(
-                    "✅ Produto cadastrado com sucesso!"
-                )
-
+                st.success("✅ Produto cadastrado com sucesso!")
                 st.rerun()
 
-    # ==================================================
-    # LISTAGEM
-    # ==================================================
     with abas[1]:
 
         st.subheader("📋 Produtos")
@@ -332,9 +303,7 @@ def tela_produtos():
 
         if df.empty:
 
-            st.info(
-                "Nenhum produto cadastrado."
-            )
+            st.info("Nenhum produto cadastrado.")
 
         else:
 
@@ -350,15 +319,18 @@ def tela_produtos():
                     )
                 ]
 
-            st.dataframe(
+            df_exibicao = formatar_dataframe_brasil(
                 df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
                 use_container_width=True,
                 height=500
             )
 
-    # ==================================================
-    # EDITAR PRODUTO
-    # ==================================================
     with abas[2]:
 
         st.subheader("✏️ Editar Produto")
@@ -367,9 +339,7 @@ def tela_produtos():
 
         if df.empty:
 
-            st.info(
-                "Sem produtos cadastrados."
-            )
+            st.info("Sem produtos cadastrados.")
 
         else:
 
@@ -598,9 +568,6 @@ def tela_produtos():
                     key="btn_excluir_produto"
                 )
 
-            # ==================================================
-            # SALVAR
-            # ==================================================
             if salvar:
 
                 codigo_barras_edit = normalizar_campo(codigo_barras_edit)
@@ -636,30 +603,18 @@ def tela_produtos():
                     observacoes_edit
                 )
 
-                st.success(
-                    "✅ Produto atualizado com sucesso!"
-                )
-
+                st.success("✅ Produto atualizado com sucesso!")
                 st.rerun()
 
-            # ==================================================
-            # EXCLUIR
-            # ==================================================
             if excluir:
 
                 excluir_produto(
                     produto["id"]
                 )
 
-                st.success(
-                    "🗑️ Produto excluído com sucesso!"
-                )
-
+                st.success("🗑️ Produto excluído com sucesso!")
                 st.rerun()
 
-    # ==================================================
-    # ATUALIZAR CÓDIGO DE BARRAS
-    # ==================================================
     with abas[3]:
 
         st.subheader("🏷️ Atualizar Código de Barras")
@@ -713,8 +668,14 @@ def tela_produtos():
 
             produto_id = produtos_map[produto_escolhido]
 
-            st.dataframe(
+            df_sem_codigo_exibicao = formatar_dataframe_brasil(
                 df_sem_codigo,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_sem_codigo_exibicao,
                 use_container_width=True,
                 hide_index=True
             )

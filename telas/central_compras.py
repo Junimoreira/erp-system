@@ -15,6 +15,11 @@ from database.inteligencia_estoque_db import (
     listar_inteligencia_estoque
 )
 
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda
+)
+
 
 def tela_central_compras():
 
@@ -27,7 +32,7 @@ def tela_central_compras():
 
     st.metric(
         "Valor total em produtos parados/estocados",
-        f"R$ {capital:,.2f}"
+        formatar_moeda(capital)
     )
 
     st.divider()
@@ -68,8 +73,14 @@ def tela_central_compras():
         if df.empty:
             st.info("Nenhum dado calculado ainda. Clique em Recalcular Inteligência.")
         else:
-            st.dataframe(
+            df_exibicao = formatar_dataframe_brasil(
                 df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
                 use_container_width=True,
                 height=500
             )
@@ -89,7 +100,18 @@ def tela_central_compras():
             st.success("Nenhum produto parado nesse período.")
         else:
             st.warning(f"{len(df)} produto(s) parado(s) há {dias} dias ou mais.")
-            st.dataframe(df, use_container_width=True, height=450)
+
+            df_exibicao = formatar_dataframe_brasil(
+                df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
+                use_container_width=True,
+                height=450
+            )
 
     with abas[2]:
         st.subheader("📢 Sugestões de Promoção")
@@ -109,8 +131,14 @@ def tela_central_compras():
                 f"{len(df)} produto(s) precisam de atenção comercial."
             )
 
-            st.dataframe(
+            df_exibicao = formatar_dataframe_brasil(
                 df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
                 use_container_width=True,
                 height=450
             )
@@ -127,7 +155,17 @@ def tela_central_compras():
         if df.empty:
             st.info("Nenhuma venda encontrada.")
         else:
-            st.dataframe(df, use_container_width=True, height=450)
+            df_exibicao = formatar_dataframe_brasil(
+                df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
+                use_container_width=True,
+                height=450
+            )
 
     with abas[4]:
         st.subheader("🐢 Produtos com Menor Giro")
@@ -137,7 +175,17 @@ def tela_central_compras():
         if df.empty:
             st.info("Nenhum produto encontrado.")
         else:
-            st.dataframe(df, use_container_width=True, height=450)
+            df_exibicao = formatar_dataframe_brasil(
+                df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
+                use_container_width=True,
+                height=450
+            )
 
     with abas[5]:
         st.subheader("📈 Histórico de Custos")
@@ -147,4 +195,14 @@ def tela_central_compras():
         if df.empty:
             st.info("Nenhum histórico de custo encontrado.")
         else:
-            st.dataframe(df, use_container_width=True, height=450)
+            df_exibicao = formatar_dataframe_brasil(
+                df,
+                com_hora=True,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
+                use_container_width=True,
+                height=450
+            )

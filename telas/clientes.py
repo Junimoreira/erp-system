@@ -9,6 +9,8 @@ from database.clientes_db import (
     excluir_cliente
 )
 
+from utils.formatacao import formatar_dataframe_brasil
+
 
 DATA_MINIMA = date(1900, 1, 1)
 DATA_MAXIMA = date.today()
@@ -33,7 +35,13 @@ def tela_clientes():
         if df.empty:
             st.info("Nenhum cliente cadastrado.")
         else:
-            st.dataframe(df, use_container_width=True)
+            df_exibicao = formatar_dataframe_brasil(
+                df,
+                com_hora=False,
+                moedas=False
+            )
+
+            st.dataframe(df_exibicao, use_container_width=True)
 
     with abas[1]:
 

@@ -10,6 +10,11 @@ from database.contas_pagar_db import (
 )
 
 from database.contas_bancarias import listar_contas as listar_bancos
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda,
+    formatar_data
+)
 
 
 CATEGORIAS_DESPESA = [
@@ -54,10 +59,17 @@ def tela_contas_pagar():
     df_bancos = listar_bancos()
 
     if df.empty:
-        st.info("Nenhuma conta cadastrada.")
+        st.info("Nenhuma conta pendente cadastrada.")
     else:
-        st.subheader("📋 Contas cadastradas")
-        st.dataframe(df, use_container_width=True)
+        st.subheader("📋 Contas pendentes")
+
+        df_exibicao = formatar_dataframe_brasil(
+            df,
+            com_hora=False,
+            moedas=True
+        )
+
+        st.dataframe(df_exibicao, use_container_width=True)
 
     st.divider()
 
@@ -80,8 +92,8 @@ def tela_contas_pagar():
             contas_pendentes["opcao"] = contas_pendentes.apply(
                 lambda row: (
                     f'{row["id"]} - {row["descricao"]} | '
-                    f'R$ {float(row["valor"]):,.2f} | '
-                    f'Venc: {row["vencimento"]}'
+                    f'{formatar_moeda(row["valor"])} | '
+                    f'Venc: {formatar_data(row["vencimento"])}'
                 ),
                 axis=1
             )
@@ -102,17 +114,23 @@ def tela_contas_pagar():
 
             col1.metric(
                 "Valor",
-                f"R$ {float(conta_selecionada['valor']):,.2f}"
+                formatar_moeda(conta_selecionada["valor"])
             )
 
             col2.metric(
                 "Vencimento",
-                str(conta_selecionada["vencimento"])
+                formatar_data(conta_selecionada["vencimento"])
             )
 
             col3.metric(
                 "Status",
                 str(conta_selecionada["status"])
+            )
+
+            data_pagamento = st.date_input(
+                "Data real do pagamento",
+                value=pd.Timestamp.today().date(),
+                key="data_pagamento_conta_pagar"
             )
 
             origem_financeira = st.selectbox(
@@ -159,7 +177,7 @@ def tela_contas_pagar():
                             f'{row["id"]} - {row["banco"]} | '
                             f'Ag: {row["agencia"]} | '
                             f'Conta: {row["conta"]} | '
-                            f'Saldo: R$ {float(row["saldo"]):,.2f}'
+                            f'Saldo: {formatar_moeda(row["saldo"])}'
                         ),
                         axis=1
                     )
@@ -204,7 +222,8 @@ def tela_contas_pagar():
                 sucesso = pagar_conta(
                     conta_id=conta_pagar_id,
                     origem_financeira=origem_financeira,
-                    conta_bancaria_id=conta_bancaria_id
+                    conta_bancaria_id=conta_bancaria_id,
+                    data_pagamento=data_pagamento
                 )
 
                 if sucesso:

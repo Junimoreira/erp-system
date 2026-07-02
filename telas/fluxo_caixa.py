@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from datetime import date, timedelta
 
 from database.fluxo_caixa_db import (
@@ -9,44 +8,12 @@ from database.fluxo_caixa_db import (
     resumo_geral_fluxo
 )
 
-
-# ==================================================
-# FORMATAR MOEDA
-# ==================================================
-def moeda(valor):
-
-    try:
-        return f"R$ {float(valor):,.2f}"
-    except Exception:
-        return "R$ 0,00"
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda
+)
 
 
-# ==================================================
-# FORMATAR DATAFRAME
-# ==================================================
-def formatar_valores(df):
-
-    if df.empty:
-        return df
-
-    df_formatado = df.copy()
-
-    for coluna in ["valor", "total_receber", "total_pagar", "saldo_previsto", "saldo_acumulado"]:
-        if coluna in df_formatado.columns:
-            df_formatado[coluna] = df_formatado[coluna].apply(moeda)
-
-    if "mes" in df_formatado.columns:
-        df_formatado["mes"] = pd.to_datetime(df_formatado["mes"]).dt.strftime("%m/%Y")
-
-    if "vencimento" in df_formatado.columns:
-        df_formatado["vencimento"] = pd.to_datetime(df_formatado["vencimento"]).dt.strftime("%d/%m/%Y")
-
-    return df_formatado
-
-
-# ==================================================
-# TELA FLUXO DE CAIXA
-# ==================================================
 def tela_fluxo_caixa():
 
     st.title("📊 Fluxo de Caixa Previsto")
@@ -64,13 +31,15 @@ def tela_fluxo_caixa():
     with col_filtro1:
         data_inicio = st.date_input(
             "Data inicial",
-            value=hoje
+            value=hoje,
+            format="DD/MM/YYYY"
         )
 
     with col_filtro2:
         data_fim = st.date_input(
             "Data final",
-            value=data_padrao_fim
+            value=data_padrao_fim,
+            format="DD/MM/YYYY"
         )
 
     if data_fim < data_inicio:
@@ -85,29 +54,26 @@ def tela_fluxo_caixa():
     contas_pagar = listar_pagar_previsto(data_inicio, data_fim)
     contas_receber = listar_receber_previsto(data_inicio, data_fim)
 
-    # ==================================================
-    # CARDS
-    # ==================================================
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
         "📥 Total a Receber",
-        moeda(resumo_geral["total_receber"])
+        formatar_moeda(resumo_geral["total_receber"])
     )
 
     col2.metric(
         "📤 Total a Pagar",
-        moeda(resumo_geral["total_pagar"])
+        formatar_moeda(resumo_geral["total_pagar"])
     )
 
     col3.metric(
         "💰 Saldo Previsto",
-        moeda(resumo_geral["saldo_previsto"])
+        formatar_moeda(resumo_geral["saldo_previsto"])
     )
 
     col4.metric(
         "📊 Saldo Acumulado",
-        moeda(resumo_geral["saldo_acumulado"])
+        formatar_moeda(resumo_geral["saldo_acumulado"])
     )
 
     st.divider()
@@ -118,9 +84,6 @@ def tela_fluxo_caixa():
         "📤 A Pagar"
     ])
 
-    # ==================================================
-    # RESUMO MENSAL
-    # ==================================================
     with abas[0]:
 
         st.subheader("📅 Resumo Mensal Previsto")
@@ -129,8 +92,14 @@ def tela_fluxo_caixa():
             st.info("Nenhuma previsão encontrada para o período selecionado.")
 
         else:
+            resumo_exibicao = formatar_dataframe_brasil(
+                resumo_mensal,
+                com_hora=False,
+                moedas=True
+            )
+
             st.dataframe(
-                formatar_valores(resumo_mensal),
+                resumo_exibicao,
                 use_container_width=True,
                 hide_index=True
             )
@@ -143,9 +112,6 @@ def tela_fluxo_caixa():
                 resumo_mensal.set_index("mes")["saldo_acumulado"]
             )
 
-    # ==================================================
-    # CONTAS A RECEBER
-    # ==================================================
     with abas[1]:
 
         st.subheader("📥 Contas a Receber em Aberto")
@@ -154,15 +120,18 @@ def tela_fluxo_caixa():
             st.info("Nenhuma conta a receber em aberto no período.")
 
         else:
+            contas_receber_exibicao = formatar_dataframe_brasil(
+                contas_receber,
+                com_hora=False,
+                moedas=True
+            )
+
             st.dataframe(
-                formatar_valores(contas_receber),
+                contas_receber_exibicao,
                 use_container_width=True,
                 hide_index=True
             )
 
-    # ==================================================
-    # CONTAS A PAGAR
-    # ==================================================
     with abas[2]:
 
         st.subheader("📤 Contas a Pagar em Aberto")
@@ -171,8 +140,14 @@ def tela_fluxo_caixa():
             st.info("Nenhuma conta a pagar em aberto no período.")
 
         else:
+            contas_pagar_exibicao = formatar_dataframe_brasil(
+                contas_pagar,
+                com_hora=False,
+                moedas=True
+            )
+
             st.dataframe(
-                formatar_valores(contas_pagar),
+                contas_pagar_exibicao,
                 use_container_width=True,
                 hide_index=True
             )

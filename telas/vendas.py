@@ -14,10 +14,13 @@ from database.produto_db import buscar_produto_por_codigo
 from database.contas_bancarias import listar_contas as listar_bancos
 from database.caixa_db import verificar_caixa_aberto
 
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda,
+    formatar_data
+)
 
-# ==================================================
-# NORMALIZAR TEXTO
-# ==================================================
+
 def normalizar_forma(forma):
 
     texto = str(forma).upper().strip()
@@ -35,9 +38,6 @@ def normalizar_forma(forma):
     return texto
 
 
-# ==================================================
-# TELA DE VENDAS
-# ==================================================
 def tela_vendas():
 
     st.title("🛒 Vendas")
@@ -47,9 +47,6 @@ def tela_vendas():
         "📋 Histórico"
     ])
 
-    # ==================================================
-    # ABA NOVA VENDA
-    # ==================================================
     with abas[0]:
 
         clientes = listar_clientes()
@@ -137,8 +134,14 @@ def tela_vendas():
                 st.error("Nenhuma conta bancária cadastrada. Cadastre uma conta bancária antes de finalizar essa venda.")
             else:
                 df_bancos = df_bancos.copy()
+
                 df_bancos["opcao"] = df_bancos.apply(
-                    lambda row: f'{row["id"]} - {row["banco"]} | Ag: {row["agencia"]} | Conta: {row["conta"]} | Saldo: R$ {float(row["saldo"]):,.2f}',
+                    lambda row: (
+                        f'{row["id"]} - {row["banco"]} | '
+                        f'Ag: {row["agencia"]} | '
+                        f'Conta: {row["conta"]} | '
+                        f'Saldo: {formatar_moeda(row["saldo"])}'
+                    ),
                     axis=1
                 )
 
@@ -167,9 +170,6 @@ def tela_vendas():
 
         st.divider()
 
-        # ==================================================
-        # ADICIONAR PRODUTO
-        # ==================================================
         st.subheader("📦 Adicionar Produto")
 
         codigo = st.text_input(
@@ -231,13 +231,13 @@ def tela_vendas():
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric("Preço Unitário", f"R$ {preco:,.2f}")
+            st.metric("Preço Unitário", formatar_moeda(preco))
 
         with col2:
-            st.metric("Subtotal", f"R$ {subtotal:,.2f}")
+            st.metric("Subtotal", formatar_moeda(subtotal))
 
         with col3:
-            st.metric("Valor do Item", f"R$ {valor_item:,.2f}")
+            st.metric("Valor do Item", formatar_moeda(valor_item))
 
         if st.button("➕ Adicionar ao Carrinho", use_container_width=True):
 
@@ -258,9 +258,6 @@ def tela_vendas():
                 st.success("Produto adicionado ao carrinho.")
                 st.rerun()
 
-        # ==================================================
-        # CARRINHO
-        # ==================================================
         st.divider()
         st.subheader("🛒 Carrinho")
 
@@ -268,8 +265,14 @@ def tela_vendas():
 
             df = pd.DataFrame(st.session_state.carrinho)
 
-            st.dataframe(
+            df_exibicao = formatar_dataframe_brasil(
                 df,
+                com_hora=False,
+                moedas=True
+            )
+
+            st.dataframe(
+                df_exibicao,
                 use_container_width=True
             )
 
@@ -280,20 +283,20 @@ def tela_vendas():
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                st.info(f"Subtotal: R$ {total_bruto:,.2f}")
+                st.info(f"Subtotal: {formatar_moeda(total_bruto)}")
 
             with col2:
-                st.warning(f"Descontos: R$ {desconto_total:,.2f}")
+                st.warning(f"Descontos: {formatar_moeda(desconto_total)}")
 
             with col3:
-                st.success(f"Total: R$ {total_final:,.2f}")
+                st.success(f"Total: {formatar_moeda(total_final)}")
 
             if forma_normalizada in formas_parceladas:
 
                 valor_parcela = total_final / int(numero_parcelas)
 
                 st.info(
-                    f"💳 Parcelamento: {int(numero_parcelas)}x de R$ {valor_parcela:,.2f}"
+                    f"💳 Parcelamento: {int(numero_parcelas)}x de {formatar_moeda(valor_parcela)}"
                 )
 
             if st.button("🧹 Limpar Carrinho", use_container_width=True):
@@ -346,9 +349,6 @@ def tela_vendas():
         else:
             st.info("Carrinho vazio.")
 
-    # ==================================================
-    # ABA HISTÓRICO
-    # ==================================================
     with abas[1]:
 
         st.subheader("📋 Histórico de Vendas")
@@ -397,30 +397,14 @@ def tela_vendas():
                 df["cliente"].astype(str).str.lower().str.contains(pesquisa)
             ]
 
-        if not df.empty:
-
-            df["data_venda"] = df["data_venda"].dt.strftime(
-                "%d/%m/%Y %H:%M"
-            )
-
-            df["valor_unitario"] = df["valor_unitario"].map(
-                lambda x: f"R$ {float(x):,.2f}"
-            )
-
-            df["subtotal"] = df["subtotal"].map(
-                lambda x: f"R$ {float(x):,.2f}"
-            )
-
-            df["desconto"] = df["desconto"].map(
-                lambda x: f"R$ {float(x):,.2f}"
-            )
-
-            df["valor_final"] = df["valor_final"].map(
-                lambda x: f"R$ {float(x):,.2f}"
-            )
+        df_exibicao = formatar_dataframe_brasil(
+            df,
+            com_hora=True,
+            moedas=True
+        )
 
         st.dataframe(
-            df,
+            df_exibicao,
             use_container_width=True,
             hide_index=True
         )

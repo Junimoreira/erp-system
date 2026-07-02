@@ -14,6 +14,11 @@ from database.dashboard_db import (
     obter_alertas_financeiros
 )
 
+from utils.formatacao import (
+    formatar_moeda,
+    formatar_data
+)
+
 
 def valor_float(valor):
     try:
@@ -31,13 +36,6 @@ def valor_int(valor):
         return int(valor)
     except Exception:
         return 0
-
-
-def formatar_data(valor):
-    try:
-        return valor.strftime("%d/%m/%Y")
-    except Exception:
-        return str(valor)
 
 
 def tela_dashboard():
@@ -77,10 +75,10 @@ def tela_dashboard():
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("💵 Vendas do Mês", f"R$ {vendas_mes:,.2f}")
-    col2.metric("📥 A Receber no Mês", f"R$ {receber_mes:,.2f}")
-    col3.metric("📤 Obrigações do Mês", f"R$ {pagar_mes:,.2f}")
-    col4.metric("🏦 Caixa Atual", f"R$ {caixa_atual:,.2f}")
+    col1.metric("💵 Vendas do Mês", formatar_moeda(vendas_mes))
+    col2.metric("📥 A Receber no Mês", formatar_moeda(receber_mes))
+    col3.metric("📤 Obrigações do Mês", formatar_moeda(pagar_mes))
+    col4.metric("🏦 Caixa Atual", formatar_moeda(caixa_atual))
 
     st.divider()
 
@@ -88,10 +86,10 @@ def tela_dashboard():
 
     col5, col6, col7, col8 = st.columns(4)
 
-    col5.metric("🔒 Contas Fixas", f"R$ {despesas_fixas:,.2f}")
-    col6.metric("🔄 Contas Variáveis", f"R$ {despesas_variaveis:,.2f}")
-    col7.metric("⏳ Pendentes do Mês", f"R$ {pagar_pendente_mes:,.2f}")
-    col8.metric("🎯 Meta Mínima", f"R$ {meta:,.2f}")
+    col5.metric("🔒 Contas Fixas", formatar_moeda(despesas_fixas))
+    col6.metric("🔄 Contas Variáveis", formatar_moeda(despesas_variaveis))
+    col7.metric("⏳ Pendentes do Mês", formatar_moeda(pagar_pendente_mes))
+    col8.metric("🎯 Meta Mínima", formatar_moeda(meta))
 
     st.caption(
         "A meta mínima é calculada sobre as contas FIXAS do mês: Contas Fixas x 1,25."
@@ -103,18 +101,25 @@ def tela_dashboard():
 
     col9, col10, col11, col12 = st.columns(4)
 
-    col9.metric("📉 Falta para Meta", f"R$ {falta:,.2f}")
-    col10.metric("📊 Meta Atingida", f"{percentual:.2f}%")
-    col11.metric("📈 Resultado Estimado", f"R$ {lucro:,.2f}")
-    col12.metric("🧮 Total Despesas", f"R$ {(despesas_fixas + despesas_variaveis):,.2f}")
+    col9.metric("📉 Falta para Meta", formatar_moeda(falta))
+    col10.metric("📊 Meta Atingida", f"{percentual:.2f}%".replace(".", ","))
+    col11.metric("📈 Resultado Estimado", formatar_moeda(lucro))
+    col12.metric(
+        "🧮 Total Despesas",
+        formatar_moeda(despesas_fixas + despesas_variaveis)
+    )
 
     progresso = min(max(percentual / 100, 0), 1)
     st.progress(progresso)
 
     if lucro > 0:
-        st.success(f"Empresa projetando resultado positivo de R$ {lucro:,.2f} no mês.")
+        st.success(
+            f"Empresa projetando resultado positivo de {formatar_moeda(lucro)} no mês."
+        )
     elif lucro < 0:
-        st.error(f"Empresa projetando déficit de R$ {abs(lucro):,.2f} no mês.")
+        st.error(
+            f"Empresa projetando déficit de {formatar_moeda(abs(lucro))} no mês."
+        )
     else:
         st.warning("Resultado financeiro zerado até o momento.")
 
@@ -154,7 +159,7 @@ def tela_dashboard():
 
         for descricao, valor, vencimento in vencidas:
             st.write(
-                f"🔴 {descricao} | R$ {valor_float(valor):,.2f} | {formatar_data(vencimento)}"
+                f"🔴 {descricao} | {formatar_moeda(valor)} | {formatar_data(vencimento)}"
             )
 
     if hoje:
@@ -162,7 +167,7 @@ def tela_dashboard():
 
         for descricao, valor, vencimento in hoje:
             st.write(
-                f"🟠 {descricao} | R$ {valor_float(valor):,.2f} | {formatar_data(vencimento)}"
+                f"🟠 {descricao} | {formatar_moeda(valor)} | {formatar_data(vencimento)}"
             )
 
     if proximas:
@@ -170,7 +175,7 @@ def tela_dashboard():
 
         for descricao, valor, vencimento in proximas:
             st.write(
-                f"🟢 {descricao} | R$ {valor_float(valor):,.2f} | {formatar_data(vencimento)}"
+                f"🟢 {descricao} | {formatar_moeda(valor)} | {formatar_data(vencimento)}"
             )
 
     if not vencidas and not hoje and not proximas:

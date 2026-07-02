@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 import pandas as pd
 
 from database.connection import conectar
@@ -9,18 +9,26 @@ from database.finance_engine import (
 )
 
 
-# ==================================================
-# NORMALIZAR TEXTO
-# ==================================================
 def normalizar_texto(valor):
     if valor is None:
         return ""
     return str(valor).strip().upper()
 
 
-# ==================================================
-# LISTAR CONTAS A PAGAR - SOMENTE PENDENTES
-# ==================================================
+def normalizar_data_pagamento(data_pagamento=None):
+    if data_pagamento is None:
+        return datetime.now()
+
+    if isinstance(data_pagamento, datetime):
+        return data_pagamento
+
+    if isinstance(data_pagamento, date):
+        agora = datetime.now()
+        return datetime.combine(data_pagamento, agora.time())
+
+    return datetime.now()
+
+
 def listar_contas():
 
     conn = conectar()
@@ -58,9 +66,6 @@ def listar_contas():
         conn.close()
 
 
-# ==================================================
-# CADASTRAR CONTA A PAGAR
-# ==================================================
 def cadastrar_conta(
     descricao,
     valor,
@@ -117,9 +122,6 @@ def cadastrar_conta(
         conn.close()
 
 
-# ==================================================
-# ATUALIZAR CONTA A PAGAR
-# ==================================================
 def atualizar_conta(
     conta_id,
     descricao,
@@ -178,9 +180,6 @@ def atualizar_conta(
         conn.close()
 
 
-# ==================================================
-# BUSCAR PRIMEIRA CONTA BANCÁRIA
-# ==================================================
 def buscar_primeira_conta_bancaria(conn):
 
     cursor = conn.cursor()
@@ -201,14 +200,12 @@ def buscar_primeira_conta_bancaria(conn):
         cursor.close()
 
 
-# ==================================================
-# PAGAR / BAIXAR CONTA
-# ==================================================
 def pagar_conta(
     conta_id,
     origem_financeira="CAIXA",
     conta_bancaria_id=None,
-    usuario=None
+    usuario=None,
+    data_pagamento=None
 ):
 
     conn = conectar()
@@ -219,6 +216,8 @@ def pagar_conta(
     cursor = conn.cursor()
 
     try:
+        data_pagamento = normalizar_data_pagamento(data_pagamento)
+
         cursor.execute("""
             SELECT
                 valor,
@@ -242,9 +241,6 @@ def pagar_conta(
 
         origem_normalizada = normalizar_texto(origem_financeira)
 
-        # ==========================================
-        # PAGAMENTO EM DINHEIRO / CAIXA
-        # ==========================================
         if origem_normalizada in ["CAIXA", "DINHEIRO"]:
 
             sucesso = registrar_saida_caixa(
@@ -263,9 +259,6 @@ def pagar_conta(
 
             conta_bancaria_id = None
 
-        # ==========================================
-        # PAGAMENTO VIA BANCO
-        # ==========================================
         elif origem_normalizada in [
             "BANCO",
             "PIX",
@@ -305,6 +298,22 @@ def pagar_conta(
             raise Exception(f"Origem financeira inválida: {origem_financeira}")
 
         cursor.execute("""
+            UPDATE movimentacoes
+            SET data_movimentacao = %s
+            WHERE id = (
+                SELECT id
+                FROM movimentacoes
+                WHERE referencia_tipo = 'CONTAS_PAGAR'
+                  AND referencia_id = %s
+                ORDER BY id DESC
+                LIMIT 1
+            )
+        """, (
+            data_pagamento,
+            conta_id
+        ))
+
+        cursor.execute("""
             UPDATE contas_pagar
             SET
                 status = 'PAGO',
@@ -314,7 +323,7 @@ def pagar_conta(
                 conta_bancaria_id = %s
             WHERE id = %s
         """, (
-            datetime.now(),
+            data_pagamento,
             origem_financeira,
             origem_financeira,
             conta_bancaria_id,
@@ -334,9 +343,6 @@ def pagar_conta(
         conn.close()
 
 
-# ==================================================
-# EXCLUIR CONTA A PAGAR
-# ==================================================
 def excluir_conta(conta_id):
 
     conn = conectar()

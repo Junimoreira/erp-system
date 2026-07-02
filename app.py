@@ -279,14 +279,22 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-menu_topo = st.selectbox(
-    "Escolha a tela",
-    menu_opcoes,
-    index=menu_opcoes.index(st.session_state["menu_atual"]),
-    key="menu_topo_select",
-    label_visibility="collapsed"
-)
 
+col_menu, col_sair = st.columns([4, 1])
+
+with col_menu:
+    menu_topo = st.selectbox(
+        "Escolha a tela",
+        menu_opcoes,
+        index=menu_opcoes.index(st.session_state["menu_atual"]),
+        key="menu_topo_select",
+        label_visibility="collapsed"
+    )
+
+with col_sair:
+    if st.button("🚪 Sair", use_container_width=True, key="botao_sair_topo"):
+        st.session_state.clear()
+        st.rerun()
 if menu_topo != st.session_state["menu_atual"]:
     st.session_state["menu_atual"] = menu_topo
     st.rerun()

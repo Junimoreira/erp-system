@@ -15,48 +15,38 @@ from database.caixa_db import (
     abrir_caixa,
     fechar_caixa,
     verificar_caixa_aberto,
-    listar_historico_caixa,
-    saldo_caixa_atual
+    listar_historico_caixa
+)
+
+from utils.formatacao import (
+    formatar_dataframe_brasil,
+    formatar_moeda,
+    formatar_data
 )
 
 
-# ==================================================
-# VALOR SEGURO
-# ==================================================
 def valor_seguro(valor):
     try:
         if valor is None:
             return 0.0
-
         if pd.isna(valor):
             return 0.0
-
         return float(valor)
-
     except Exception:
         return 0.0
 
 
-# ==================================================
-# TRATAMENTO TEXTO
-# ==================================================
 def tratar_texto(valor):
     try:
         if valor is None:
             return ""
-
         if pd.isna(valor):
             return ""
-
         return str(valor).strip()
-
     except Exception:
         return ""
 
 
-# ==================================================
-# IDENTIFICA COLUNA DATA
-# ==================================================
 def identificar_coluna_data(df):
 
     if df is None or df.empty:
@@ -71,9 +61,6 @@ def identificar_coluna_data(df):
     return None
 
 
-# ==================================================
-# OBTER ID DO CAIXA
-# ==================================================
 def obter_caixa_id(caixa):
 
     if caixa is None:
@@ -85,9 +72,6 @@ def obter_caixa_id(caixa):
     return caixa.get("id")
 
 
-# ==================================================
-# OBTER SALDO INICIAL
-# ==================================================
 def obter_saldo_inicial(caixa):
 
     if caixa is None:
@@ -102,9 +86,6 @@ def obter_saldo_inicial(caixa):
     return valor_seguro(caixa.get("saldo_inicial", 0))
 
 
-# ==================================================
-# LISTAR MOVIMENTAÇÕES CAIXA
-# ==================================================
 def obter_movimentacoes_caixa(caixa_id):
 
     try:
@@ -123,9 +104,6 @@ def obter_movimentacoes_caixa(caixa_id):
         return pd.DataFrame()
 
 
-# ==================================================
-# ORDENAÇÃO SEGURA
-# ==================================================
 def ordenar_dataframe(df):
 
     try:
@@ -152,9 +130,6 @@ def ordenar_dataframe(df):
         return df
 
 
-# ==================================================
-# TELA CAIXA
-# ==================================================
 def tela_caixa():
 
     abas = st.tabs([
@@ -174,9 +149,6 @@ def tela_caixa():
         caixa = verificar_caixa_aberto()
         caixa_aberto = caixa is not None
 
-        # ==================================================
-        # SEM CAIXA
-        # ==================================================
         if not caixa_aberto:
 
             st.warning("🔓 Nenhum caixa aberto.")
@@ -211,9 +183,6 @@ def tela_caixa():
                 else:
                     st.error("Erro ao abrir caixa.")
 
-        # ==================================================
-        # CAIXA ABERTO
-        # ==================================================
         else:
 
             caixa_id = obter_caixa_id(caixa)
@@ -221,18 +190,8 @@ def tela_caixa():
 
             resumo = db_resumo_caixa(caixa_id)
 
-            entradas = valor_seguro(
-                resumo.get("entradas", 0)
-            )
-
-            saidas = valor_seguro(
-                resumo.get("saidas", 0)
-            )
-
-            # ==================================================
-            # SALDO ATUAL CORRETO
-            # Saldo Atual = Saldo Inicial + Entradas - Saídas
-            # ==================================================
+            entradas = valor_seguro(resumo.get("entradas", 0))
+            saidas = valor_seguro(resumo.get("saidas", 0))
             saldo_atual = saldo_inicial + entradas - saidas
 
             st.success("🟢 Caixa Aberto")
@@ -242,32 +201,29 @@ def tela_caixa():
             with col1:
                 st.metric(
                     "Saldo Inicial",
-                    f"R$ {saldo_inicial:,.2f}"
+                    formatar_moeda(saldo_inicial)
                 )
 
             with col2:
                 st.metric(
                     "Entradas",
-                    f"R$ {entradas:,.2f}"
+                    formatar_moeda(entradas)
                 )
 
             with col3:
                 st.metric(
                     "Saídas",
-                    f"R$ {saidas:,.2f}"
+                    formatar_moeda(saidas)
                 )
 
             with col4:
                 st.metric(
                     "Saldo Atual",
-                    f"R$ {saldo_atual:,.2f}"
+                    formatar_moeda(saldo_atual)
                 )
 
             st.divider()
 
-            # ==================================================
-            # MOVIMENTAÇÕES
-            # ==================================================
             st.subheader("📋 Últimas Movimentações")
 
             df = db_listar_movimentacoes_caixa(caixa_id)
@@ -277,8 +233,14 @@ def tela_caixa():
                 df = df.fillna("")
                 df = ordenar_dataframe(df)
 
-                st.dataframe(
+                df_exibicao = formatar_dataframe_brasil(
                     df,
+                    com_hora=True,
+                    moedas=True
+                )
+
+                st.dataframe(
+                    df_exibicao,
                     use_container_width=True,
                     height=300
                 )
@@ -330,9 +292,6 @@ def tela_caixa():
 
             st.divider()
 
-            # ==================================================
-            # FECHAR CAIXA
-            # ==================================================
             st.subheader("🔒 Fechar Caixa")
 
             valor_conferido = st.number_input(
@@ -345,7 +304,7 @@ def tela_caixa():
             diferenca = float(valor_conferido) - float(saldo_atual)
 
             if diferenca != 0:
-                st.warning(f"Diferença: R$ {diferenca:,.2f}")
+                st.warning(f"Diferença: {formatar_moeda(diferenca)}")
             else:
                 st.success("Sem diferenças.")
 
@@ -518,8 +477,14 @@ def tela_caixa():
 
                 df = ordenar_dataframe(df)
 
-                st.dataframe(
+                df_exibicao = formatar_dataframe_brasil(
                     df,
+                    com_hora=True,
+                    moedas=True
+                )
+
+                st.dataframe(
+                    df_exibicao,
                     use_container_width=True,
                     height=500
                 )
@@ -536,8 +501,14 @@ def tela_caixa():
         if historico is None or historico.empty:
             st.warning("Nenhum histórico encontrado.")
         else:
-            st.dataframe(
+            historico_exibicao = formatar_dataframe_brasil(
                 historico,
+                com_hora=True,
+                moedas=True
+            )
+
+            st.dataframe(
+                historico_exibicao,
                 use_container_width=True,
                 height=500
             )
