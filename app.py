@@ -60,46 +60,25 @@ carregar_css()
 st.markdown(
     """
     <style>
-        section[data-testid="stSidebar"] {
-            min-width: 280px !important;
-            max-width: 280px !important;
-        }
-
-        section[data-testid="stSidebar"] > div {
-            width: 280px !important;
-        }
-
-        section[data-testid="stSidebar"] .stButton {
-            width: 230px !important;
-            min-width: 230px !important;
-            max-width: 230px !important;
-        }
+        /* IMPORTANTE:
+           Não forçamos mais largura interna da sidebar.
+           Isso evita o sumiço da barra lateral no Render/Streamlit.
+        */
 
         section[data-testid="stSidebar"] button {
-            width: 230px !important;
-            min-width: 230px !important;
-            max-width: 230px !important;
-            height: 46px !important;
-
+            min-height: 44px !important;
             border-radius: 12px !important;
             border: 1px solid rgba(255,255,255,0.15) !important;
-
             background: rgba(255,255,255,0.08) !important;
-
             color: white !important;
             font-weight: 600 !important;
-
             text-align: left !important;
             justify-content: flex-start !important;
-
             padding-left: 14px !important;
             padding-right: 14px !important;
-
             margin-bottom: 6px !important;
-
             box-sizing: border-box !important;
-            overflow: hidden !important;
-            white-space: nowrap !important;
+            white-space: normal !important;
         }
 
         section[data-testid="stSidebar"] button:hover {
@@ -109,44 +88,25 @@ st.markdown(
         }
 
         .menu-ativo {
-            width: 230px;
-            min-width: 230px;
-            max-width: 230px;
-
-            height: 46px;
-
-            background: linear-gradient(
-                90deg,
-                #44D62C,
-                #008ACD
-            );
-
+            min-height: 44px;
+            background: linear-gradient(90deg, #44D62C, #008ACD);
             color: white;
             font-weight: 800;
-
             padding: 12px 14px;
-
             border-radius: 12px;
-
             margin-bottom: 8px;
-
             text-align: left;
-
             box-sizing: border-box;
-
-            overflow: hidden;
-            white-space: nowrap;
-
             display: flex;
             align-items: center;
+            white-space: normal;
         }
 
         section[data-testid="stSidebar"] h1 {
             font-size: 22px !important;
-            white-space: nowrap !important;
+            white-space: normal !important;
         }
 
-        /* Menu superior de segurança */
         .menu-topo-box {
             background: rgba(68,214,44,0.08);
             border: 1px solid rgba(68,214,44,0.25);
@@ -162,21 +122,8 @@ st.markdown(
         }
 
         @media (max-width: 768px) {
-            section[data-testid="stSidebar"] {
-                min-width: 260px !important;
-                max-width: 260px !important;
-            }
-
-            section[data-testid="stSidebar"] > div {
-                width: 260px !important;
-            }
-
-            section[data-testid="stSidebar"] .stButton,
             section[data-testid="stSidebar"] button,
             .menu-ativo {
-                width: 215px !important;
-                min-width: 215px !important;
-                max-width: 215px !important;
                 font-size: 13px !important;
             }
         }
@@ -267,8 +214,6 @@ if st.session_state["menu_atual"] not in menu_opcoes:
 
 # ==================================================
 # MENU SUPERIOR DE SEGURANÇA
-# Mantém navegação disponível mesmo se a sidebar for recolhida.
-# Excelente para celular/tablet.
 # ==================================================
 st.markdown(
     """
@@ -278,7 +223,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 
 col_menu, col_sair = st.columns([4, 1])
 
@@ -295,6 +239,7 @@ with col_sair:
     if st.button("🚪 Sair", use_container_width=True, key="botao_sair_topo"):
         st.session_state.clear()
         st.rerun()
+
 if menu_topo != st.session_state["menu_atual"]:
     st.session_state["menu_atual"] = menu_topo
     st.rerun()

@@ -18,16 +18,36 @@
    ELEMENTOS PADRÃO STREAMLIT
 ================================================== */
 
-header[data-testid="stHeader"] {
+/* Mantém o cabeçalho transparente */
+header[data-testid="stHeader"]{
     background: transparent !important;
 }
 
-[data-testid="stToolbar"],
-#MainMenu,
-footer {
-    visibility: hidden !important;
+/* Esconde apenas o menu padrão e o rodapé */
+#MainMenu{
+    visibility:hidden !important;
 }
 
+footer{
+    visibility:hidden !important;
+}
+
+/* Mantém o botão da sidebar disponível em todas
+   as versões do Streamlit */
+[data-testid="collapsedControl"]{
+    display:flex !important;
+    visibility:visible !important;
+    opacity:1 !important;
+    z-index:999999 !important;
+}
+
+/* Não esconda o Toolbar.
+   Algumas versões do Streamlit colocam o botão
+   da sidebar dentro dele. */
+[data-testid="stToolbar"]{
+    visibility:visible !important;
+    display:flex !important;
+}
 /* ==================================================
    FUNDO GLOBAL
 ================================================== */
@@ -50,22 +70,24 @@ footer {
    SIDEBAR
 ================================================== */
 
-section[data-testid="stSidebar"] {
-    display: block !important;
-    visibility: visible !important;
-    background: linear-gradient(
+section[data-testid="stSidebar"]{
+    background:linear-gradient(
         180deg,
         var(--navy) 0%,
         var(--navy-2) 55%,
         var(--azul) 100%
     ) !important;
-    border-right: 4px solid var(--verde) !important;
-    box-shadow: 6px 0 22px rgba(7,22,51,.18);
+
+    border-right:4px solid var(--verde) !important;
+    box-shadow:6px 0 22px rgba(7,22,51,.18);
+
+    visibility:visible !important;
 }
 
-section[data-testid="stSidebar"] > div {
-    display: block !important;
-    visibility: visible !important;
+/* Não força display nem largura.
+   Isso evita incompatibilidade entre versões do Streamlit. */
+section[data-testid="stSidebar"] > div{
+    visibility:visible !important;
 }
 
 section[data-testid="stSidebar"] * {
@@ -276,11 +298,3 @@ hr {
     margin-right: auto !important;
 }
 
-/* ==================================================
-   COMPATIBILIDADE STREAMLIT NOVO
-================================================== */
-
-[data-testid="collapsedControl"] {
-    display: block !important;
-    visibility: visible !important;
-}
