@@ -3,7 +3,17 @@ import pandas as pd
 
 from database.connection import conectar
 from services.xml_nfe_service import ler_xml_nfe
-from services.xml_import_db import importar_nfe_xml
+
+from services.xml_conversao_service import (
+    detectar_conversao_por_descricao,
+    aplicar_conversao_produto
+)
+
+from services.xml_import_db import (
+    importar_nfe_xml,
+    buscar_produto_por_codigo,
+    buscar_conversao_produto
+)
 
 from database.compras_db import (
     cadastrar_compra,
@@ -15,9 +25,6 @@ from database.compras_db import (
 from database.produto_db import listar_produtos
 
 
-# ==================================================
-# BUSCAR FORNECEDORES
-# ==================================================
 def buscar_fornecedores():
 
     conn = conectar()
@@ -44,9 +51,103 @@ def buscar_fornecedores():
         conn.close()
 
 
-# ==================================================
-# TELA COMPRAS ERP
-# ==================================================
+def gerar_previa_conversao_xml(dados_xml):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    cursor = conn.cursor()
+
+    try:
+        linhas = []
+
+        for item in dados_xml.get("produtos", []):
+
+            nome = item.get("nome", "")
+            codigo_barras = item.get("ean", "")
+            codigo_fornecedor = item.get("codigo", "")
+            unidade_xml = item.get("unidade", "")
+
+            quantidade_xml = float(item.get("quantidade", 0) or 0)
+            custo_xml = float(item.get("custo", 0) or 0)
+            subtotal_xml = float(
+                item.get("subtotal", quantidade_xml * custo_xml) or 0
+            )
+
+            produto_id = buscar_produto_por_codigo(
+                cursor,
+                codigo_barras,
+                codigo_fornecedor
+            )
+
+            if produto_id is None:
+                cursor.execute("""
+                    SELECT id
+                    FROM produtos
+                    WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s))
+                    LIMIT 1
+                """, (nome,))
+
+                encontrado = cursor.fetchone()
+
+                if encontrado:
+                    produto_id = encontrado[0]
+
+            conversao = buscar_conversao_produto(
+                cursor,
+                produto_id,
+                codigo_barras,
+                codigo_fornecedor
+            )
+
+            origem_conversao = "Cadastrada"
+
+            if float(conversao.get("fator_conversao", 1) or 1) == 1:
+                conversao_detectada = detectar_conversao_por_descricao(nome)
+
+                if conversao_detectada.get("detectado"):
+                    conversao = conversao_detectada
+                    origem_conversao = "Detectada automaticamente"
+                else:
+                    origem_conversao = "Padrão"
+
+            dados_conversao = aplicar_conversao_produto(
+                quantidade_xml=quantidade_xml,
+                custo_xml=custo_xml,
+                subtotal_xml=subtotal_xml,
+                conversao=conversao
+            )
+
+            linhas.append({
+                "Produto XML": nome,
+                "Produto cadastrado": "Sim" if produto_id else "Não",
+                "Código Barras": codigo_barras,
+                "Código Fornecedor": codigo_fornecedor,
+                "Unidade XML": unidade_xml,
+                "Origem Conversão": origem_conversao,
+                "Tipo Compra": dados_conversao["tipo_compra"],
+                "Qtd XML": quantidade_xml,
+                "Fator": dados_conversao["fator_conversao"],
+                "Qtd Estoque": dados_conversao["quantidade_estoque"],
+                "Unidade Estoque": dados_conversao["unidade_estoque"],
+                "Custo XML": custo_xml,
+                "Custo Unitário Final": dados_conversao["custo_unitario_estoque"],
+                "Subtotal": subtotal_xml
+            })
+
+        return pd.DataFrame(linhas)
+
+    except Exception as erro:
+        print("Erro gerar_previa_conversao_xml:", erro)
+        return pd.DataFrame()
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def tela_compras():
 
     st.title("📦 Compras ERP")
@@ -58,9 +159,6 @@ def tela_compras():
         "🗑️ Excluir Compra"
     ])
 
-    # ==================================================
-    # NOVA COMPRA
-    # ==================================================
     with abas[0]:
 
         st.subheader("📦 Lançar Compra")
@@ -189,9 +287,6 @@ def tela_compras():
                     else:
                         st.error("Erro ao lançar compra.")
 
-    # ==================================================
-    # IMPORTAR XML NF-E
-    # ==================================================
     with abas[1]:
 
         st.subheader("📄 Importar XML NF-e")
@@ -211,7 +306,27 @@ def tela_compras():
                 fornecedor = dados_xml["fornecedor"]
                 produtos = dados_xml["produtos"]
 
-                st.success("XML lido com sucesso.")
+                st.success("✅ XML lido com sucesso.")
+
+                col_a, col_b, col_c = st.columns(3)
+
+                with col_a:
+                    st.metric(
+                        "Número NF-e",
+                        dados_xml.get("numero_nfe", "")
+                    )
+
+                with col_b:
+                    st.metric(
+                        "Produtos",
+                        len(produtos)
+                    )
+
+                with col_c:
+                    st.metric(
+                        "Total da NF-e",
+                        f"R$ {float(dados_xml['valor_total']):,.2f}"
+                    )
 
                 st.markdown("### 🏢 Fornecedor")
 
@@ -230,52 +345,182 @@ def tela_compras():
                     hide_index=True
                 )
 
-                st.markdown("### 📦 Produtos da Nota")
+                st.markdown("### 🧠 Conferência Inteligente da Conversão")
 
-                df_produtos_xml = pd.DataFrame(produtos)
+                df_previa = gerar_previa_conversao_xml(dados_xml)
 
-                st.dataframe(
-                    df_produtos_xml,
-                    use_container_width=True,
-                    hide_index=True
-                )
+                if df_previa.empty:
+                    st.warning("Não foi possível gerar a prévia de conversão.")
+                else:
+                    st.dataframe(
+                        df_previa,
+                        use_container_width=True,
+                        hide_index=True
+                    )
 
-                st.metric(
-                    "Total da NF-e",
-                    f"R$ {float(dados_xml['valor_total']):,.2f}"
+                    sem_cadastro = df_previa[
+                        df_previa["Produto cadastrado"] == "Não"
+                    ]
+
+                    sem_conversao = df_previa[
+                        df_previa["Fator"] == 1.0
+                    ]
+
+                    conversao_detectada = df_previa[
+                        df_previa["Origem Conversão"] == "Detectada automaticamente"
+                    ]
+
+                    if not sem_cadastro.empty:
+                        st.warning(
+                            f"{len(sem_cadastro)} produto(s) ainda não estão cadastrados. "
+                            "Eles serão criados automaticamente."
+                        )
+
+                    if not conversao_detectada.empty:
+                        st.success(
+                            f"{len(conversao_detectada)} conversão(ões) foram detectadas automaticamente pela descrição."
+                        )
+
+                    if not sem_conversao.empty:
+                        st.info(
+                            f"{len(sem_conversao)} item(ns) estão com fator 1. "
+                            "Se algum produto veio em caixa, pacote ou fardo e não foi detectado, cadastre a conversão antes de importar."
+                        )
+
+                st.warning(
+                    "Ao confirmar, o ERP irá registrar a compra, atualizar estoque, "
+                    "atualizar custos, criar histórico de custo e criar lotes de estoque."
                 )
 
                 confirmar_importacao = st.checkbox(
-                    "Confirmo que desejo importar esta NF-e",
-                    key="confirmar_importar_xml"
+                    "Confirmo que conferi as conversões e desejo importar esta NF-e",
+                    key=f"confirmar_importar_xml_{dados_xml.get('chave_nfe', '')}"
                 )
 
                 if st.button(
                     "📥 Importar NF-e",
-                    use_container_width=True
+                    use_container_width=True,
+                    disabled=not confirmar_importacao
                 ):
 
-                    if not confirmar_importacao:
-                        st.warning("Marque a confirmação antes de importar.")
+                    with st.spinner("Importando XML e atualizando estoque..."):
 
-                    else:
-                        sucesso = importar_nfe_xml(
+                        resultado = importar_nfe_xml(
                             dados_xml=dados_xml,
                             usuario=st.session_state.get("usuario", "Sistema")
                         )
 
-                        if sucesso:
-                            st.success("NF-e importada com sucesso!")
-                            st.rerun()
-                        else:
-                            st.error("Erro ao importar NF-e.")
+                    if resultado.get("sucesso"):
+
+                        st.success("✅ NF-e importada com sucesso!")
+
+                        st.markdown("### 📌 Resumo da Importação")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            st.metric(
+                                "Compra Nº",
+                                resultado.get("compra_id", "")
+                            )
+
+                        with col2:
+                            st.metric(
+                                "NF-e",
+                                resultado.get("numero_nfe", "")
+                            )
+
+                        with col3:
+                            st.metric(
+                                "Valor Total",
+                                f"R$ {float(resultado.get('valor_total', 0)):,.2f}"
+                            )
+
+                        col4, col5, col6 = st.columns(3)
+
+                        with col4:
+                            st.metric(
+                                "Produtos na Nota",
+                                resultado.get("total_produtos", 0)
+                            )
+
+                        with col5:
+                            st.metric(
+                                "Produtos Novos",
+                                resultado.get("produtos_novos", 0)
+                            )
+
+                        with col6:
+                            st.metric(
+                                "Produtos Atualizados",
+                                resultado.get("produtos_atualizados", 0)
+                            )
+
+                        st.info(
+                            f"Fornecedor: {resultado.get('fornecedor', '')}"
+                        )
+
+                        itens_convertidos = resultado.get(
+                            "itens_convertidos",
+                            []
+                        )
+
+                        if itens_convertidos:
+                            st.markdown("### 🔁 Itens Convertidos")
+
+                            st.dataframe(
+                                pd.DataFrame(itens_convertidos),
+                                use_container_width=True,
+                                hide_index=True
+                            )
+
+                        st.success(
+                            "Estoque, custos, histórico de custos e lotes foram atualizados com sucesso."
+                        )
+
+                    elif resultado.get("duplicada"):
+
+                        st.warning("⚠️ Esta NF-e já foi importada anteriormente.")
+
+                        st.markdown("### 📌 Dados da importação existente")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            st.metric(
+                                "Compra Nº",
+                                resultado.get("compra_id", "")
+                            )
+
+                        with col2:
+                            st.metric(
+                                "NF-e",
+                                resultado.get("numero_nfe", "")
+                            )
+
+                        with col3:
+                            st.metric(
+                                "Fornecedor",
+                                resultado.get("fornecedor", "")
+                            )
+
+                        st.info(
+                            f"Chave NF-e: {resultado.get('chave_nfe', '')}"
+                        )
+
+                        st.warning(
+                            "Nenhuma alteração foi realizada no estoque, custos ou compras."
+                        )
+
+                    else:
+                        st.error(resultado.get(
+                            "mensagem",
+                            "Erro ao importar NF-e."
+                        ))
 
             except Exception as erro:
                 st.error(f"Erro ao ler XML: {erro}")
 
-    # ==================================================
-    # HISTÓRICO
-    # ==================================================
     with abas[2]:
 
         st.subheader("📋 Histórico de Compras")
@@ -325,9 +570,6 @@ def tela_compras():
                     use_container_width=True
                 )
 
-    # ==================================================
-    # EXCLUIR COMPRA
-    # ==================================================
     with abas[3]:
 
         st.subheader("🗑️ Excluir Compra")

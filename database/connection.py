@@ -1,42 +1,35 @@
 import os
 import psycopg2
-
 from dotenv import load_dotenv
 
+
 # =====================================
-# CARREGA .ENV
+# CARREGA .ENV COM UTF-8
 # =====================================
-load_dotenv()
+load_dotenv(encoding="utf-8")
+
 
 # =====================================
 # DEFINE AMBIENTE
 # =====================================
-ERP_ENV = os.getenv(
-    "ERP_ENV",
-    "TESTE"
-).upper()
+ERP_ENV = os.getenv("ERP_ENV", "TESTE").upper()
+
 
 # =====================================
 # DEFINE URL CONFORME AMBIENTE
 # =====================================
 if ERP_ENV == "PROD":
-
-    DATABASE_URL = os.getenv(
-        "DATABASE_URL_PROD"
-    )
-
+    DATABASE_URL = os.getenv("DATABASE_URL_PROD")
 else:
+    DATABASE_URL = os.getenv("DATABASE_URL_TESTE")
 
-    DATABASE_URL = os.getenv(
-        "DATABASE_URL_TESTE"
-    )
 
 # =====================================
 # LOG INICIAL
 # =====================================
 print("\n" + "=" * 60)
-print(f"🌎 Ambiente atual: {ERP_ENV}")
-print(f"🔗 DATABASE_URL: {DATABASE_URL}")
+print(f"Ambiente atual: {ERP_ENV}")
+print(f"DATABASE_URL: {DATABASE_URL}")
 print("=" * 60 + "\n")
 
 
@@ -47,20 +40,19 @@ def conectar():
 
     try:
 
-        print("\n🔄 Tentando conectar ao banco...")
+        print("\nTentando conectar ao banco...")
+
+        if not DATABASE_URL:
+            print("DATABASE_URL não encontrada no .env.")
+            return None
 
         if ERP_ENV == "PROD":
-
             conn = psycopg2.connect(
                 DATABASE_URL,
                 sslmode="require"
             )
-
         else:
-
-            conn = psycopg2.connect(
-                DATABASE_URL
-            )
+            conn = psycopg2.connect(DATABASE_URL)
 
         cursor = conn.cursor()
 
@@ -70,8 +62,8 @@ def conectar():
 
         banco, usuario = cursor.fetchone()
 
-        print(f"✅ Banco conectado: {banco}")
-        print(f"👤 Usuário: {usuario}")
+        print(f"Banco conectado: {banco}")
+        print(f"Usuario: {usuario}")
 
         cursor.close()
 
@@ -79,7 +71,7 @@ def conectar():
 
     except Exception as erro:
 
-        print("\n❌ ERRO AO CONECTAR NO BANCO:")
+        print("\nERRO AO CONECTAR NO BANCO:")
         print(type(erro).__name__)
         print(erro)
 

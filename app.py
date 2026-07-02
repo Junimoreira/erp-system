@@ -39,6 +39,9 @@ from telas.painel_admin_permissoes import tela_painel_permissoes
 from telas.relatorios.financeiro_diario import tela_relatorios
 from telas.marketing import tela_marketing
 from telas.fluxo_caixa import tela_fluxo_caixa
+from telas.central_compras import tela_central_compras
+from telas.admin_banco import tela_admin_banco
+from telas.conversao_xml import tela_conversao_xml
 
 
 # ==================================================
@@ -185,7 +188,8 @@ if admin_total or st.session_state.get("pode_produtos"):
         "📦 Produtos",
         "💰 Formação de Preço",
         "🚚 Fornecedores",
-        "📥 Compras"
+        "📥 Compras",
+        "🔁 Conversão XML"
     ]
 
 if admin_total or st.session_state.get("pode_movimentacoes"):
@@ -205,11 +209,17 @@ if admin_total or st.session_state.get("pode_contas_pagar"):
 if admin_total or st.session_state.get("pode_contas_receber"):
     menu_opcoes.append("📥 Contas a Receber")
 
+if admin_total or st.session_state.get("pode_produtos"):
+    menu_opcoes.append("🧠 Central de Compras")
+
 if admin_total or st.session_state.get("pode_relatorios"):
     menu_opcoes.append("📊 Relatórios")
 
 if admin_total or st.session_state.get("pode_configuracoes"):
     menu_opcoes.append("⚙️ Configurações")
+
+if admin_total:
+    menu_opcoes.append("💾 Administração do Banco")
 
 if admin_total or st.session_state.get("pode_fechamento_caixa"):
     menu_opcoes.append("📊 Fechamento de Caixa")
@@ -289,6 +299,10 @@ try:
         bloquear("pode_produtos")
         tela_compras()
 
+    elif menu == "🔁 Conversão XML":
+        bloquear("pode_produtos")
+        tela_conversao_xml()
+
     elif menu == "💰 Movimentações":
         bloquear("pode_movimentacoes")
         tela_movimentacoes()
@@ -317,6 +331,10 @@ try:
         bloquear("pode_contas_receber")
         tela_contas_receber()
 
+    elif menu == "🧠 Central de Compras":
+        bloquear("pode_produtos")
+        tela_central_compras()
+
     elif menu == "📊 Relatórios":
         bloquear("pode_relatorios")
         tela_relatorios()
@@ -328,6 +346,12 @@ try:
     elif menu == "⚙️ Configurações":
         bloquear("pode_configuracoes")
         tela_configuracoes()
+
+    elif menu == "💾 Administração do Banco":
+        if not admin_total:
+            st.error("⛔ Acesso restrito ao Diretor.")
+            st.stop()
+        tela_admin_banco()
 
     elif menu == "🔐 Permissões":
         tela_painel_permissoes()

@@ -4,13 +4,12 @@ from dateutil.relativedelta import relativedelta
 
 from database.connection import conectar
 
-from database.caixa_db import obter_caixa_aberto_id
 from database.finance_engine import (
     registrar_entrada_caixa,
-    registrar_movimentacao_financeira
+    registrar_entrada_banco
 )
+
 from database.contas_receber_db import cadastrar_conta_receber
-from database.contas_bancarias import adicionar_saldo
 
 
 # ==================================================
@@ -31,6 +30,10 @@ def listar_clientes():
             FROM clientes
             ORDER BY nome
         """, conn)
+
+    except Exception as erro:
+        print("Erro ao listar clientes:", erro)
+        return pd.DataFrame()
 
     finally:
         conn.close()
@@ -58,6 +61,10 @@ def listar_produtos():
             ORDER BY nome
         """, conn)
 
+    except Exception as erro:
+        print("Erro ao listar produtos:", erro)
+        return pd.DataFrame()
+
     finally:
         conn.close()
 
@@ -72,11 +79,14 @@ def normalizar_forma_pagamento(forma_pagamento):
     substituicoes = {
         "Á": "A",
         "Ã": "A",
+        "Â": "A",
+        "À": "A",
         "É": "E",
         "Ê": "E",
         "Í": "I",
         "Ó": "O",
         "Õ": "O",
+        "Ô": "O",
         "Ú": "U",
         "Ç": "C"
     }
@@ -98,11 +108,9 @@ def gerar_parcelas(valor_total, numero_parcelas):
         numero_parcelas = 1
 
     valor_total = round(float(valor_total), 2)
-
     valor_base = round(valor_total / numero_parcelas, 2)
 
     parcelas = []
-
     acumulado = 0
 
     for parcela in range(1, numero_parcelas + 1):
@@ -141,10 +149,18 @@ def salvar_venda(
     cursor = conn.cursor()
 
     try:
+
         forma_normalizada = normalizar_forma_pagamento(forma_pagamento)
 
+        valor_total = float(valor_total)
+        desconto = float(desconto)
+        valor_final = float(valor_final)
+
+        # ==========================================
+        # INSERIR VENDA
+        # ==========================================
         cursor.execute("""
-            INSERT INTO vendas(
+            INSERT INTO vendas (
                 cliente_id,
                 valor_total,
                 desconto,
@@ -153,13 +169,13 @@ def salvar_venda(
                 data_venda,
                 status
             )
-            VALUES(%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
             RETURNING id
         """, (
             cliente_id,
-            float(valor_total),
-            float(desconto),
-            float(valor_final),
+            valor_total,
+            desconto,
+            valor_final,
             forma_pagamento,
             data_venda,
             "Concluída"
@@ -167,24 +183,28 @@ def salvar_venda(
 
         venda_id = int(cursor.fetchone()[0])
 
+        # ==========================================
+        # ITENS DA VENDA + BAIXA DE ESTOQUE
+        # ==========================================
         for item in itens:
 
+            produto_id = int(item["produto_id"])
             quantidade = int(item["quantidade"])
             preco = float(item["preco"])
             subtotal = float(item["subtotal"])
 
             cursor.execute("""
-                INSERT INTO itens_venda(
+                INSERT INTO itens_venda (
                     venda_id,
                     produto_id,
                     quantidade,
                     preco_unitario,
                     subtotal
                 )
-                VALUES(%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s)
             """, (
                 venda_id,
-                item["produto_id"],
+                produto_id,
                 quantidade,
                 preco,
                 subtotal
@@ -196,21 +216,18 @@ def salvar_venda(
                 WHERE id = %s
             """, (
                 quantidade,
-                item["produto_id"]
+                produto_id
             ))
 
         # ==========================================
         # DINHEIRO / CAIXA
         # ==========================================
-        if forma_normalizada in ["DINHEIRO", "CAIXA"]:
-
-            caixa_id = obter_caixa_aberto_id(conn_externa=conn)
-
-            if caixa_id is None:
-                raise Exception("Venda em dinheiro exige caixa aberto.")
+        if forma_normalizada in [
+            "DINHEIRO",
+            "CAIXA"
+        ]:
 
             sucesso_caixa = registrar_entrada_caixa(
-                caixa_id=caixa_id,
                 valor=valor_final,
                 descricao=f"Venda #{venda_id} ({forma_pagamento})",
                 origem=forma_pagamento,
@@ -230,40 +247,46 @@ def salvar_venda(
             "PIX",
             "DEBITO",
             "CARTAO DEBITO",
+            "CARTAO DEBITO",
             "TRANSFERENCIA",
             "BOLETO",
             "BANCO"
         ]:
 
-            if conta_bancaria_id is not None:
+            if conta_bancaria_id is None:
 
-                sucesso_banco = adicionar_saldo(
-                    conta_id=conta_bancaria_id,
-                    valor=valor_final
-                )
+                cursor.execute("""
+                    SELECT id
+                    FROM contas_bancarias
+                    ORDER BY id
+                    LIMIT 1
+                """)
 
-                if not sucesso_banco:
-                    raise Exception("Falha ao adicionar saldo na conta bancária.")
+                conta = cursor.fetchone()
 
-            sucesso_mov = registrar_movimentacao_financeira(
-                tipo="ENTRADA",
+                if not conta:
+                    raise Exception("Nenhuma conta bancária cadastrada.")
+
+                conta_bancaria_id = int(conta[0])
+
+            sucesso_banco = registrar_entrada_banco(
+                conta_bancaria_id=conta_bancaria_id,
                 valor=valor_final,
                 descricao=f"Venda #{venda_id} ({forma_pagamento})",
                 origem=forma_pagamento,
                 categoria="VENDA",
                 referencia_id=venda_id,
                 referencia_tipo="VENDA",
-                conta_bancaria_id=conta_bancaria_id,
-                meio="BANCO",
-                caixa_id=None,
                 conn_externa=conn
             )
 
-            if not sucesso_mov:
-                raise Exception("Falha ao registrar movimentação bancária.")
+            if not sucesso_banco:
+                raise Exception("Falha ao registrar entrada bancária.")
 
         # ==========================================
-        # CRÉDITO / PRAZO / FIADO PARCELADO
+        # CRÉDITO / PRAZO / FIADO
+        # NÃO GERA MOVIMENTAÇÃO FINANCEIRA AGORA
+        # GERA APENAS CONTAS A RECEBER
         # ==========================================
         elif forma_normalizada in [
             "CREDITO",
@@ -301,53 +324,28 @@ def salvar_venda(
                 )
 
                 if not sucesso_receber:
-                    raise Exception(f"Falha ao gerar parcela {indice}/{numero_parcelas} em contas a receber.")
-
-            sucesso_mov = registrar_movimentacao_financeira(
-                tipo="ENTRADA",
-                valor=valor_final,
-                descricao=f"Venda #{venda_id} ({forma_pagamento}) - A RECEBER {numero_parcelas}x",
-                origem=forma_pagamento,
-                categoria="VENDA_A_RECEBER",
-                referencia_id=venda_id,
-                referencia_tipo="VENDA",
-                conta_bancaria_id=None,
-                meio="A_RECEBER",
-                caixa_id=None,
-                conn_externa=conn
-            )
-
-            if not sucesso_mov:
-                raise Exception("Falha ao registrar movimentação a receber.")
+                    raise Exception(
+                        f"Falha ao gerar parcela {indice}/{numero_parcelas} em contas a receber."
+                    )
 
         # ==========================================
-        # OUTRAS FORMAS
+        # FORMA DE PAGAMENTO NÃO RECONHECIDA
         # ==========================================
         else:
-            sucesso_mov = registrar_movimentacao_financeira(
-                tipo="ENTRADA",
-                valor=valor_final,
-                descricao=f"Venda #{venda_id} ({forma_pagamento})",
-                origem=forma_pagamento,
-                categoria="VENDA",
-                referencia_id=venda_id,
-                referencia_tipo="VENDA",
-                conta_bancaria_id=conta_bancaria_id,
-                meio="OUTROS",
-                caixa_id=None,
-                conn_externa=conn
-            )
-
-            if not sucesso_mov:
-                raise Exception("Falha ao registrar movimentação da venda.")
+            raise Exception(f"Forma de pagamento não reconhecida: {forma_pagamento}")
 
         conn.commit()
         return True
 
     except Exception as erro:
+
         conn.rollback()
+
+        print("\n" + "=" * 80)
         print("ERRO AO SALVAR VENDA")
         print(erro)
+        print("=" * 80)
+
         return False
 
     finally:
@@ -421,6 +419,10 @@ def buscar_venda_por_id(venda_id):
 
         return cursor.fetchone()
 
+    except Exception as erro:
+        print("Erro ao buscar venda:", erro)
+        return None
+
     finally:
         cursor.close()
         conn.close()
@@ -450,19 +452,27 @@ def listar_itens_venda(venda_id):
             ORDER BY p.nome
         """, conn, params=(venda_id,))
 
+    except Exception as erro:
+        print("Erro ao listar itens da venda:", erro)
+        return pd.DataFrame()
+
     finally:
         conn.close()
 
 
 # ==================================================
-# RESUMO DE VENDAS
+# RESUMO DE VENDAS DO DIA
 # ==================================================
 def resumo_vendas():
 
     conn = conectar()
 
     if conn is None:
-        return {}
+        return {
+            "quantidade": 0,
+            "total": 0,
+            "ticket_medio": 0
+        }
 
     cursor = conn.cursor()
 
@@ -480,9 +490,18 @@ def resumo_vendas():
         qtd, total, ticket = cursor.fetchone()
 
         return {
-            "quantidade": qtd,
+            "quantidade": int(qtd),
             "total": float(total),
             "ticket_medio": float(ticket)
+        }
+
+    except Exception as erro:
+        print("Erro resumo vendas:", erro)
+
+        return {
+            "quantidade": 0,
+            "total": 0,
+            "ticket_medio": 0
         }
 
     finally:
@@ -503,6 +522,7 @@ def cancelar_venda(venda_id):
     cursor = conn.cursor()
 
     try:
+
         cursor.execute("""
             SELECT
                 produto_id,
@@ -535,7 +555,7 @@ def cancelar_venda(venda_id):
 
     except Exception as erro:
         conn.rollback()
-        print(erro)
+        print("Erro ao cancelar venda:", erro)
         return False
 
     finally:

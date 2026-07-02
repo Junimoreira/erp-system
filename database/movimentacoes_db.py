@@ -18,23 +18,39 @@ def validar_tipo(tipo):
     tipo = tratar_texto(tipo).lower()
 
     if tipo not in ["entrada", "saida"]:
-        raise ValueError("Tipo inválido.")
+        raise ValueError("Tipo inválido. Use entrada ou saida.")
 
     return tipo
+
+
+# ==================================================
+# VALIDAR MEIO
+# ==================================================
+def validar_meio(meio):
+    meio = tratar_texto(meio).upper()
+
+    if meio not in ["CAIXA", "BANCO"]:
+        raise ValueError("Meio inválido. Use CAIXA ou BANCO.")
+
+    return meio
 
 
 # ==================================================
 # REGISTRAR MOVIMENTAÇÃO
 # ==================================================
 def registrar_movimentacao(
-    caixa_id,
-    tipo,
-    valor,
-    descricao,
-    categoria,
-    origem,
-    data_movimentacao,
-    meio="CAIXA"
+    caixa_id=None,
+    tipo=None,
+    valor=0,
+    descricao="",
+    categoria="",
+    origem="",
+    data_movimentacao=None,
+    meio="CAIXA",
+    referencia_tipo=None,
+    referencia_id=None,
+    conta_bancaria_id=None,
+    usuario=None
 ):
 
     conn = conectar()
@@ -45,45 +61,73 @@ def registrar_movimentacao(
     cursor = conn.cursor()
 
     try:
-        caixa_id = int(caixa_id)
-        tipo = validar_tipo(tipo)
-        valor = float(valor)
 
-        descricao = tratar_texto(descricao)
-        categoria = tratar_texto(categoria)
-        origem = tratar_texto(origem)
+        tipo = validar_tipo(tipo)
+        meio = validar_meio(meio)
+
+        valor = float(valor)
 
         if valor <= 0:
             raise ValueError("Valor inválido.")
 
-        cursor.execute("""
-            SELECT id
-            FROM caixa
-            WHERE id = %s
-        """, (caixa_id,))
+        descricao = tratar_texto(descricao)
+        categoria = tratar_texto(categoria)
+        origem = tratar_texto(origem).upper()
 
-        if not cursor.fetchone():
-            raise ValueError("Caixa não encontrado.")
+        if meio == "CAIXA":
+
+            if caixa_id is None:
+                raise ValueError("Movimentação em CAIXA exige caixa_id.")
+
+            caixa_id = int(caixa_id)
+
+            cursor.execute("""
+                SELECT id
+                FROM caixa
+                WHERE id = %s
+            """, (caixa_id,))
+
+            if not cursor.fetchone():
+                raise ValueError("Caixa não encontrado.")
+
+        else:
+            caixa_id = None
+
+        if conta_bancaria_id is not None:
+            conta_bancaria_id = int(conta_bancaria_id)
 
         cursor.execute("""
             INSERT INTO movimentacoes (
-                caixa_id,
                 tipo,
                 valor,
                 descricao,
-                categoria,
                 origem,
-                data_movimentacao
+                data_movimentacao,
+                caixa_id,
+                categoria,
+                referencia_id,
+                referencia_tipo,
+                conta_bancaria_id,
+                usuario,
+                meio
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (
+                %s, %s, %s, %s, COALESCE(%s, NOW()),
+                %s, %s, %s, %s, %s, %s, %s
+            )
         """, (
-            caixa_id,
             tipo,
             valor,
             descricao,
-            categoria,
             origem,
-            data_movimentacao
+            data_movimentacao,
+            caixa_id,
+            categoria,
+            referencia_id,
+            referencia_tipo,
+            conta_bancaria_id,
+            usuario,
+            meio
         ))
 
         conn.commit()
@@ -110,11 +154,12 @@ def listar_movimentacoes_caixa(caixa_id):
         return pd.DataFrame()
 
     try:
+
         query = """
             SELECT *
             FROM movimentacoes
             WHERE caixa_id = %s
-            ORDER BY id DESC
+            ORDER BY data_movimentacao DESC, id DESC
         """
 
         df = pd.read_sql(query, conn, params=[caixa_id])
@@ -122,15 +167,87 @@ def listar_movimentacoes_caixa(caixa_id):
         if df is None or df.empty:
             return pd.DataFrame()
 
-        df = df.fillna("")
+        return df.fillna("")
 
-        if "data_movimentacao" in df.columns:
-            df["data_movimentacao"] = pd.to_datetime(
-                df["data_movimentacao"],
-                errors="coerce"
-            )
+    except Exception as erro:
+        print("Erro ao listar movimentações do caixa:", erro)
+        return pd.DataFrame()
 
-        return df
+    finally:
+        conn.close()
+
+
+# ==================================================
+# LISTAR POR PERÍODO
+# ==================================================
+def listar_movimentacoes_periodo(data_inicio, data_fim, meio=None):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+
+        if meio:
+
+            meio = validar_meio(meio)
+
+            query = """
+                SELECT *
+                FROM movimentacoes
+                WHERE DATE(data_movimentacao) BETWEEN %s AND %s
+                AND meio = %s
+                ORDER BY data_movimentacao DESC, id DESC
+            """
+
+            df = pd.read_sql(query, conn, params=[data_inicio, data_fim, meio])
+
+        else:
+
+            query = """
+                SELECT *
+                FROM movimentacoes
+                WHERE DATE(data_movimentacao) BETWEEN %s AND %s
+                ORDER BY data_movimentacao DESC, id DESC
+            """
+
+            df = pd.read_sql(query, conn, params=[data_inicio, data_fim])
+
+        return df.fillna("")
+
+    except Exception as erro:
+        print("Erro listar movimentações por período:", erro)
+        return pd.DataFrame()
+
+    finally:
+        conn.close()
+
+
+# ==================================================
+# LISTAR TODAS MOVIMENTAÇÕES
+# ==================================================
+def listar_movimentacoes():
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+
+        query = """
+            SELECT *
+            FROM movimentacoes
+            ORDER BY data_movimentacao DESC, id DESC
+        """
+
+        df = pd.read_sql(query, conn)
+
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        return df.fillna("")
 
     except Exception as erro:
         print("Erro ao listar movimentações:", erro)
@@ -141,39 +258,19 @@ def listar_movimentacoes_caixa(caixa_id):
 
 
 # ==================================================
-# LISTAR POR PERÍODO
-# ==================================================
-def listar_movimentacoes_periodo(data_inicio, data_fim):
-
-    conn = conectar()
-
-    if conn is None:
-        return pd.DataFrame()
-
-    try:
-        query = """
-            SELECT *
-            FROM movimentacoes
-            WHERE DATE(data_movimentacao)
-            BETWEEN %s AND %s
-            ORDER BY data_movimentacao DESC
-        """
-
-        df = pd.read_sql(query, conn, params=[data_inicio, data_fim])
-        return df.fillna("")
-
-    except Exception as erro:
-        print("Erro listar período:", erro)
-        return pd.DataFrame()
-
-    finally:
-        conn.close()
-
-
-# ==================================================
 # ATUALIZAR MOVIMENTAÇÃO
 # ==================================================
-def atualizar_movimentacao(id_movimentacao, tipo, valor, descricao, categoria, origem):
+def atualizar_movimentacao(
+    id_movimentacao,
+    tipo,
+    valor,
+    descricao,
+    categoria,
+    origem,
+    meio="CAIXA",
+    conta_bancaria_id=None,
+    usuario=None
+):
 
     conn = conectar()
 
@@ -183,17 +280,26 @@ def atualizar_movimentacao(id_movimentacao, tipo, valor, descricao, categoria, o
     cursor = conn.cursor()
 
     try:
+
         id_movimentacao = int(id_movimentacao)
         tipo = validar_tipo(tipo)
+        meio = validar_meio(meio)
         valor = float(valor)
+
+        if valor <= 0:
+            raise ValueError("Valor inválido.")
 
         cursor.execute("""
             UPDATE movimentacoes
-            SET tipo = %s,
+            SET
+                tipo = %s,
                 valor = %s,
                 descricao = %s,
                 categoria = %s,
-                origem = %s
+                origem = %s,
+                meio = %s,
+                conta_bancaria_id = %s,
+                usuario = %s
             WHERE id = %s
         """, (
             tipo,
@@ -201,6 +307,9 @@ def atualizar_movimentacao(id_movimentacao, tipo, valor, descricao, categoria, o
             descricao,
             categoria,
             origem,
+            meio,
+            conta_bancaria_id,
+            usuario,
             id_movimentacao
         ))
 
@@ -230,6 +339,7 @@ def excluir_movimentacao(id_movimentacao):
     cursor = conn.cursor()
 
     try:
+
         cursor.execute("""
             DELETE FROM movimentacoes
             WHERE id = %s
@@ -249,9 +359,9 @@ def excluir_movimentacao(id_movimentacao):
 
 
 # ==================================================
-# RESUMOS
+# RESUMO GERAL
 # ==================================================
-def resumo_movimentacoes():
+def resumo_movimentacoes(meio=None):
 
     conn = conectar()
 
@@ -261,19 +371,29 @@ def resumo_movimentacoes():
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
-            FROM movimentacoes
-            WHERE LOWER(tipo)='entrada'
-        """)
-        entradas = float(cursor.fetchone()[0])
 
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
+        params = []
+
+        filtro_meio = ""
+
+        if meio:
+            meio = validar_meio(meio)
+            filtro_meio = "AND meio = %s"
+            params.append(meio)
+
+        cursor.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='entrada' THEN valor ELSE 0 END),0),
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='saida' THEN valor ELSE 0 END),0)
             FROM movimentacoes
-            WHERE LOWER(tipo)='saida'
-        """)
-        saidas = float(cursor.fetchone()[0])
+            WHERE 1=1
+            {filtro_meio}
+        """, params)
+
+        entradas, saidas = cursor.fetchone()
+
+        entradas = float(entradas)
+        saidas = float(saidas)
 
         return {
             "entradas": entradas,
@@ -293,7 +413,7 @@ def resumo_movimentacoes():
 # ==================================================
 # RESUMO POR PERÍODO
 # ==================================================
-def resumo_por_periodo(data_inicio, data_fim):
+def resumo_por_periodo(data_inicio, data_fim, meio=None):
 
     conn = conectar()
 
@@ -303,23 +423,28 @@ def resumo_por_periodo(data_inicio, data_fim):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
+
+        params = [data_inicio, data_fim]
+        filtro_meio = ""
+
+        if meio:
+            meio = validar_meio(meio)
+            filtro_meio = "AND meio = %s"
+            params.append(meio)
+
+        cursor.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='entrada' THEN valor ELSE 0 END),0),
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='saida' THEN valor ELSE 0 END),0)
             FROM movimentacoes
-            WHERE LOWER(tipo)='entrada'
-            AND DATE(data_movimentacao) BETWEEN %s AND %s
-        """, (data_inicio, data_fim))
+            WHERE DATE(data_movimentacao) BETWEEN %s AND %s
+            {filtro_meio}
+        """, params)
 
-        entradas = float(cursor.fetchone()[0])
+        entradas, saidas = cursor.fetchone()
 
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
-            FROM movimentacoes
-            WHERE LOWER(tipo)='saida'
-            AND DATE(data_movimentacao) BETWEEN %s AND %s
-        """, (data_inicio, data_fim))
-
-        saidas = float(cursor.fetchone()[0])
+        entradas = float(entradas)
+        saidas = float(saidas)
 
         return {
             "entradas": entradas,
@@ -337,38 +462,6 @@ def resumo_por_periodo(data_inicio, data_fim):
 
 
 # ==================================================
-# LISTAR TODAS MOVIMENTAÇÕES
-# ==================================================
-def listar_movimentacoes():
-
-    conn = conectar()
-
-    if conn is None:
-        return pd.DataFrame()
-
-    try:
-        query = """
-            SELECT *
-            FROM movimentacoes
-            ORDER BY data_movimentacao DESC, id DESC
-        """
-
-        df = pd.read_sql(query, conn)
-
-        if df is None or df.empty:
-            return pd.DataFrame()
-
-        return df.fillna("")
-
-    except Exception as erro:
-        print("Erro ao listar movimentações:", erro)
-        return pd.DataFrame()
-
-    finally:
-        conn.close()
-
-
-# ==================================================
 # RESUMO CAIXA
 # ==================================================
 def resumo_caixa(caixa_id):
@@ -381,21 +474,20 @@ def resumo_caixa(caixa_id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
-            FROM movimentacoes
-            WHERE caixa_id = %s AND tipo='entrada'
-        """, (caixa_id,))
-
-        entradas = float(cursor.fetchone()[0])
 
         cursor.execute("""
-            SELECT COALESCE(SUM(valor),0)
+            SELECT
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='entrada' THEN valor ELSE 0 END),0),
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='saida' THEN valor ELSE 0 END),0)
             FROM movimentacoes
-            WHERE caixa_id = %s AND tipo='saida'
+            WHERE caixa_id = %s
+            AND meio = 'CAIXA'
         """, (caixa_id,))
 
-        saidas = float(cursor.fetchone()[0])
+        entradas, saidas = cursor.fetchone()
+
+        entradas = float(entradas)
+        saidas = float(saidas)
 
         return {
             "entradas": entradas,
@@ -405,6 +497,56 @@ def resumo_caixa(caixa_id):
 
     except Exception as erro:
         print("Erro resumo caixa:", erro)
+        return {"entradas": 0, "saidas": 0, "saldo": 0}
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# RESUMO BANCO
+# ==================================================
+def resumo_banco(conta_bancaria_id=None):
+
+    conn = conectar()
+
+    if conn is None:
+        return {"entradas": 0, "saidas": 0, "saldo": 0}
+
+    cursor = conn.cursor()
+
+    try:
+
+        params = []
+        filtro_conta = ""
+
+        if conta_bancaria_id is not None:
+            filtro_conta = "AND conta_bancaria_id = %s"
+            params.append(int(conta_bancaria_id))
+
+        cursor.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='entrada' THEN valor ELSE 0 END),0),
+                COALESCE(SUM(CASE WHEN LOWER(tipo)='saida' THEN valor ELSE 0 END),0)
+            FROM movimentacoes
+            WHERE meio = 'BANCO'
+            {filtro_conta}
+        """, params)
+
+        entradas, saidas = cursor.fetchone()
+
+        entradas = float(entradas)
+        saidas = float(saidas)
+
+        return {
+            "entradas": entradas,
+            "saidas": saidas,
+            "saldo": entradas - saidas
+        }
+
+    except Exception as erro:
+        print("Erro resumo banco:", erro)
         return {"entradas": 0, "saidas": 0, "saldo": 0}
 
     finally:

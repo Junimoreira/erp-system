@@ -1,48 +1,59 @@
 import xml.etree.ElementTree as ET
 
 
-def _texto(elemento, caminho, ns):
+def limpar_numero(valor):
+    if valor is None:
+        return ""
+    return "".join(filter(str.isdigit, str(valor)))
+
+
+def texto_no(elemento, caminho, ns):
     achado = elemento.find(caminho, ns)
     return achado.text.strip() if achado is not None and achado.text else ""
 
 
-def _float(valor):
+def numero_float(valor):
     try:
+        if valor is None or valor == "":
+            return 0.0
         return float(str(valor).replace(",", "."))
     except Exception:
         return 0.0
 
 
-def ler_xml_nfe(arquivo):
+def ler_xml_nfe(arquivo_xml):
 
-    tree = ET.parse(arquivo)
-    root = tree.getroot()
+    conteudo = arquivo_xml.read()
 
-    ns = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
+    root = ET.fromstring(conteudo)
+
+    ns = {
+        "nfe": "http://www.portalfiscal.inf.br/nfe"
+    }
 
     inf_nfe = root.find(".//nfe:infNFe", ns)
 
     if inf_nfe is None:
-        raise Exception("XML inválido ou não é uma NF-e.")
+        raise Exception("XML inválido: infNFe não encontrado.")
 
+    chave_nfe = inf_nfe.attrib.get("Id", "").replace("NFe", "")
+
+    ide = inf_nfe.find("nfe:ide", ns)
     emit = inf_nfe.find("nfe:emit", ns)
-    total = inf_nfe.find("nfe:total/nfe:ICMSTot", ns)
+    total = inf_nfe.find(".//nfe:ICMSTot", ns)
+
+    numero_nfe = texto_no(ide, "nfe:nNF", ns) if ide is not None else ""
+    serie_nfe = texto_no(ide, "nfe:serie", ns) if ide is not None else ""
+    data_emissao = texto_no(ide, "nfe:dhEmi", ns) if ide is not None else ""
 
     fornecedor = {
-        "razao_social": _texto(emit, "nfe:xNome", ns),
-        "nome_fantasia": _texto(emit, "nfe:xFant", ns),
-        "cnpj": _texto(emit, "nfe:CNPJ", ns),
-        "inscricao_estadual": _texto(emit, "nfe:IE", ns),
-        "telefone": _texto(emit, "nfe:enderEmit/nfe:fone", ns),
-        "email": "",
-        "endereco": _texto(emit, "nfe:enderEmit/nfe:xLgr", ns),
-        "numero": _texto(emit, "nfe:enderEmit/nfe:nro", ns),
-        "bairro": _texto(emit, "nfe:enderEmit/nfe:xBairro", ns),
-        "cidade": _texto(emit, "nfe:enderEmit/nfe:xMun", ns),
-        "estado": _texto(emit, "nfe:enderEmit/nfe:UF", ns),
-        "cep": _texto(emit, "nfe:enderEmit/nfe:CEP", ns),
-        "contato_responsavel": "",
-        "observacoes": "Fornecedor importado via XML NF-e"
+        "razao_social": texto_no(emit, "nfe:xNome", ns),
+        "nome_fantasia": texto_no(emit, "nfe:xFant", ns),
+        "cnpj": limpar_numero(texto_no(emit, "nfe:CNPJ", ns)),
+        "inscricao_estadual": texto_no(emit, "nfe:IE", ns),
+        "cidade": texto_no(emit, "nfe:enderEmit/nfe:xMun", ns),
+        "estado": texto_no(emit, "nfe:enderEmit/nfe:UF", ns),
+        "telefone": texto_no(emit, "nfe:enderEmit/nfe:fone", ns),
     }
 
     produtos = []
@@ -51,39 +62,35 @@ def ler_xml_nfe(arquivo):
 
         prod = det.find("nfe:prod", ns)
 
-        codigo_barras = _texto(prod, "nfe:cEAN", ns)
+        if prod is None:
+            continue
 
-        if codigo_barras.upper() == "SEM GTIN":
-            codigo_barras = ""
-
-        quantidade = _float(_texto(prod, "nfe:qCom", ns))
-        valor_unitario = _float(_texto(prod, "nfe:vUnCom", ns))
-        valor_total = _float(_texto(prod, "nfe:vProd", ns))
+        quantidade = numero_float(texto_no(prod, "nfe:qCom", ns))
+        custo_unitario = numero_float(texto_no(prod, "nfe:vUnCom", ns))
+        subtotal = numero_float(texto_no(prod, "nfe:vProd", ns))
 
         produtos.append({
-            "nome": _texto(prod, "nfe:xProd", ns),
-            "codigo_barras": codigo_barras,
-            "sku": _texto(prod, "nfe:cProd", ns),
-            "referencia": _texto(prod, "nfe:cProd", ns),
-            "marca": "",
-            "categoria": "IMPORTADO XML",
-            "ncm": _texto(prod, "nfe:NCM", ns),
-            "cest": _texto(prod, "nfe:CEST", ns),
-            "cfop_padrao": _texto(prod, "nfe:CFOP", ns),
-            "unidade": _texto(prod, "nfe:uCom", ns),
-            "custo": valor_unitario,
-            "preco": valor_unitario,
+            "codigo": texto_no(prod, "nfe:cProd", ns),
+            "ean": texto_no(prod, "nfe:cEAN", ns),
+            "nome": texto_no(prod, "nfe:xProd", ns),
+            "ncm": texto_no(prod, "nfe:NCM", ns),
+            "cfop": texto_no(prod, "nfe:CFOP", ns),
+            "unidade": texto_no(prod, "nfe:uCom", ns),
             "quantidade": quantidade,
-            "subtotal": valor_total,
-            "margem_lucro": 0,
-            "estoque_minimo": 0,
-            "localizacao": "",
-            "ativo": True,
-            "observacoes": "Produto importado via XML NF-e"
+            "custo": custo_unitario,
+            "subtotal": subtotal
         })
 
+    valor_total = numero_float(
+        texto_no(total, "nfe:vNF", ns) if total is not None else 0
+    )
+
     return {
+        "chave_nfe": chave_nfe,
+        "numero_nfe": numero_nfe,
+        "serie_nfe": serie_nfe,
+        "data_emissao": data_emissao,
         "fornecedor": fornecedor,
         "produtos": produtos,
-        "valor_total": _float(_texto(total, "nfe:vNF", ns)) if total is not None else 0
+        "valor_total": valor_total
     }
