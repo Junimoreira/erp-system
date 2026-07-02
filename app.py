@@ -78,7 +78,7 @@ st.markdown(
             padding-right: 14px !important;
             margin-bottom: 6px !important;
             box-sizing: border-box !important;
-            white-space: normal !important;
+            white-space:nowrap !important;
         }
 
         section[data-testid="stSidebar"] button:hover {
@@ -87,20 +87,40 @@ st.markdown(
             color: white !important;
         }
 
-        .menu-ativo {
-            min-height: 44px;
-            background: linear-gradient(90deg, #44D62C, #008ACD);
-            color: white;
-            font-weight: 800;
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin-bottom: 8px;
-            text-align: left;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            white-space: normal;
-        }
+       .menu-ativo{
+
+            width:100% !important;
+            min-width:100% !important;
+            max-width:100% !important;
+
+            height:46px !important;
+
+            display:flex;
+            align-items:center;
+            justify-content:flex-start;
+
+            padding:0 16px;
+
+            border-radius:14px;
+
+            background:linear-gradient(
+                90deg,
+                #44D62C,
+                #008ACD
+            );
+
+    color:white;
+
+    font-weight:800;
+
+    box-sizing:border-box;
+
+    margin-bottom:8px;
+
+    overflow:hidden;
+
+    white-space:nowrap;
+}
 
         section[data-testid="stSidebar"] h1 {
             font-size: 22px !important;
