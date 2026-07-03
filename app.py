@@ -270,9 +270,15 @@ st.divider()
 # SIDEBAR
 # ==================================================
 with st.sidebar:
-    st.title("ERP Verde Infância")
-    st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
 
+    logo_path = os.path.join(BASE_DIR, "assets", "logo.png")
+
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+    else:
+        st.title("ERP Verde Infância")
+
+    st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
     st.markdown("### Menu")
 
     for opcao in menu_opcoes:
@@ -284,9 +290,9 @@ with st.sidebar:
         else:
             if st.button(opcao, key=f"menu_{opcao}"):
                 st.session_state["menu_atual"] = opcao
+                st.session_state["menu_topo_select"] = opcao
                 st.rerun()
-
-    st.divider()
+                st.divider()
 
     if st.button("🚪 Sair", key="botao_sair"):
         st.session_state.clear()
