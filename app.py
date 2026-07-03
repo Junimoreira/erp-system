@@ -251,7 +251,7 @@ with col_menu:
         "Escolha a tela",
         menu_opcoes,
         index=menu_opcoes.index(st.session_state["menu_atual"]),
-        key="menu_topo_select",
+        key=f"menu_topo_select_{st.session_state['menu_atual']}",
         label_visibility="collapsed"
     )
 
