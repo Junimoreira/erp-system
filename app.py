@@ -290,9 +290,7 @@ with st.sidebar:
         else:
             if st.button(opcao, key=f"menu_{opcao}"):
                 st.session_state["menu_atual"] = opcao
-                st.session_state["menu_topo_select"] = opcao
                 st.rerun()
-                st.divider()
 
     if st.button("🚪 Sair", key="botao_sair"):
         st.session_state.clear()
