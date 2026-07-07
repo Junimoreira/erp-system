@@ -130,6 +130,7 @@ def tela_contas_pagar():
             data_pagamento = st.date_input(
                 "Data real do pagamento",
                 value=pd.Timestamp.today().date(),
+                format="DD/MM/YYYY",
                 key="data_pagamento_conta_pagar"
             )
 
@@ -249,7 +250,11 @@ def tela_contas_pagar():
             step=0.01
         )
 
-        vencimento = st.date_input("Vencimento")
+        vencimento = st.date_input(
+            "Vencimento",
+            format="DD/MM/YYYY",
+            key="vencimento_cadastrar_conta_pagar"
+        )
 
         categoria = st.selectbox(
             "Categoria da despesa",
@@ -320,7 +325,9 @@ def tela_contas_pagar():
                 "Vencimento",
                 value=pd.to_datetime(
                     conta_info.get("vencimento")
-                ).date()
+                ).date(),
+                format="DD/MM/YYYY",
+                key="vencimento_editar_conta_pagar"
             )
 
             categoria_atual = str(
@@ -355,7 +362,7 @@ def tela_contas_pagar():
                 "Para marcar como PAGO, use a seção Baixar / Pagar Conta. A edição mantém o controle financeiro seguro."
             )
 
-            novo_status = st.selectbox(
+            st.selectbox(
                 "Status",
                 ["PENDENTE", "PAGO"],
                 index=0
