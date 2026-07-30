@@ -10,6 +10,9 @@ from database.contas_receber_db import (
 )
 
 from database.contas_bancarias import listar_contas as listar_bancos
+from utils.formatacao import (
+    formatar_dataframe_brasil
+)
 
 
 def tela_contas_receber():
@@ -22,7 +25,17 @@ def tela_contas_receber():
     if df.empty:
         st.info("Nenhuma conta a receber cadastrada.")
     else:
-        st.dataframe(df, use_container_width=True)
+        df_exibicao = formatar_dataframe_brasil(
+            df.copy(),
+            com_hora=False,
+            moedas=True
+        )
+
+        st.dataframe(
+            df_exibicao,
+            use_container_width=True,
+            hide_index=True
+        )
 
     st.divider()
 
@@ -33,7 +46,11 @@ def tela_contas_receber():
         cliente = st.text_input("Cliente")
         descricao = st.text_input("Descrição")
         valor = st.number_input("Valor", min_value=0.0, step=0.01)
-        vencimento = st.date_input("Vencimento")
+        vencimento = st.date_input(
+            "Vencimento",
+            format="DD/MM/YYYY",
+            key="vencimento_nova_conta_receber"
+        )
 
         forma_pagamento = st.selectbox(
             "Forma de pagamento",
@@ -106,7 +123,11 @@ def tela_contas_receber():
 
             novo_vencimento = st.date_input(
                 "Vencimento",
-                value=pd.to_datetime(conta_info.get("vencimento")).date()
+                value=pd.to_datetime(
+                conta_info.get("vencimento")
+                ).date(),
+                format="DD/MM/YYYY",
+                key=f"vencimento_editar_conta_receber_{conta_edit}"
             )
 
             novo_status = st.selectbox(

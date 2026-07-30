@@ -71,7 +71,7 @@ def tela_vendas():
         with col1:
             data_venda = st.date_input(
                 "📅 Data da Venda",
-                value=datetime.today(),
+                value=datetime.today().date(),
                 format="DD/MM/YYYY"
             )
 
@@ -364,14 +364,16 @@ def tela_vendas():
         with col1:
             data_inicio = st.date_input(
                 "Data Inicial",
-                value=datetime.today(),
+                value=datetime.today().date(),
+                format="DD/MM/YYYY",
                 key="hist_inicio"
             )
 
         with col2:
             data_fim = st.date_input(
                 "Data Final",
-                value=datetime.today(),
+                value=datetime.today().date(),
+                format="DD/MM/YYYY",
                 key="hist_fim"
             )
 
