@@ -1,15 +1,20 @@
-import streamlit as st
-import sys
 import os
+import sys
+
+import streamlit as st
+
 
 # ==================================================
-# PATH
+# PATH DO PROJETO
 # ==================================================
-BASE_DIR = os.path.dirname(__file__)
-sys.path.append(BASE_DIR)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
+
 
 # ==================================================
-# CONFIG STREAMLIT
+# CONFIGURAÇÃO DO STREAMLIT
 # ==================================================
 st.set_page_config(
     page_title="ERP Verde Infância",
@@ -18,8 +23,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
 # ==================================================
-# IMPORT DAS TELAS
+# IMPORTAÇÃO DAS TELAS
 # ==================================================
 from telas.login import tela_login
 from telas.dashboard import tela_dashboard
@@ -45,104 +51,208 @@ from telas.conversao_xml import tela_conversao_xml
 
 
 # ==================================================
-# CSS
+# CSS EXTERNO
 # ==================================================
 def carregar_css():
-    caminho_css = os.path.join(BASE_DIR, "styles", "styles.css")
+    caminho_css = os.path.join(
+        BASE_DIR,
+        "styles",
+        "styles.css"
+    )
 
     if os.path.exists(caminho_css):
-        with open(caminho_css, encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+        with open(caminho_css, encoding="utf-8") as arquivo_css:
+            st.markdown(
+                f"<style>{arquivo_css.read()}</style>",
+                unsafe_allow_html=True
+            )
 
 
 carregar_css()
 
+
+# ==================================================
+# CSS LOCAL DO APP
+# ==================================================
 st.markdown(
     """
     <style>
-        /* IMPORTANTE:
-           Não forçamos mais largura interna da sidebar.
-           Isso evita o sumiço da barra lateral no Render/Streamlit.
-        */
+        /* ==================================================
+           BOTÕES DO MENU LATERAL
+        ================================================== */
 
-        section[data-testid="stSidebar"] button {
-            min-height: 44px !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(255,255,255,0.15) !important;
-            background: rgba(255,255,255,0.08) !important;
-            color: white !important;
-            font-weight: 600 !important;
-            text-align: left !important;
+        section[data-testid="stSidebar"]
+        div[data-testid="stButton"] {
+            width: 100% !important;
+            margin: 0 0 6px 0 !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stButton"] > button {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+
+            height: 46px !important;
+            min-height: 46px !important;
+            max-height: 46px !important;
+
+            display: flex !important;
+            align-items: center !important;
             justify-content: flex-start !important;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
-            margin-bottom: 6px !important;
+
+            padding: 0 16px !important;
+            margin: 0 !important;
+
+            border-radius: 14px !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: white !important;
+
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+            text-align: left !important;
+
             box-sizing: border-box !important;
-            white-space:nowrap !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
         }
 
-        section[data-testid="stSidebar"] button:hover {
-            background: rgba(68,214,44,0.30) !important;
-            border: 1px solid #44D62C !important;
+        section[data-testid="stSidebar"]
+        div[data-testid="stButton"] > button p {
+            width: 100% !important;
+            margin: 0 !important;
+
+            color: white !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+            text-align: left !important;
+
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stButton"] > button:hover {
+            background: rgba(68, 214, 44, 0.30) !important;
+            border-color: #44D62C !important;
             color: white !important;
         }
 
-       .menu-ativo{
+        section[data-testid="stSidebar"]
+        div[data-testid="stButton"] > button:focus {
+            border-color: #44D62C !important;
+            box-shadow: 0 0 0 1px rgba(68, 214, 44, 0.35) !important;
+        }
 
-            width:100% !important;
-            min-width:100% !important;
-            max-width:100% !important;
+        /* ==================================================
+           ITEM ATIVO DO MENU
+        ================================================== */
 
-            height:46px !important;
+        .menu-ativo {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
 
-            display:flex;
-            align-items:center;
-            justify-content:flex-start;
+            height: 46px !important;
+            min-height: 46px !important;
+            max-height: 46px !important;
 
-            padding:0 16px;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
 
-            border-radius:14px;
+            padding: 0 16px !important;
+            margin: 0 0 6px 0 !important;
 
-            background:linear-gradient(
+            border-radius: 14px !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+
+            background: linear-gradient(
                 90deg,
                 #44D62C,
                 #008ACD
-            );
+            ) !important;
 
-    color:white;
+            color: white !important;
+            font-size: 14px !important;
+            font-weight: 800 !important;
+            line-height: 1.2 !important;
 
-    font-weight:800;
+            box-sizing: border-box !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
 
-    box-sizing:border-box;
+        /* ==================================================
+           CAIXA DO USUÁRIO NA SIDEBAR
+        ================================================== */
 
-    margin-bottom:8px;
+        .usuario-box {
+            width: 100%;
+            padding: 11px 13px;
+            margin: 4px 0 14px 0;
 
-    overflow:hidden;
+            background: rgba(68, 214, 44, 0.14);
+            border: 1px solid rgba(68, 214, 44, 0.38);
+            border-radius: 14px;
 
-    white-space:nowrap;
-}
+            color: white;
+            font-weight: 700;
+            box-sizing: border-box;
+        }
+
+        .usuario-perfil {
+            margin-top: 3px;
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0.85;
+        }
+
+        /* ==================================================
+           MENU SUPERIOR
+        ================================================== */
+
+        .menu-topo-box {
+            padding: 10px 14px;
+            margin-bottom: 12px;
+
+            background: rgba(68, 214, 44, 0.08);
+            border: 1px solid rgba(68, 214, 44, 0.25);
+            border-radius: 14px;
+        }
+
+        .menu-topo-titulo {
+            color: #44D62C;
+            font-weight: 800;
+        }
+
+        /* ==================================================
+           TÍTULOS DA SIDEBAR
+        ================================================== */
 
         section[data-testid="stSidebar"] h1 {
             font-size: 22px !important;
             white-space: normal !important;
         }
 
-        .menu-topo-box {
-            background: rgba(68,214,44,0.08);
-            border: 1px solid rgba(68,214,44,0.25);
-            border-radius: 14px;
-            padding: 10px 14px;
-            margin-bottom: 12px;
+        section[data-testid="stSidebar"] h3 {
+            margin-top: 4px !important;
+            margin-bottom: 12px !important;
         }
 
-        .menu-topo-titulo {
-            font-weight: 800;
-            color: #44D62C;
-            margin-bottom: 4px;
-        }
+        /* ==================================================
+           RESPONSIVIDADE
+        ================================================== */
 
         @media (max-width: 768px) {
-            section[data-testid="stSidebar"] button,
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"] > button,
             .menu-ativo {
                 font-size: 13px !important;
             }
@@ -151,6 +261,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 # ==================================================
 # SESSION STATE
@@ -161,6 +272,7 @@ if "logado" not in st.session_state:
 if "menu_atual" not in st.session_state:
     st.session_state["menu_atual"] = "🏠 Dashboard"
 
+
 # ==================================================
 # LOGIN
 # ==================================================
@@ -168,69 +280,100 @@ if not st.session_state["logado"]:
     tela_login()
     st.stop()
 
-# ==================================================
-# PERFIL
-# ==================================================
-perfil = str(st.session_state.get("perfil", "")).lower()
-admin_total = perfil in ["admin", "diretor"]
 
 # ==================================================
-# MENU
+# PERFIL DO USUÁRIO
+# ==================================================
+perfil = str(
+    st.session_state.get("perfil", "")
+).strip()
+
+perfil_normalizado = perfil.lower()
+
+admin_total = perfil_normalizado in [
+    "admin",
+    "diretor"
+]
+
+
+# ==================================================
+# FUNÇÃO DE PERMISSÃO
+# ==================================================
+def tem_permissao(permissao):
+    if admin_total:
+        return True
+
+    return bool(
+        st.session_state.get(permissao, False)
+    )
+
+
+# ==================================================
+# CONSTRUÇÃO DAS OPÇÕES DO MENU
 # ==================================================
 menu_opcoes = ["🏠 Dashboard"]
 
-if admin_total or st.session_state.get("pode_caixa"):
+if tem_permissao("pode_caixa"):
     menu_opcoes.append("💰 Caixa")
 
-if admin_total or st.session_state.get("pode_clientes"):
+if tem_permissao("pode_clientes"):
     menu_opcoes.append("👥 Clientes")
 
-if admin_total or st.session_state.get("pode_produtos"):
-    menu_opcoes += [
+if tem_permissao("pode_produtos"):
+    menu_opcoes.extend([
         "📦 Produtos",
         "💰 Formação de Preço",
         "🚚 Fornecedores",
         "📥 Compras",
         "🔁 Conversão XML"
-    ]
+    ])
 
-if admin_total or st.session_state.get("pode_movimentacoes"):
+if tem_permissao("pode_movimentacoes"):
     menu_opcoes.append("💰 Movimentações")
 
-if admin_total or st.session_state.get("pode_vendas"):
-    menu_opcoes.append("🛒 Vendas")
-    menu_opcoes.append("📢 Marketing")
+if tem_permissao("pode_vendas"):
+    menu_opcoes.extend([
+        "🛒 Vendas",
+        "📢 Marketing"
+    ])
 
-if admin_total or st.session_state.get("pode_financeiro"):
-    menu_opcoes.append("🏦 Contas Bancárias")
-    menu_opcoes.append("📊 Fluxo de Caixa")
+if tem_permissao("pode_financeiro"):
+    menu_opcoes.extend([
+        "🏦 Contas Bancárias",
+        "📊 Fluxo de Caixa"
+    ])
 
-if admin_total or st.session_state.get("pode_contas_pagar"):
+if tem_permissao("pode_contas_pagar"):
     menu_opcoes.append("📤 Contas a Pagar")
 
-if admin_total or st.session_state.get("pode_contas_receber"):
+if tem_permissao("pode_contas_receber"):
     menu_opcoes.append("📥 Contas a Receber")
 
-if admin_total or st.session_state.get("pode_produtos"):
+if tem_permissao("pode_produtos"):
     menu_opcoes.append("🧠 Central de Compras")
 
-if admin_total or st.session_state.get("pode_relatorios"):
+if tem_permissao("pode_relatorios"):
     menu_opcoes.append("📊 Relatórios")
 
-if admin_total or st.session_state.get("pode_configuracoes"):
+if tem_permissao("pode_configuracoes"):
     menu_opcoes.append("⚙️ Configurações")
 
-if admin_total:
-    menu_opcoes.append("💾 Administração do Banco")
-
-if admin_total or st.session_state.get("pode_fechamento_caixa"):
+if tem_permissao("pode_fechamento_caixa"):
     menu_opcoes.append("📊 Fechamento de Caixa")
 
 if admin_total:
-    menu_opcoes.append("🔐 Permissões")
+    menu_opcoes.extend([
+        "💾 Administração do Banco",
+        "🔐 Permissões"
+    ])
 
+
+# ==================================================
+# VALIDAÇÃO DO MENU ATUAL
+# ==================================================
 if st.session_state["menu_atual"] not in menu_opcoes:
     st.session_state["menu_atual"] = "🏠 Dashboard"
+
 
 # ==================================================
 # MENU SUPERIOR DE SEGURANÇA
@@ -238,7 +381,9 @@ if st.session_state["menu_atual"] not in menu_opcoes:
 st.markdown(
     """
     <div class="menu-topo-box">
-        <div class="menu-topo-titulo">🧭 Navegação rápida</div>
+        <div class="menu-topo-titulo">
+            🧭 Navegação rápida
+        </div>
     </div>
     """,
     unsafe_allow_html=True
@@ -249,66 +394,122 @@ col_menu, col_sair = st.columns([4, 1])
 with col_menu:
     menu_topo = st.selectbox(
         "Escolha a tela",
-        menu_opcoes,
-        index=menu_opcoes.index(st.session_state["menu_atual"]),
-        key=f"menu_topo_select_{st.session_state['menu_atual']}",
+        options=menu_opcoes,
+        index=menu_opcoes.index(
+            st.session_state["menu_atual"]
+        ),
+        key="menu_topo_select",
         label_visibility="collapsed"
     )
 
 with col_sair:
-    if st.button("🚪 Sair", use_container_width=True, key="botao_sair_topo"):
+    if st.button(
+        "🚪 Sair",
+        key="botao_sair_topo",
+        use_container_width=True
+    ):
         st.session_state.clear()
         st.rerun()
+
 
 if menu_topo != st.session_state["menu_atual"]:
     st.session_state["menu_atual"] = menu_topo
     st.rerun()
 
+
 st.divider()
+
 
 # ==================================================
 # SIDEBAR
 # ==================================================
 with st.sidebar:
 
-    logo_path = os.path.join(BASE_DIR, "assets", "logo.png")
+    logo_path = os.path.join(
+        BASE_DIR,
+        "assets",
+        "logo.png"
+    )
 
     if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
+        st.image(
+            logo_path,
+            use_container_width=True
+        )
     else:
         st.title("ERP Verde Infância")
 
-    st.success(f"👤 {st.session_state.get('usuario', 'Usuário')}")
+    usuario_nome = (
+        st.session_state.get("nome")
+        or st.session_state.get("usuario")
+        or "Usuário"
+    )
+
+    st.markdown(
+        f"""
+        <div class="usuario-box">
+            👤 {usuario_nome}
+            <div class="usuario-perfil">
+                {perfil or "Usuário"}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.markdown("### Menu")
 
     for opcao in menu_opcoes:
+
         if opcao == st.session_state["menu_atual"]:
+
             st.markdown(
-                f"<div class='menu-ativo'>{opcao}</div>",
+                f"""
+                <div class="menu-ativo">
+                    {opcao}
+                </div>
+                """,
                 unsafe_allow_html=True
             )
+
         else:
-            if st.button(opcao, key=f"menu_{opcao}"):
+
+            if st.button(
+                opcao,
+                key=f"menu_{opcao}",
+                use_container_width=True
+            ):
                 st.session_state["menu_atual"] = opcao
                 st.rerun()
 
-    if st.button("🚪 Sair", key="botao_sair"):
+    st.divider()
+
+    if st.button(
+        "🚪 Sair",
+        key="botao_sair_sidebar",
+        use_container_width=True
+    ):
         st.session_state.clear()
         st.rerun()
 
-menu = st.session_state["menu_atual"]
 
 # ==================================================
-# BLOQUEIO
+# MENU SELECIONADO
+# ==================================================
+menu = st.session_state["menu_atual"]
+
+
+# ==================================================
+# BLOQUEIO DE PERMISSÃO
 # ==================================================
 def bloquear(permissao):
-    if not (admin_total or st.session_state.get(permissao, False)):
-        st.error("⛔ Sem permissão")
+    if not tem_permissao(permissao):
+        st.error("⛔ Você não possui permissão para acessar esta tela.")
         st.stop()
 
 
 # ==================================================
-# ROTAS
+# ROTAS DO SISTEMA
 # ==================================================
 try:
 
@@ -388,14 +589,27 @@ try:
         tela_configuracoes()
 
     elif menu == "💾 Administração do Banco":
+
         if not admin_total:
             st.error("⛔ Acesso restrito ao Diretor.")
             st.stop()
+
         tela_admin_banco()
 
     elif menu == "🔐 Permissões":
+
+        if not admin_total:
+            st.error("⛔ Acesso restrito ao Diretor.")
+            st.stop()
+
         tela_painel_permissoes()
 
-except Exception as e:
-    st.error("Erro geral na aplicação")
-    st.exception(e)
+    else:
+        st.warning("Tela não encontrada.")
+        st.session_state["menu_atual"] = "🏠 Dashboard"
+        st.rerun()
+
+
+except Exception as erro:
+    st.error("Ocorreu um erro geral na aplicação.")
+    st.exception(erro)
