@@ -5,7 +5,7 @@ import streamlit as st
 
 
 # ==================================================
-# PATH DO PROJETO
+# CAMINHO DO PROJETO
 # ==================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -61,7 +61,10 @@ def carregar_css():
     )
 
     if os.path.exists(caminho_css):
-        with open(caminho_css, encoding="utf-8") as arquivo_css:
+        with open(
+            caminho_css,
+            encoding="utf-8"
+        ) as arquivo_css:
             st.markdown(
                 f"<style>{arquivo_css.read()}</style>",
                 unsafe_allow_html=True
@@ -72,13 +75,26 @@ carregar_css()
 
 
 # ==================================================
-# CSS LOCAL DO APP
+# CSS DO MENU LATERAL
 # ==================================================
 st.markdown(
     """
     <style>
+
         /* ==================================================
-           BOTÕES DO MENU LATERAL
+           SIDEBAR
+        ================================================== */
+
+        section[data-testid="stSidebar"] {
+            border-right: 3px solid #44D62C;
+        }
+
+        section[data-testid="stSidebar"] > div {
+            padding-top: 10px;
+        }
+
+        /* ==================================================
+           BOTÕES DA SIDEBAR
         ================================================== */
 
         section[data-testid="stSidebar"]
@@ -105,7 +121,7 @@ st.markdown(
             margin: 0 !important;
 
             border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
 
             background: rgba(255, 255, 255, 0.08) !important;
             color: white !important;
@@ -150,7 +166,7 @@ st.markdown(
         }
 
         /* ==================================================
-           ITEM ATIVO DO MENU
+           ITEM ATIVO
         ================================================== */
 
         .menu-ativo {
@@ -170,7 +186,7 @@ st.markdown(
             margin: 0 0 6px 0 !important;
 
             border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            border: 1px solid rgba(255, 255, 255, 0.20) !important;
 
             background: linear-gradient(
                 90deg,
@@ -190,7 +206,7 @@ st.markdown(
         }
 
         /* ==================================================
-           CAIXA DO USUÁRIO NA SIDEBAR
+           CAIXA DO USUÁRIO
         ================================================== */
 
         .usuario-box {
@@ -204,46 +220,40 @@ st.markdown(
 
             color: white;
             font-weight: 700;
+
             box-sizing: border-box;
         }
 
         .usuario-perfil {
             margin-top: 3px;
+
             font-size: 12px;
             font-weight: 500;
+
             opacity: 0.85;
         }
 
         /* ==================================================
-           MENU SUPERIOR
+           TÍTULO MENU
         ================================================== */
 
-        .menu-topo-box {
-            padding: 10px 14px;
+        .titulo-menu {
+            margin-top: 5px;
             margin-bottom: 12px;
 
-            background: rgba(68, 214, 44, 0.08);
-            border: 1px solid rgba(68, 214, 44, 0.25);
-            border-radius: 14px;
-        }
-
-        .menu-topo-titulo {
-            color: #44D62C;
+            color: white;
+            font-size: 18px;
             font-weight: 800;
         }
 
         /* ==================================================
-           TÍTULOS DA SIDEBAR
+           DIVISOR
         ================================================== */
 
-        section[data-testid="stSidebar"] h1 {
-            font-size: 22px !important;
-            white-space: normal !important;
-        }
-
-        section[data-testid="stSidebar"] h3 {
-            margin-top: 4px !important;
-            margin-bottom: 12px !important;
+        section[data-testid="stSidebar"] hr {
+            border-color: rgba(255, 255, 255, 0.15) !important;
+            margin-top: 14px !important;
+            margin-bottom: 14px !important;
         }
 
         /* ==================================================
@@ -251,12 +261,14 @@ st.markdown(
         ================================================== */
 
         @media (max-width: 768px) {
+
             section[data-testid="stSidebar"]
             div[data-testid="stButton"] > button,
             .menu-ativo {
                 font-size: 13px !important;
             }
         }
+
     </style>
     """,
     unsafe_allow_html=True
@@ -309,7 +321,7 @@ def tem_permissao(permissao):
 
 
 # ==================================================
-# CONSTRUÇÃO DAS OPÇÕES DO MENU
+# CONSTRUÇÃO DO MENU
 # ==================================================
 menu_opcoes = ["🏠 Dashboard"]
 
@@ -355,11 +367,11 @@ if tem_permissao("pode_produtos"):
 if tem_permissao("pode_relatorios"):
     menu_opcoes.append("📊 Relatórios")
 
-if tem_permissao("pode_configuracoes"):
-    menu_opcoes.append("⚙️ Configurações")
-
 if tem_permissao("pode_fechamento_caixa"):
     menu_opcoes.append("📊 Fechamento de Caixa")
+
+if tem_permissao("pode_configuracoes"):
+    menu_opcoes.append("⚙️ Configurações")
 
 if admin_total:
     menu_opcoes.extend([
@@ -373,51 +385,6 @@ if admin_total:
 # ==================================================
 if st.session_state["menu_atual"] not in menu_opcoes:
     st.session_state["menu_atual"] = "🏠 Dashboard"
-
-
-# ==================================================
-# MENU SUPERIOR DE SEGURANÇA
-# ==================================================
-st.markdown(
-    """
-    <div class="menu-topo-box">
-        <div class="menu-topo-titulo">
-            🧭 Navegação rápida
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-col_menu, col_sair = st.columns([4, 1])
-
-with col_menu:
-    menu_topo = st.selectbox(
-        "Escolha a tela",
-        options=menu_opcoes,
-        index=menu_opcoes.index(
-            st.session_state["menu_atual"]
-        ),
-        key="menu_topo_select",
-        label_visibility="collapsed"
-    )
-
-with col_sair:
-    if st.button(
-        "🚪 Sair",
-        key="botao_sair_topo",
-        use_container_width=True
-    ):
-        st.session_state.clear()
-        st.rerun()
-
-
-if menu_topo != st.session_state["menu_atual"]:
-    st.session_state["menu_atual"] = menu_topo
-    st.rerun()
-
-
-st.divider()
 
 
 # ==================================================
@@ -445,19 +412,28 @@ with st.sidebar:
         or "Usuário"
     )
 
+    perfil_exibicao = perfil or "Usuário"
+
     st.markdown(
         f"""
         <div class="usuario-box">
             👤 {usuario_nome}
             <div class="usuario-perfil">
-                {perfil or "Usuário"}
+                {perfil_exibicao}
             </div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    st.markdown("### Menu")
+    st.markdown(
+        """
+        <div class="titulo-menu">
+            Menu
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     for opcao in menu_opcoes:
 
@@ -504,7 +480,9 @@ menu = st.session_state["menu_atual"]
 # ==================================================
 def bloquear(permissao):
     if not tem_permissao(permissao):
-        st.error("⛔ Você não possui permissão para acessar esta tela.")
+        st.error(
+            "⛔ Você não possui permissão para acessar esta tela."
+        )
         st.stop()
 
 
@@ -606,6 +584,7 @@ try:
 
     else:
         st.warning("Tela não encontrada.")
+
         st.session_state["menu_atual"] = "🏠 Dashboard"
         st.rerun()
 
