@@ -20,16 +20,22 @@ from utils.formatacao import (
 )
 
 
+# ==================================================
+# NORMALIZAR FORMA DE PAGAMENTO
+# ==================================================
 def normalizar_forma(forma):
 
     texto = str(forma).upper().strip()
 
     texto = texto.replace("Á", "A")
+    texto = texto.replace("À", "A")
+    texto = texto.replace("Â", "A")
     texto = texto.replace("Ã", "A")
     texto = texto.replace("É", "E")
     texto = texto.replace("Ê", "E")
     texto = texto.replace("Í", "I")
     texto = texto.replace("Ó", "O")
+    texto = texto.replace("Ô", "O")
     texto = texto.replace("Õ", "O")
     texto = texto.replace("Ú", "U")
     texto = texto.replace("Ç", "C")
@@ -37,6 +43,9 @@ def normalizar_forma(forma):
     return texto
 
 
+# ==================================================
+# TELA DE VENDAS
+# ==================================================
 def tela_vendas():
 
     st.title("🛒 Vendas")
@@ -46,6 +55,9 @@ def tela_vendas():
         "📋 Histórico"
     ])
 
+    # ==================================================
+    # NOVA VENDA
+    # ==================================================
     with abas[0]:
 
         clientes = listar_clientes()
@@ -60,9 +72,28 @@ def tela_vendas():
             st.warning("Nenhum produto cadastrado.")
             return
 
+        # ==================================================
+        # SESSION STATE
+        # ==================================================
         if "carrinho" not in st.session_state:
-            st.session_state.carrinho = []
+            st.session_state["carrinho"] = []
 
+        # Controla uma nova venda.
+        # Ao incrementar, os widgets recebem novas chaves
+        # e aparecem limpos sem alterar widgets já criados.
+        if "venda_form_seq" not in st.session_state:
+            st.session_state["venda_form_seq"] = 0
+
+        # Controla a limpeza somente dos campos de produto.
+        if "produto_form_seq" not in st.session_state:
+            st.session_state["produto_form_seq"] = 0
+
+        venda_seq = st.session_state["venda_form_seq"]
+        produto_seq = st.session_state["produto_form_seq"]
+
+        # ==================================================
+        # DADOS DA VENDA
+        # ==================================================
         st.subheader("🧾 Dados da Venda")
 
         col1, col2 = st.columns(2)
@@ -71,7 +102,8 @@ def tela_vendas():
             data_venda = st.date_input(
                 "📅 Data da Venda",
                 value=datetime.today().date(),
-                format="DD/MM/YYYY"
+                format="DD/MM/YYYY",
+                key=f"data_venda_{venda_seq}"
             )
 
         with col2:
@@ -85,7 +117,8 @@ def tela_vendas():
                     "Transferência",
                     "Boleto",
                     "Prazo"
-                ]
+                ],
+                key=f"forma_pagamento_venda_{venda_seq}"
             )
 
         forma_normalizada = normalizar_forma(
@@ -97,7 +130,7 @@ def tela_vendas():
             options=clientes["nome"].tolist(),
             index=None,
             placeholder="Selecione um cliente",
-            key="cliente_venda"
+            key=f"cliente_venda_{venda_seq}"
         )
 
         cliente_id = None
@@ -129,19 +162,27 @@ def tela_vendas():
             "FIADO"
         ]
 
+        # ==================================================
+        # VENDA EM DINHEIRO
+        # ==================================================
         if forma_normalizada == "DINHEIRO":
 
             caixa_aberto = verificar_caixa_aberto()
 
             if caixa_aberto:
                 st.success(
-                    "✅ Caixa aberto. Venda em dinheiro será somada ao caixa."
+                    "✅ Caixa aberto. "
+                    "Venda em dinheiro será somada ao caixa."
                 )
             else:
                 st.error(
-                    "⚠️ Não há caixa aberto. Abra o caixa antes de vender em dinheiro."
+                    "⚠️ Não há caixa aberto. "
+                    "Abra o caixa antes de vender em dinheiro."
                 )
 
+        # ==================================================
+        # VENDA COM ENTRADA EM BANCO
+        # ==================================================
         elif forma_normalizada in formas_banco:
 
             st.info(
@@ -175,7 +216,7 @@ def tela_vendas():
                     options=df_bancos["opcao"].tolist(),
                     index=None,
                     placeholder="Selecione uma conta bancária",
-                    key="conta_bancaria_venda"
+                    key=f"conta_bancaria_venda_{venda_seq}"
                 )
 
                 if banco_opcao is not None:
@@ -183,10 +224,14 @@ def tela_vendas():
                         banco_opcao.split(" - ")[0]
                     )
 
+        # ==================================================
+        # VENDA PARCELADA
+        # ==================================================
         elif forma_normalizada in formas_parceladas:
 
             st.info(
-                "Essa venda será registrada em Contas a Receber."
+                "Essa venda será registrada "
+                "em Contas a Receber."
             )
 
             numero_parcelas = st.number_input(
@@ -195,7 +240,7 @@ def tela_vendas():
                 max_value=24,
                 value=1,
                 step=1,
-                key="numero_parcelas_venda"
+                key=f"numero_parcelas_venda_{venda_seq}"
             )
 
             st.caption(
@@ -205,25 +250,35 @@ def tela_vendas():
 
         st.divider()
 
+        # ==================================================
+        # ADICIONAR PRODUTO
+        # ==================================================
         st.subheader("📦 Adicionar Produto")
 
         codigo = st.text_input(
             "Código de Barras",
-            key="codigo_barras"
+            key=f"codigo_barras_{produto_seq}",
+            placeholder="Digite ou leia o código de barras"
         )
 
         produto = None
         produto_nome = None
 
+        # ==================================================
+        # BUSCA POR CÓDIGO DE BARRAS
+        # ==================================================
         if codigo:
 
             produto = buscar_produto_por_codigo(
-                codigo
+                codigo.strip()
             )
 
             if produto is None:
                 st.error("Produto não encontrado.")
 
+        # ==================================================
+        # SELEÇÃO MANUAL DO PRODUTO
+        # ==================================================
         if produto is None:
 
             produto_nome = st.selectbox(
@@ -231,7 +286,7 @@ def tela_vendas():
                 options=produtos["nome"].tolist(),
                 index=None,
                 placeholder="Selecione um produto",
-                key="produto_venda"
+                key=f"produto_venda_{produto_seq}"
             )
 
             if produto_nome is not None:
@@ -256,17 +311,18 @@ def tela_vendas():
         if produto is None:
 
             st.info(
-                "Selecione um produto ou informe o código de barras."
+                "Selecione um produto ou informe "
+                "o código de barras."
             )
 
         else:
 
             st.success(
-                f"Produto: {produto['nome']}"
+                f"Produto selecionado: {produto['nome']}"
             )
 
             st.info(
-                f"Estoque: {produto['estoque']}"
+                f"Estoque disponível: {produto['estoque']}"
             )
 
         quantidade = st.number_input(
@@ -274,7 +330,7 @@ def tela_vendas():
             min_value=1,
             value=1,
             step=1,
-            key="quantidade_venda"
+            key=f"quantidade_venda_{produto_seq}"
         )
 
         desconto_item = st.number_input(
@@ -283,7 +339,7 @@ def tela_vendas():
             value=0.00,
             step=0.01,
             format="%.2f",
-            key="desconto_item_venda"
+            key=f"desconto_item_venda_{produto_seq}"
         )
 
         preco = 0.0
@@ -293,15 +349,15 @@ def tela_vendas():
         if produto is not None:
 
             preco = float(
-                produto["preco"]
+                produto["preco"] or 0
             )
 
             subtotal = (
-                preco * quantidade
+                preco * int(quantidade)
             )
 
             valor_item = (
-                subtotal - desconto_item
+                subtotal - float(desconto_item)
             )
 
             if valor_item < 0:
@@ -327,28 +383,40 @@ def tela_vendas():
                 formatar_moeda(valor_item)
             )
 
+        # ==================================================
+        # BOTÃO ADICIONAR AO CARRINHO
+        # ==================================================
         if st.button(
             "➕ Adicionar ao Carrinho",
-            use_container_width=True
+            use_container_width=True,
+            key=f"adicionar_carrinho_{produto_seq}"
         ):
 
             if produto is None:
 
                 st.warning(
-                    "Selecione um produto antes de adicionar ao carrinho."
+                    "Selecione um produto antes "
+                    "de adicionar ao carrinho."
                 )
 
-            elif quantidade > int(
-                produto["estoque"]
+            elif int(quantidade) > int(
+                produto["estoque"] or 0
             ):
 
                 st.error(
                     "Estoque insuficiente."
                 )
 
+            elif float(desconto_item) > float(subtotal):
+
+                st.warning(
+                    "O desconto não pode ser maior "
+                    "que o subtotal do item."
+                )
+
             else:
 
-                st.session_state.carrinho.append({
+                st.session_state["carrinho"].append({
                     "produto_id": int(
                         produto["id"]
                     ),
@@ -370,24 +438,24 @@ def tela_vendas():
                     )
                 })
 
-                st.success(
-                    "Produto adicionado ao carrinho."
-                )
-
-                st.session_state["codigo_barras"] = ""
-                st.session_state["produto_venda"] = None
-                st.session_state["quantidade_venda"] = 1
-                st.session_state["desconto_item_venda"] = 0.0
+                # Não altera diretamente os widgets já criados.
+                # Apenas incrementa o controle para que, no rerun,
+                # novos campos de produto sejam criados vazios.
+                st.session_state["produto_form_seq"] += 1
 
                 st.rerun()
 
         st.divider()
+
+        # ==================================================
+        # CARRINHO
+        # ==================================================
         st.subheader("🛒 Carrinho")
 
-        if st.session_state.carrinho:
+        if st.session_state["carrinho"]:
 
             df = pd.DataFrame(
-                st.session_state.carrinho
+                st.session_state["carrinho"]
             )
 
             df_exibicao = (
@@ -420,17 +488,20 @@ def tela_vendas():
 
             with col1:
                 st.info(
-                    f"Subtotal: {formatar_moeda(total_bruto)}"
+                    f"Subtotal: "
+                    f"{formatar_moeda(total_bruto)}"
                 )
 
             with col2:
                 st.warning(
-                    f"Descontos: {formatar_moeda(desconto_total)}"
+                    f"Descontos: "
+                    f"{formatar_moeda(desconto_total)}"
                 )
 
             with col3:
                 st.success(
-                    f"Total: {formatar_moeda(total_final)}"
+                    f"Total: "
+                    f"{formatar_moeda(total_final)}"
                 )
 
             if forma_normalizada in formas_parceladas:
@@ -447,12 +518,19 @@ def tela_vendas():
                     f"{formatar_moeda(valor_parcela)}"
                 )
 
+            # ==================================================
+            # LIMPAR CARRINHO
+            # ==================================================
             if st.button(
                 "🧹 Limpar Carrinho",
-                use_container_width=True
+                use_container_width=True,
+                key="limpar_carrinho_venda"
             ):
 
-                st.session_state.carrinho = []
+                st.session_state["carrinho"] = []
+
+                # Limpa também a área do produto na próxima execução.
+                st.session_state["produto_form_seq"] += 1
 
                 st.rerun()
 
@@ -460,18 +538,23 @@ def tela_vendas():
 
             confirmar = st.checkbox(
                 "Confirmo que desejo finalizar esta venda",
-                key="confirmar_finalizar_venda"
+                key=f"confirmar_finalizar_venda_{venda_seq}"
             )
 
+            # ==================================================
+            # FINALIZAR VENDA
+            # ==================================================
             if st.button(
                 "💾 Finalizar Venda",
-                use_container_width=True
+                use_container_width=True,
+                key=f"finalizar_venda_{venda_seq}"
             ):
 
                 if cliente_id is None:
 
                     st.warning(
-                        "Selecione um cliente antes de finalizar a venda."
+                        "Selecione um cliente antes "
+                        "de finalizar a venda."
                     )
 
                     return
@@ -479,7 +562,17 @@ def tela_vendas():
                 if not confirmar:
 
                     st.warning(
-                        "Marque a confirmação antes de finalizar."
+                        "Marque a confirmação antes "
+                        "de finalizar."
+                    )
+
+                    return
+
+                if total_final <= 0:
+
+                    st.warning(
+                        "O valor total da venda deve "
+                        "ser maior que zero."
                     )
 
                     return
@@ -493,7 +586,8 @@ def tela_vendas():
                     if not caixa_aberto:
 
                         st.error(
-                            "Não é possível finalizar venda em dinheiro sem caixa aberto."
+                            "Não é possível finalizar "
+                            "venda em dinheiro sem caixa aberto."
                         )
 
                         return
@@ -504,7 +598,8 @@ def tela_vendas():
                 ):
 
                     st.error(
-                        "Selecione uma conta bancária para essa venda."
+                        "Selecione uma conta bancária "
+                        "para essa venda."
                     )
 
                     return
@@ -527,7 +622,7 @@ def tela_vendas():
                         data_venda,
                         datetime.now().time()
                     ),
-                    itens=st.session_state.carrinho,
+                    itens=st.session_state["carrinho"],
                     conta_bancaria_id=conta_bancaria_id,
                     numero_parcelas=int(
                         numero_parcelas
@@ -536,22 +631,13 @@ def tela_vendas():
 
                 if sucesso:
 
-                    st.success(
-                        "Venda realizada com sucesso."
-                    )
+                    st.session_state["carrinho"] = []
 
-                    st.session_state.carrinho = []
-                    st.session_state["cliente_venda"] = None
-                    st.session_state["codigo_barras"] = ""
-                    st.session_state["produto_venda"] = None
-                    st.session_state[
-                        "confirmar_finalizar_venda"
-                    ] = False
-
-                    if "conta_bancaria_venda" in st.session_state:
-                        st.session_state[
-                            "conta_bancaria_venda"
-                        ] = None
+                    # Inicia uma nova venda com campos vazios.
+                    # Como as chaves mudam, não ocorre o erro
+                    # de alteração de widget já instanciado.
+                    st.session_state["venda_form_seq"] += 1
+                    st.session_state["produto_form_seq"] += 1
 
                     st.rerun()
 
@@ -565,6 +651,9 @@ def tela_vendas():
 
             st.info("Carrinho vazio.")
 
+    # ==================================================
+    # HISTÓRICO DE VENDAS
+    # ==================================================
     with abas[1]:
 
         st.subheader(
@@ -601,13 +690,30 @@ def tela_vendas():
                 key="hist_fim"
             )
 
+        if data_inicio > data_fim:
+
+            st.error(
+                "A data inicial não pode ser "
+                "maior que a data final."
+            )
+
+            return
+
         pesquisa = st.text_input(
-            "🔎 Buscar Pedido ou Cliente"
+            "🔎 Buscar Pedido ou Cliente",
+            key="pesquisa_historico_vendas"
         )
 
+        df = df.copy()
+
         df["data_venda"] = pd.to_datetime(
-            df["data_venda"]
+            df["data_venda"],
+            errors="coerce"
         )
+
+        df = df[
+            df["data_venda"].notna()
+        ]
 
         df = df[
             (
@@ -623,24 +729,48 @@ def tela_vendas():
 
         if pesquisa:
 
-            pesquisa = pesquisa.lower()
+            pesquisa_normalizada = (
+                pesquisa
+                .strip()
+                .lower()
+            )
+
+            filtro_pedido = pd.Series(
+                False,
+                index=df.index
+            )
+
+            filtro_cliente = pd.Series(
+                False,
+                index=df.index
+            )
+
+            if "pedido" in df.columns:
+                filtro_pedido = (
+                    df["pedido"]
+                    .astype(str)
+                    .str.lower()
+                    .str.contains(
+                        pesquisa_normalizada,
+                        na=False
+                    )
+                )
+
+            if "cliente" in df.columns:
+                filtro_cliente = (
+                    df["cliente"]
+                    .astype(str)
+                    .str.lower()
+                    .str.contains(
+                        pesquisa_normalizada,
+                        na=False
+                    )
+                )
 
             df = df[
-                df["pedido"]
-                .astype(str)
-                .str.lower()
-                .str.contains(
-                    pesquisa,
-                    na=False
-                )
+                filtro_pedido
                 |
-                df["cliente"]
-                .astype(str)
-                .str.lower()
-                .str.contains(
-                    pesquisa,
-                    na=False
-                )
+                filtro_cliente
             ]
 
         df_exibicao = (
