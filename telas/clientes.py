@@ -4,12 +4,14 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+
 from database.clientes_db import (
     listar_clientes,
     cadastrar_cliente,
     atualizar_cliente,
     excluir_cliente
 )
+from services.cep_service import consultar_cep
 
 from utils.formatacao import (
     formatar_dataframe_brasil
@@ -662,6 +664,117 @@ def tela_clientes():
             "novo_cliente_seq"
         ]
 
+        # ==================================================
+        # CONSULTA AUTOMÁTICA DE CEP
+        # ==================================================
+        # O retorno da consulta é aplicado antes da criação
+        # dos widgets do formulário. Isso evita o erro:
+        # "session_state não pode ser modificado após a
+        # instanciação do widget".
+        chave_cep_pendente = f"cep_pendente_novo_{seq}"
+        chave_mensagem_cep = f"mensagem_cep_novo_{seq}"
+
+        dados_cep_pendentes = st.session_state.pop(
+            chave_cep_pendente,
+            None
+        )
+
+        if dados_cep_pendentes:
+            st.session_state[f"cep_novo_{seq}"] = (
+                dados_cep_pendentes.get("cep", "")
+            )
+            st.session_state[f"logradouro_novo_{seq}"] = (
+                dados_cep_pendentes.get("logradouro", "")
+            )
+            st.session_state[f"complemento_novo_{seq}"] = (
+                dados_cep_pendentes.get("complemento", "")
+            )
+            st.session_state[f"bairro_novo_{seq}"] = (
+                dados_cep_pendentes.get("bairro", "")
+            )
+            st.session_state[f"cidade_novo_{seq}"] = (
+                dados_cep_pendentes.get("cidade", "")
+            )
+
+            uf_retornada = str(
+                dados_cep_pendentes.get("uf", "")
+            ).upper().strip()
+
+            st.session_state[f"uf_novo_{seq}"] = (
+                uf_retornada
+                if uf_retornada in UFS_BRASIL
+                else ""
+            )
+
+            st.session_state[f"codigo_ibge_novo_{seq}"] = (
+                dados_cep_pendentes.get(
+                    "codigo_municipio_ibge",
+                    ""
+                )
+            )
+
+        st.markdown("### 📍 Consulta automática de endereço")
+
+        col_cep, col_consultar = st.columns([3, 1])
+
+        with col_cep:
+            cep_consulta = st.text_input(
+                "CEP para consulta",
+                placeholder="Digite o CEP com 8 números",
+                key=f"cep_consulta_novo_{seq}"
+            )
+
+        with col_consultar:
+            st.write("")
+
+            consultar_endereco = st.button(
+                "🔎 Consultar CEP",
+                use_container_width=True,
+                key=f"consultar_cep_novo_{seq}"
+            )
+
+        if consultar_endereco:
+            resultado_cep = consultar_cep(
+                cep_consulta
+            )
+
+            if resultado_cep.get("status") == "sucesso":
+                st.session_state[chave_cep_pendente] = (
+                    resultado_cep.get("dados", {})
+                )
+                st.session_state[chave_mensagem_cep] = {
+                    "tipo": "sucesso",
+                    "texto": (
+                        "CEP localizado. Confira o endereço, "
+                        "informe o número e complete os campos "
+                        "que forem necessários."
+                    )
+                }
+            else:
+                st.session_state[chave_mensagem_cep] = {
+                    "tipo": "erro",
+                    "texto": resultado_cep.get(
+                        "mensagem",
+                        "Não foi possível consultar o CEP."
+                    )
+                }
+
+            st.rerun()
+
+        mensagem_cep = st.session_state.get(
+            chave_mensagem_cep
+        )
+
+        if mensagem_cep:
+            if mensagem_cep.get("tipo") == "sucesso":
+                st.success(
+                    mensagem_cep.get("texto", "")
+                )
+            else:
+                st.warning(
+                    mensagem_cep.get("texto", "")
+                )
+
         tipo_pessoa = st.radio(
             "Tipo de pessoa",
             options=["PF", "PJ"],
@@ -961,6 +1074,13 @@ def tela_clientes():
                         st.session_state[
                             "cliente_cadastrado_sucesso"
                         ] = True
+
+                        # Remove a mensagem da consulta do CEP
+                        # vinculada ao formulário concluído.
+                        st.session_state.pop(
+                            chave_mensagem_cep,
+                            None
+                        )
 
                         st.rerun()
 
