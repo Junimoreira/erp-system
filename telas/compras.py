@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 
 from database.connection import conectar
-from services.xml_nfe_service import ler_xml_nfe
+
+from services.xml_nfe_service import (
+    ler_xml_nfe
+)
 
 from services.xml_conversao_service import (
     detectar_conversao_por_descricao,
@@ -22,7 +25,9 @@ from database.compras_db import (
     excluir_compra
 )
 
-from database.produto_db import listar_produtos
+from database.produto_db import (
+    listar_produtos
+)
 
 from utils.formatacao import (
     formatar_dataframe_brasil,
@@ -30,9 +35,9 @@ from utils.formatacao import (
 )
 
 
-# ==================================================
+# ==========================================================
 # BUSCAR FORNECEDORES
-# ==================================================
+# ==========================================================
 
 def buscar_fornecedores():
 
@@ -59,7 +64,8 @@ def buscar_fornecedores():
     except Exception as erro:
 
         st.error(
-            f"Erro ao buscar fornecedores: {erro}"
+            f"Erro ao buscar fornecedores: "
+            f"{erro}"
         )
 
         return pd.DataFrame()
@@ -69,11 +75,13 @@ def buscar_fornecedores():
         conn.close()
 
 
-# ==================================================
+# ==========================================================
 # GERAR PRÉVIA DE CONVERSÃO XML
-# ==================================================
+# ==========================================================
 
-def gerar_previa_conversao_xml(dados_xml):
+def gerar_previa_conversao_xml(
+    dados_xml
+):
 
     conn = conectar()
 
@@ -86,9 +94,13 @@ def gerar_previa_conversao_xml(dados_xml):
 
         linhas = []
 
-        for item in dados_xml.get(
+        produtos_xml = dados_xml.get(
             "produtos",
             []
+        )
+
+        for indice_item, item in enumerate(
+            produtos_xml
         ):
 
             # ==================================================
@@ -140,12 +152,13 @@ def gerar_previa_conversao_xml(dados_xml):
             subtotal_xml = float(
                 item.get(
                     "subtotal",
-                    quantidade_xml * custo_xml
+                    quantidade_xml *
+                    custo_xml
                 ) or 0
             )
 
             # ==================================================
-            # LOCALIZAR PRODUTO PELO EAN OU CÓDIGO FORNECEDOR
+            # LOCALIZAR PRODUTO
             # ==================================================
 
             produto_id = buscar_produto_por_codigo(
@@ -156,7 +169,7 @@ def gerar_previa_conversao_xml(dados_xml):
 
             # ==================================================
             # SE NÃO ENCONTROU PELO CÓDIGO,
-            # TENTAR ENCONTRAR PELO NOME
+            # TENTAR PELO NOME
             # ==================================================
 
             if produto_id is None:
@@ -164,44 +177,49 @@ def gerar_previa_conversao_xml(dados_xml):
                 cursor.execute("""
                     SELECT id
                     FROM produtos
-                    WHERE LOWER(TRIM(nome))
-                        =
-                        LOWER(TRIM(%s))
+                    WHERE LOWER(
+                        TRIM(nome)
+                    ) = LOWER(
+                        TRIM(%s)
+                    )
                     LIMIT 1
                 """, (
                     nome,
                 ))
 
-                encontrado = cursor.fetchone()
+                encontrado = (
+                    cursor.fetchone()
+                )
 
                 if encontrado:
-                    produto_id = encontrado[0]
+                    produto_id = (
+                        encontrado[0]
+                    )
 
             # ==================================================
             # BUSCAR CONVERSÃO CADASTRADA
-            #
-            # IMPORTANTE:
-            # SE EXISTIR CONVERSÃO CADASTRADA COM FATOR 1,
-            # ELA DEVE SER RESPEITADA.
             # ==================================================
 
-            conversao = buscar_conversao_produto(
-                cursor,
-                produto_id,
-                codigo_barras,
-                codigo_fornecedor
+            conversao = (
+                buscar_conversao_produto(
+                    cursor,
+                    produto_id,
+                    codigo_barras,
+                    codigo_fornecedor
+                )
             )
 
             if conversao is not None:
 
-                origem_conversao = "Cadastrada"
+                origem_conversao = (
+                    "Cadastrada"
+                )
 
             else:
 
-                # ==================================================
-                # NÃO EXISTE CONVERSÃO CADASTRADA.
-                # TENTAR DETECÇÃO AUTOMÁTICA NA DESCRIÇÃO.
-                # ==================================================
+                # ==============================================
+                # TENTAR DETECÇÃO AUTOMÁTICA
+                # ==============================================
 
                 conversao_detectada = (
                     detectar_conversao_por_descricao(
@@ -213,7 +231,9 @@ def gerar_previa_conversao_xml(dados_xml):
                     "detectado"
                 ):
 
-                    conversao = conversao_detectada
+                    conversao = (
+                        conversao_detectada
+                    )
 
                     origem_conversao = (
                         "Detectada automaticamente"
@@ -221,19 +241,23 @@ def gerar_previa_conversao_xml(dados_xml):
 
                 else:
 
-                    # ==================================================
-                    # NENHUMA CONVERSÃO
-                    # FATOR PADRÃO = 1
-                    # ==================================================
-
                     conversao = {
-                        "tipo_compra": "UNIDADE",
-                        "unidade_compra": "UNIDADE",
-                        "unidade_estoque": "UNIDADE",
-                        "fator_conversao": 1.0
+                        "tipo_compra":
+                            "UNIDADE",
+
+                        "unidade_compra":
+                            "UNIDADE",
+
+                        "unidade_estoque":
+                            "UNIDADE",
+
+                        "fator_conversao":
+                            1.0
                     }
 
-                    origem_conversao = "Padrão"
+                    origem_conversao = (
+                        "Padrão"
+                    )
 
             # ==================================================
             # APLICAR CONVERSÃO
@@ -241,26 +265,38 @@ def gerar_previa_conversao_xml(dados_xml):
 
             dados_conversao = (
                 aplicar_conversao_produto(
-                    quantidade_xml=quantidade_xml,
-                    custo_xml=custo_xml,
-                    subtotal_xml=subtotal_xml,
-                    conversao=conversao
+                    quantidade_xml=
+                        quantidade_xml,
+
+                    custo_xml=
+                        custo_xml,
+
+                    subtotal_xml=
+                        subtotal_xml,
+
+                    conversao=
+                        conversao
                 )
             )
 
             # ==================================================
-            # MONTAR LINHA DA PRÉVIA
+            # MONTAR LINHA
             # ==================================================
 
             linhas.append({
+
+                "Índice Item":
+                    indice_item,
 
                 "Produto XML":
                     nome,
 
                 "Produto cadastrado":
-                    "Sim"
-                    if produto_id
-                    else "Não",
+                    (
+                        "Sim"
+                        if produto_id
+                        else "Não"
+                    ),
 
                 "Código Barras":
                     codigo_barras,
@@ -279,10 +315,20 @@ def gerar_previa_conversao_xml(dados_xml):
                         "tipo_compra"
                     ],
 
+                "Unidade Compra":
+                    dados_conversao[
+                        "unidade_compra"
+                    ],
+
                 "Qtd XML":
                     quantidade_xml,
 
                 "Fator":
+                    dados_conversao[
+                        "fator_conversao"
+                    ],
+
+                "Fator Original":
                     dados_conversao[
                         "fator_conversao"
                     ],
@@ -328,13 +374,15 @@ def gerar_previa_conversao_xml(dados_xml):
         conn.close()
 
 
-# ==================================================
+# ==========================================================
 # TELA DE COMPRAS
-# ==================================================
+# ==========================================================
 
 def tela_compras():
 
-    st.title("📦 Compras ERP")
+    st.title(
+        "📦 Compras ERP"
+    )
 
     abas = st.tabs([
         "➕ Nova Compra",
@@ -343,16 +391,23 @@ def tela_compras():
         "🗑️ Excluir Compra"
     ])
 
-    # ==================================================
+    # ======================================================
     # ABA 1 - NOVA COMPRA
-    # ==================================================
+    # ======================================================
 
     with abas[0]:
 
-        st.subheader("📦 Lançar Compra")
+        st.subheader(
+            "📦 Lançar Compra"
+        )
 
-        fornecedores = buscar_fornecedores()
-        produtos_df = listar_produtos()
+        fornecedores = (
+            buscar_fornecedores()
+        )
+
+        produtos_df = (
+            listar_produtos()
+        )
 
         if fornecedores.empty:
 
@@ -360,7 +415,10 @@ def tela_compras():
                 "Nenhum fornecedor cadastrado."
             )
 
-        elif produtos_df is None or produtos_df.empty:
+        elif (
+            produtos_df is None
+            or produtos_df.empty
+        ):
 
             st.warning(
                 "Nenhum produto cadastrado."
@@ -369,8 +427,11 @@ def tela_compras():
         else:
 
             fornecedor_map = {
-                row["razao_social"]: row["id"]
-                for _, row in fornecedores.iterrows()
+                row["razao_social"]:
+                    row["id"]
+
+                for _, row
+                in fornecedores.iterrows()
             }
 
             with st.form(
@@ -379,10 +440,12 @@ def tela_compras():
                 enter_to_submit=False
             ):
 
-                fornecedor_nome = st.selectbox(
-                    "Fornecedor",
-                    list(
-                        fornecedor_map.keys()
+                fornecedor_nome = (
+                    st.selectbox(
+                        "Fornecedor",
+                        list(
+                            fornecedor_map.keys()
+                        )
                     )
                 )
 
@@ -394,12 +457,14 @@ def tela_compras():
 
                 st.divider()
 
-                quantidade_itens = st.number_input(
-                    "Quantidade de Itens",
-                    min_value=1,
-                    max_value=50,
-                    value=1,
-                    step=1
+                quantidade_itens = (
+                    st.number_input(
+                        "Quantidade de Itens",
+                        min_value=1,
+                        max_value=50,
+                        value=1,
+                        step=1
+                    )
                 )
 
                 st.divider()
@@ -408,7 +473,9 @@ def tela_compras():
                 total_compra = 0
 
                 for i in range(
-                    int(quantidade_itens)
+                    int(
+                        quantidade_itens
+                    )
                 ):
 
                     st.markdown(
@@ -427,7 +494,9 @@ def tela_compras():
                                 produtos_df[
                                     "nome"
                                 ].tolist(),
-                                key=f"produto_{i}"
+                                key=(
+                                    f"produto_{i}"
+                                )
                             )
                         )
 
@@ -447,7 +516,9 @@ def tela_compras():
                                 min_value=0.001,
                                 step=1.0,
                                 format="%.3f",
-                                key=f"quantidade_{i}"
+                                key=(
+                                    f"quantidade_{i}"
+                                )
                             )
                         )
 
@@ -467,25 +538,33 @@ def tela_compras():
 
                         custo = (
                             st.number_input(
-                                f"Custo Unitário {i + 1}",
+                                (
+                                    "Custo Unitário "
+                                    f"{i + 1}"
+                                ),
                                 min_value=0.0,
                                 step=0.01,
                                 format="%.2f",
                                 value=float(
                                     custo_padrao
                                 ),
-                                key=f"custo_{i}"
+                                key=(
+                                    f"custo_{i}"
+                                )
                             )
                         )
 
                     subtotal = (
-                        quantidade * custo
+                        quantidade *
+                        custo
                     )
 
-                    total_compra += subtotal
+                    total_compra += (
+                        subtotal
+                    )
 
                     st.info(
-                        f"Subtotal: "
+                        "Subtotal: "
                         f"{formatar_moeda(subtotal)}"
                     )
 
@@ -496,8 +575,10 @@ def tela_compras():
                                     "id"
                                 ]
                             ),
+
                         "quantidade":
                             quantidade,
+
                         "custo":
                             custo
                     })
@@ -527,19 +608,27 @@ def tela_compras():
                 if salvar:
 
                     sucesso = cadastrar_compra(
-                        fornecedor_id=fornecedor_id,
-                        produtos=produtos_compra,
-                        usuario=st.session_state.get(
-                            "usuario",
-                            "Sistema"
-                        ),
-                        observacoes=observacoes
+                        fornecedor_id=
+                            fornecedor_id,
+
+                        produtos=
+                            produtos_compra,
+
+                        usuario=
+                            st.session_state.get(
+                                "usuario",
+                                "Sistema"
+                            ),
+
+                        observacoes=
+                            observacoes
                     )
 
                     if sucesso:
 
                         st.success(
-                            "✅ Compra lançada com sucesso!"
+                            "✅ Compra lançada "
+                            "com sucesso!"
                         )
 
                         st.rerun()
@@ -550,9 +639,9 @@ def tela_compras():
                             "Erro ao lançar compra."
                         )
 
-    # ==================================================
+    # ======================================================
     # ABA 2 - IMPORTAR XML
-    # ==================================================
+    # ======================================================
 
     with abas[1]:
 
@@ -560,9 +649,13 @@ def tela_compras():
             "📄 Importar XML NF-e"
         )
 
-        arquivo_xml = st.file_uploader(
-            "Selecione o XML da NF-e",
-            type=["xml"]
+        arquivo_xml = (
+            st.file_uploader(
+                "Selecione o XML da NF-e",
+                type=[
+                    "xml"
+                ]
+            )
         )
 
         if arquivo_xml is None:
@@ -576,9 +669,9 @@ def tela_compras():
 
             try:
 
-                # ==================================================
+                # ==========================================
                 # LER XML
-                # ==================================================
+                # ==========================================
 
                 dados_xml = ler_xml_nfe(
                     arquivo_xml
@@ -600,9 +693,9 @@ def tela_compras():
                     "✅ XML lido com sucesso."
                 )
 
-                # ==================================================
+                # ==========================================
                 # RESUMO NF-E
-                # ==================================================
+                # ==========================================
 
                 col_a, col_b, col_c = (
                     st.columns(3)
@@ -622,7 +715,9 @@ def tela_compras():
 
                     st.metric(
                         "Produtos",
-                        len(produtos)
+                        len(
+                            produtos
+                        )
                     )
 
                 with col_c:
@@ -637,9 +732,9 @@ def tela_compras():
                         )
                     )
 
-                # ==================================================
+                # ==========================================
                 # FORNECEDOR
-                # ==================================================
+                # ==========================================
 
                 st.markdown(
                     "### 🏢 Fornecedor"
@@ -691,23 +786,33 @@ def tela_compras():
                     hide_index=True
                 )
 
-                # ==================================================
+                # ==========================================
                 # CONFERÊNCIA INTELIGENTE
-                # ==================================================
+                # ==========================================
 
                 st.markdown(
-                    "### 🧠 Conferência Inteligente da Conversão"
+                    "### 🧠 Conferência Inteligente "
+                    "da Conversão"
                 )
 
-                df_previa = (
+                st.info(
+                    "💡 O ERP sugere automaticamente "
+                    "o fator de conversão. "
+                    "Você pode alterar manualmente "
+                    "somente a coluna **Fator** antes "
+                    "de importar a NF-e."
+                )
+
+                df_previa_original = (
                     gerar_previa_conversao_xml(
                         dados_xml
                     )
                 )
 
                 pode_importar = True
+                conversoes_confirmadas = []
 
-                if df_previa.empty:
+                if df_previa_original.empty:
 
                     st.warning(
                         "Não foi possível gerar "
@@ -718,23 +823,253 @@ def tela_compras():
 
                 else:
 
-                    df_previa_exibicao = (
+                    # ======================================
+                    # GARANTIR FATOR NUMÉRICO
+                    # ======================================
+
+                    df_editor = (
+                        df_previa_original.copy()
+                    )
+
+                    df_editor["Fator"] = (
+                        pd.to_numeric(
+                            df_editor["Fator"],
+                            errors="coerce"
+                        )
+                        .fillna(1.0)
+                    )
+
+                    # ======================================
+                    # COLUNAS QUE SERÃO MOSTRADAS
+                    # ======================================
+
+                    colunas_editor = [
+                        "Produto XML",
+                        "Produto cadastrado",
+                        "Unidade XML",
+                        "Origem Conversão",
+                        "Tipo Compra",
+                        "Qtd XML",
+                        "Fator"
+                    ]
+
+                    # ======================================
+                    # EDITOR
+                    # ======================================
+
+                    df_editado_visivel = (
+                        st.data_editor(
+                            df_editor[
+                                colunas_editor
+                            ],
+                            use_container_width=True,
+                            hide_index=True,
+                            disabled=[
+                                "Produto XML",
+                                "Produto cadastrado",
+                                "Unidade XML",
+                                "Origem Conversão",
+                                "Tipo Compra",
+                                "Qtd XML",
+                                "Qtd Estoque",
+                                "Custo XML",
+                                "Custo Unitário Final",
+                                "Subtotal"
+                            ],
+                            column_config={
+
+                                "Produto XML":
+                                    st.column_config.TextColumn(
+                                        "Produto XML",
+                                        width="large"
+                                    ),
+
+                                "Fator":
+                                    st.column_config.NumberColumn(
+                                        "✏️ Fator",
+                                        help=(
+                                            "Informe quantas "
+                                            "unidades entram "
+                                            "no estoque para "
+                                            "cada unidade "
+                                            "do XML."
+                                        ),
+                                        min_value=1.0,
+                                        step=1.0,
+                                        format="%.0f"
+                                    ),
+
+                                "Qtd XML":
+                                    st.column_config.NumberColumn(
+                                        "Qtd XML",
+                                        format="%.3f"
+                                    ),
+
+                                "Qtd Estoque":
+                                    st.column_config.NumberColumn(
+                                        "Qtd Estoque",
+                                        format="%.3f"
+                                    ),
+
+                                "Custo XML":
+                                    st.column_config.NumberColumn(
+                                        "Custo XML",
+                                        format="R$ %.2f"
+                                    ),
+
+                                "Custo Unitário Final":
+                                    st.column_config.NumberColumn(
+                                        "Custo Unitário Final",
+                                        format="R$ %.4f"
+                                    ),
+
+                                "Subtotal":
+                                    st.column_config.NumberColumn(
+                                        "Subtotal",
+                                        format="R$ %.2f"
+                                    )
+                            },
+                            key=(
+                                "editor_conversao_xml_"
+                                f"{dados_xml.get('chave_nfe', '')}"
+                            )
+                        )
+                    )
+
+                    # ======================================
+                    # COPIAR FATORES EDITADOS DE VOLTA
+                    # ======================================
+
+                    df_previa = (
+                        df_previa_original.copy()
+                    )
+
+                    fatores_editados = (
+                        pd.to_numeric(
+                            df_editado_visivel[
+                                "Fator"
+                            ],
+                            errors="coerce"
+                        )
+                        .fillna(1.0)
+                    )
+
+                    fatores_editados = (
+                        fatores_editados.clip(
+                            lower=1.0
+                        )
+                    )
+
+                    df_previa["Fator"] = (
+                        fatores_editados.values
+                    )
+
+                    # ======================================
+                    # IDENTIFICAR ALTERAÇÃO MANUAL
+                    # ======================================
+
+                    fator_original = (
+                        pd.to_numeric(
+                            df_previa[
+                                "Fator Original"
+                            ],
+                            errors="coerce"
+                        )
+                        .fillna(1.0)
+                    )
+
+                    alterado_manualmente = (
+                        (
+                            df_previa[
+                                "Fator"
+                            ] - fator_original
+                        ).abs() > 0.000001
+                    )
+
+                    df_previa.loc[
+                        alterado_manualmente,
+                        "Origem Conversão"
+                    ] = "Manual"
+
+                    # ======================================
+                    # RECALCULAR QUANTIDADE DE ESTOQUE
+                    # ======================================
+
+                    df_previa[
+                        "Qtd Estoque"
+                    ] = (
+                        pd.to_numeric(
+                            df_previa[
+                                "Qtd XML"
+                            ],
+                            errors="coerce"
+                        )
+                        .fillna(0)
+                        *
+                        df_previa[
+                            "Fator"
+                        ]
+                    )
+
+                    # ======================================
+                    # RECALCULAR CUSTO UNITÁRIO FINAL
+                    # ======================================
+
+                    df_previa[
+                        "Custo Unitário Final"
+                    ] = (
+                        pd.to_numeric(
+                            df_previa[
+                                "Custo XML"
+                            ],
+                            errors="coerce"
+                        )
+                        .fillna(0)
+                        /
+                        df_previa[
+                            "Fator"
+                        ]
+                    )
+
+                    # ======================================
+                    # RESULTADO FINAL DA CONFERÊNCIA
+                    # ======================================
+
+                    st.markdown(
+                        "#### ✅ Resultado após aplicar "
+                        "os fatores"
+                    )
+
+                    resumo_conversao = (
+                        df_previa[[
+                            "Produto XML",
+                            "Origem Conversão",
+                            "Qtd XML",
+                            "Fator",
+                            "Qtd Estoque",
+                            "Custo XML",
+                            "Custo Unitário Final",
+                            "Subtotal"
+                        ]].copy()
+                    )
+
+                    resumo_exibicao = (
                         formatar_dataframe_brasil(
-                            df_previa,
+                            resumo_conversao,
                             com_hora=False,
                             moedas=True
                         )
                     )
 
                     st.dataframe(
-                        df_previa_exibicao,
+                        resumo_exibicao,
                         use_container_width=True,
                         hide_index=True
                     )
 
-                    # ==================================================
+                    # ======================================
                     # PRODUTOS SEM CADASTRO
-                    # ==================================================
+                    # ======================================
 
                     sem_cadastro = (
                         df_previa[
@@ -744,43 +1079,57 @@ def tela_compras():
                         ]
                     )
 
-                    # ==================================================
+                    # ======================================
                     # FATOR 1
-                    # ==================================================
+                    # ======================================
 
                     sem_conversao = (
                         df_previa[
-                            df_previa[
-                                "Fator"
-                            ].astype(float) == 1.0
+                            pd.to_numeric(
+                                df_previa[
+                                    "Fator"
+                                ],
+                                errors="coerce"
+                            ).fillna(1.0) == 1.0
                         ]
                     )
 
-                    # ==================================================
+                    # ======================================
                     # CONVERSÃO AUTOMÁTICA
-                    # ==================================================
+                    # ======================================
 
                     conversao_detectada = (
                         df_previa[
                             df_previa[
                                 "Origem Conversão"
-                            ]
-                            ==
+                            ] ==
                             "Detectada automaticamente"
                         ]
                     )
 
-                    # ==================================================
+                    # ======================================
                     # CONVERSÃO CADASTRADA
-                    # ==================================================
+                    # ======================================
 
                     conversao_cadastrada = (
                         df_previa[
                             df_previa[
                                 "Origem Conversão"
-                            ]
-                            ==
+                            ] ==
                             "Cadastrada"
+                        ]
+                    )
+
+                    # ======================================
+                    # CONVERSÃO MANUAL
+                    # ======================================
+
+                    conversao_manual = (
+                        df_previa[
+                            df_previa[
+                                "Origem Conversão"
+                            ] ==
+                            "Manual"
                         ]
                     )
 
@@ -788,24 +1137,35 @@ def tela_compras():
 
                         st.warning(
                             f"{len(sem_cadastro)} "
-                            "produto(s) ainda não estão cadastrados. "
-                            "Eles serão criados automaticamente."
+                            "produto(s) ainda não estão "
+                            "cadastrados. Eles serão "
+                            "criados automaticamente."
                         )
 
                     if not conversao_detectada.empty:
 
                         st.success(
                             f"{len(conversao_detectada)} "
-                            "conversão(ões) foram detectadas "
-                            "automaticamente pela descrição."
+                            "conversão(ões) foram "
+                            "detectadas automaticamente "
+                            "pela descrição."
                         )
 
                     if not conversao_cadastrada.empty:
 
                         st.info(
                             f"{len(conversao_cadastrada)} "
-                            "item(ns) utilizarão conversões "
-                            "já cadastradas no ERP."
+                            "item(ns) utilizarão "
+                            "conversões já cadastradas "
+                            "no ERP."
+                        )
+
+                    if not conversao_manual.empty:
+
+                        st.success(
+                            f"✏️ {len(conversao_manual)} "
+                            "item(ns) tiveram o fator "
+                            "alterado manualmente."
                         )
 
                     if not sem_conversao.empty:
@@ -813,80 +1173,145 @@ def tela_compras():
                         st.info(
                             f"{len(sem_conversao)} "
                             "item(ns) estão com fator 1. "
-                            "Isso significa que cada unidade "
-                            "do XML entrará como uma unidade "
-                            "no estoque."
+                            "Cada unidade do XML entrará "
+                            "como uma unidade no estoque."
                         )
 
-                    # ==================================================
-                    # ALERTAR FATORES MAIORES QUE 1
-                    # ==================================================
+                    # ======================================
+                    # FATORES MAIORES QUE 1
+                    # ======================================
 
                     fatores_maiores = (
                         df_previa[
-                            df_previa[
-                                "Fator"
-                            ].astype(float) > 1
+                            pd.to_numeric(
+                                df_previa[
+                                    "Fator"
+                                ],
+                                errors="coerce"
+                            ).fillna(1.0) > 1
                         ]
                     )
 
                     if not fatores_maiores.empty:
 
                         st.warning(
-                            "⚠️ Existem itens com fator de conversão "
-                            "maior que 1. Confira atentamente antes "
-                            "de importar a NF-e."
+                            "⚠️ Existem itens com fator "
+                            "de conversão maior que 1. "
+                            "Confira atentamente a "
+                            "quantidade final antes "
+                            "de importar."
                         )
 
-                        colunas_alerta = [
-                            "Produto XML",
-                            "Origem Conversão",
-                            "Qtd XML",
-                            "Fator",
-                            "Qtd Estoque",
-                            "Custo XML",
-                            "Custo Unitário Final"
-                        ]
+                    # ======================================
+                    # MONTAR CONVERSÕES CONFIRMADAS
+                    #
+                    # MUITO IMPORTANTE:
+                    #
+                    # O importador receberá exatamente
+                    # estes fatores.
+                    # ======================================
 
-                        fatores_exibicao = (
-                            fatores_maiores[
-                                colunas_alerta
-                            ].copy()
-                        )
+                    conversoes_confirmadas = []
 
-                        fatores_exibicao = (
-                            formatar_dataframe_brasil(
-                                fatores_exibicao,
-                                com_hora=False,
-                                moedas=True
-                            )
-                        )
+                    for _, row in (
+                        df_previa.iterrows()
+                    ):
 
-                        st.dataframe(
-                            fatores_exibicao,
-                            use_container_width=True,
-                            hide_index=True
-                        )
+                        conversoes_confirmadas.append({
 
-                # ==================================================
+                            "indice_item":
+                                int(
+                                    row[
+                                        "Índice Item"
+                                    ]
+                                ),
+
+                            "produto_xml":
+                                str(
+                                    row.get(
+                                        "Produto XML",
+                                        ""
+                                    ) or ""
+                                ),
+
+                            "codigo_barras":
+                                str(
+                                    row.get(
+                                        "Código Barras",
+                                        ""
+                                    ) or ""
+                                ),
+
+                            "codigo_fornecedor":
+                                str(
+                                    row.get(
+                                        "Código Fornecedor",
+                                        ""
+                                    ) or ""
+                                ),
+
+                            "fator_conversao":
+                                float(
+                                    row.get(
+                                        "Fator",
+                                        1
+                                    ) or 1
+                                ),
+
+                            "tipo_compra":
+                                str(
+                                    row.get(
+                                        "Tipo Compra",
+                                        "UNIDADE"
+                                    ) or "UNIDADE"
+                                ),
+
+                            "unidade_compra":
+                                str(
+                                    row.get(
+                                        "Unidade Compra",
+                                        "UNIDADE"
+                                    ) or "UNIDADE"
+                                ),
+
+                            "unidade_estoque":
+                                str(
+                                    row.get(
+                                        "Unidade Estoque",
+                                        "UNIDADE"
+                                    ) or "UNIDADE"
+                                ),
+
+                            "origem_conversao":
+                                str(
+                                    row.get(
+                                        "Origem Conversão",
+                                        "Confirmada"
+                                    ) or "Confirmada"
+                                )
+                        })
+
+                # ==========================================
                 # AVISO IMPORTAÇÃO
-                # ==================================================
+                # ==========================================
 
                 st.warning(
-                    "Ao confirmar, o ERP irá registrar a compra, "
-                    "atualizar estoque, atualizar custos, "
-                    "criar histórico de custo e criar lotes "
-                    "de estoque."
+                    "Ao confirmar, o ERP irá registrar "
+                    "a compra, atualizar estoque, "
+                    "atualizar custos, criar histórico "
+                    "de custo e criar lotes de estoque."
                 )
 
-                # ==================================================
+                # ==========================================
                 # CONFIRMAÇÃO
-                # ==================================================
+                # ==========================================
 
                 confirmar_importacao = (
                     st.checkbox(
-                        "Confirmo que conferi as conversões "
-                        "e desejo importar esta NF-e",
+                        "Confirmo que conferi os fatores "
+                        "e as quantidades que entrarão "
+                        "no estoque e desejo importar "
+                        "esta NF-e",
                         key=(
                             "confirmar_importar_xml_"
                             f"{dados_xml.get('chave_nfe', '')}"
@@ -894,9 +1319,9 @@ def tela_compras():
                     )
                 )
 
-                # ==================================================
+                # ==========================================
                 # BOTÃO IMPORTAR
-                # ==================================================
+                # ==========================================
 
                 if st.button(
                     "📥 Importar NF-e",
@@ -914,26 +1339,31 @@ def tela_compras():
 
                         resultado = (
                             importar_nfe_xml(
-                                dados_xml=dados_xml,
-                                usuario=(
+                                dados_xml=
+                                    dados_xml,
+
+                                usuario=
                                     st.session_state.get(
                                         "usuario",
                                         "Sistema"
-                                    )
-                                )
+                                    ),
+
+                                conversoes_confirmadas=
+                                    conversoes_confirmadas
                             )
                         )
 
-                    # ==================================================
+                    # ======================================
                     # IMPORTAÇÃO COM SUCESSO
-                    # ==================================================
+                    # ======================================
 
                     if resultado.get(
                         "sucesso"
                     ):
 
                         st.success(
-                            "✅ NF-e importada com sucesso!"
+                            "✅ NF-e importada "
+                            "com sucesso!"
                         )
 
                         st.markdown(
@@ -1015,9 +1445,9 @@ def tela_compras():
                             f"{resultado.get('fornecedor', '')}"
                         )
 
-                        # ==================================================
+                        # ==================================
                         # ITENS IMPORTADOS
-                        # ==================================================
+                        # ==================================
 
                         itens_convertidos = (
                             resultado.get(
@@ -1029,7 +1459,8 @@ def tela_compras():
                         if itens_convertidos:
 
                             st.markdown(
-                                "### 🔁 Resultado das Conversões"
+                                "### 🔁 Resultado "
+                                "das Conversões"
                             )
 
                             itens_convertidos_df = (
@@ -1053,13 +1484,14 @@ def tela_compras():
                             )
 
                         st.success(
-                            "Estoque, custos, histórico de custos "
-                            "e lotes foram atualizados com sucesso."
+                            "Estoque, custos, histórico "
+                            "de custos e lotes foram "
+                            "atualizados com sucesso."
                         )
 
-                    # ==================================================
+                    # ======================================
                     # NF-E DUPLICADA
-                    # ==================================================
+                    # ======================================
 
                     elif resultado.get(
                         "duplicada"
@@ -1071,7 +1503,8 @@ def tela_compras():
                         )
 
                         st.markdown(
-                            "### 📌 Dados da importação existente"
+                            "### 📌 Dados da "
+                            "importação existente"
                         )
 
                         col1, col2, col3 = (
@@ -1114,13 +1547,14 @@ def tela_compras():
                         )
 
                         st.warning(
-                            "Nenhuma alteração foi realizada "
-                            "no estoque, custos ou compras."
+                            "Nenhuma alteração foi "
+                            "realizada no estoque, "
+                            "custos ou compras."
                         )
 
-                    # ==================================================
+                    # ======================================
                     # ERRO
-                    # ==================================================
+                    # ======================================
 
                     else:
 
@@ -1137,9 +1571,9 @@ def tela_compras():
                     f"Erro ao ler XML: {erro}"
                 )
 
-    # ==================================================
+    # ======================================================
     # ABA 3 - HISTÓRICO
-    # ==================================================
+    # ======================================================
 
     with abas[2]:
 
@@ -1149,7 +1583,10 @@ def tela_compras():
 
         compras = listar_compras()
 
-        if compras is None or compras.empty:
+        if (
+            compras is None
+            or compras.empty
+        ):
 
             st.info(
                 "Nenhuma compra cadastrada."
@@ -1200,22 +1637,29 @@ def tela_compras():
 
             else:
 
-                compra_id = st.selectbox(
-                    "Selecionar Compra",
-                    compras[
-                        "id"
-                    ].tolist()
+                compra_id = (
+                    st.selectbox(
+                        "Selecionar Compra",
+                        compras[
+                            "id"
+                        ].tolist()
+                    )
                 )
 
-                itens = buscar_itens_compra(
-                    compra_id
+                itens = (
+                    buscar_itens_compra(
+                        compra_id
+                    )
                 )
 
                 st.markdown(
                     "### 📦 Itens da Compra"
                 )
 
-                if itens is None or itens.empty:
+                if (
+                    itens is None
+                    or itens.empty
+                ):
 
                     st.info(
                         "Nenhum item encontrado "
@@ -1237,9 +1681,9 @@ def tela_compras():
                         use_container_width=True
                     )
 
-    # ==================================================
+    # ======================================================
     # ABA 4 - EXCLUIR COMPRA
-    # ==================================================
+    # ======================================================
 
     with abas[3]:
 
@@ -1249,7 +1693,10 @@ def tela_compras():
 
         compras = listar_compras()
 
-        if compras is None or compras.empty:
+        if (
+            compras is None
+            or compras.empty
+        ):
 
             st.info(
                 "Nenhuma compra cadastrada."
@@ -1258,19 +1705,24 @@ def tela_compras():
         else:
 
             compras_map = {
+
                 (
                     f"{row['id']} | "
                     f"{row['fornecedor']} | "
                     f"{formatar_moeda(row['valor_total'])}"
                 ):
-                row["id"]
-                for _, row in compras.iterrows()
+                    row["id"]
+
+                for _, row
+                in compras.iterrows()
             }
 
-            selecionado = st.selectbox(
-                "Selecione a compra",
-                list(
-                    compras_map.keys()
+            selecionado = (
+                st.selectbox(
+                    "Selecione a compra",
+                    list(
+                        compras_map.keys()
+                    )
                 )
             )
 
@@ -1281,13 +1733,19 @@ def tela_compras():
             )
 
             st.warning(
-                "⚠️ A exclusão remove apenas o registro "
-                "da compra. O estoque não será revertido."
+                "⚠️ A exclusão remove apenas "
+                "o registro da compra. "
+                "O estoque não será revertido."
             )
 
-            confirmar = st.checkbox(
-                "Confirmo que desejo excluir esta compra",
-                key="confirmar_excluir_compra"
+            confirmar = (
+                st.checkbox(
+                    "Confirmo que desejo "
+                    "excluir esta compra",
+                    key=(
+                        "confirmar_excluir_compra"
+                    )
+                )
             )
 
             if st.button(
@@ -1298,13 +1756,16 @@ def tela_compras():
                 if not confirmar:
 
                     st.warning(
-                        "Marque a confirmação antes de excluir."
+                        "Marque a confirmação "
+                        "antes de excluir."
                     )
 
                 else:
 
-                    sucesso = excluir_compra(
-                        compra_id
+                    sucesso = (
+                        excluir_compra(
+                            compra_id
+                        )
                     )
 
                     if sucesso:

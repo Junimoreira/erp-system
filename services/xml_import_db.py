@@ -10,7 +10,11 @@ from services.xml_conversao_service import (
 # VERIFICAR SE COLUNA EXISTE
 # ==========================================================
 
-def coluna_existe(cursor, tabela, coluna):
+def coluna_existe(
+    cursor,
+    tabela,
+    coluna
+):
 
     cursor.execute("""
         SELECT COUNT(*)
@@ -29,7 +33,10 @@ def coluna_existe(cursor, tabela, coluna):
 # VERIFICAR NF-E DUPLICADA
 # ==========================================================
 
-def verificar_nfe_duplicada(cursor, chave_nfe):
+def verificar_nfe_duplicada(
+    cursor,
+    chave_nfe
+):
 
     if not chave_nfe:
         return None
@@ -57,10 +64,16 @@ def verificar_nfe_duplicada(cursor, chave_nfe):
 # BUSCAR OU CRIAR FORNECEDOR
 # ==========================================================
 
-def buscar_ou_criar_fornecedor(cursor, fornecedor):
+def buscar_ou_criar_fornecedor(
+    cursor,
+    fornecedor
+):
 
     cnpj = str(
-        fornecedor.get("cnpj", "") or ""
+        fornecedor.get(
+            "cnpj",
+            ""
+        ) or ""
     ).strip()
 
     razao_social = fornecedor.get(
@@ -80,7 +93,9 @@ def buscar_ou_criar_fornecedor(cursor, fornecedor):
         cursor.execute("""
             SELECT id
             FROM fornecedores
-            WHERE TRIM(COALESCE(cnpj, '')) = %s
+            WHERE TRIM(
+                COALESCE(cnpj, '')
+            ) = %s
             LIMIT 1
         """, (
             cnpj,
@@ -89,7 +104,10 @@ def buscar_ou_criar_fornecedor(cursor, fornecedor):
         encontrado = cursor.fetchone()
 
         if encontrado:
-            return encontrado[0], False
+            return (
+                encontrado[0],
+                False
+            )
 
     cursor.execute("""
         INSERT INTO fornecedores (
@@ -101,7 +119,10 @@ def buscar_ou_criar_fornecedor(cursor, fornecedor):
         razao_social,
     ))
 
-    return cursor.fetchone()[0], True
+    return (
+        cursor.fetchone()[0],
+        True
+    )
 
 
 # ==========================================================
@@ -122,9 +143,9 @@ def buscar_produto_por_codigo(
         codigo_fornecedor or ""
     ).strip()
 
-    # ------------------------------------------------------
+    # ======================================================
     # PRIMEIRO: EAN / CÓDIGO DE BARRAS
-    # ------------------------------------------------------
+    # ======================================================
 
     if (
         codigo_barras
@@ -138,7 +159,12 @@ def buscar_produto_por_codigo(
         cursor.execute("""
             SELECT id
             FROM produtos
-            WHERE TRIM(COALESCE(codigo_barras, '')) = %s
+            WHERE TRIM(
+                COALESCE(
+                    codigo_barras,
+                    ''
+                )
+            ) = %s
             LIMIT 1
         """, (
             codigo_barras,
@@ -149,9 +175,9 @@ def buscar_produto_por_codigo(
         if encontrado:
             return encontrado[0]
 
-    # ------------------------------------------------------
+    # ======================================================
     # DEPOIS: SKU / CÓDIGO DO FORNECEDOR
-    # ------------------------------------------------------
+    # ======================================================
 
     if (
         codigo_fornecedor
@@ -165,7 +191,12 @@ def buscar_produto_por_codigo(
         cursor.execute("""
             SELECT id
             FROM produtos
-            WHERE TRIM(COALESCE(sku, '')) = %s
+            WHERE TRIM(
+                COALESCE(
+                    sku,
+                    ''
+                )
+            ) = %s
             LIMIT 1
         """, (
             codigo_fornecedor,
@@ -183,7 +214,10 @@ def buscar_produto_por_codigo(
 # BUSCAR OU CRIAR PRODUTO
 # ==========================================================
 
-def buscar_ou_criar_produto(cursor, produto):
+def buscar_ou_criar_produto(
+    cursor,
+    produto
+):
 
     nome = produto.get(
         "nome",
@@ -191,19 +225,31 @@ def buscar_ou_criar_produto(cursor, produto):
     )
 
     codigo_barras = str(
-        produto.get("ean", "") or ""
+        produto.get(
+            "ean",
+            ""
+        ) or ""
     ).strip()
 
     codigo_fornecedor = str(
-        produto.get("codigo", "") or ""
+        produto.get(
+            "codigo",
+            ""
+        ) or ""
     ).strip()
 
     ncm = str(
-        produto.get("ncm", "") or ""
+        produto.get(
+            "ncm",
+            ""
+        ) or ""
     ).strip()
 
     unidade = str(
-        produto.get("unidade", "") or ""
+        produto.get(
+            "unidade",
+            ""
+        ) or ""
     ).strip()
 
     produto_id = buscar_produto_por_codigo(
@@ -229,11 +275,21 @@ def buscar_ou_criar_produto(cursor, produto):
                 "codigo_barras"
             )
         ):
+
             atualizacoes.append("""
                 codigo_barras =
-                COALESCE(NULLIF(codigo_barras, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        codigo_barras,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(codigo_barras)
+
+            valores.append(
+                codigo_barras
+            )
 
         if (
             codigo_fornecedor
@@ -243,11 +299,21 @@ def buscar_ou_criar_produto(cursor, produto):
                 "sku"
             )
         ):
+
             atualizacoes.append("""
                 sku =
-                COALESCE(NULLIF(sku, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        sku,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(codigo_fornecedor)
+
+            valores.append(
+                codigo_fornecedor
+            )
 
         if (
             ncm
@@ -257,11 +323,21 @@ def buscar_ou_criar_produto(cursor, produto):
                 "ncm"
             )
         ):
+
             atualizacoes.append("""
                 ncm =
-                COALESCE(NULLIF(ncm, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        ncm,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(ncm)
+
+            valores.append(
+                ncm
+            )
 
         if (
             unidade
@@ -271,26 +347,45 @@ def buscar_ou_criar_produto(cursor, produto):
                 "unidade"
             )
         ):
+
             atualizacoes.append("""
                 unidade =
-                COALESCE(NULLIF(unidade, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        unidade,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(unidade)
+
+            valores.append(
+                unidade
+            )
 
         if atualizacoes:
 
-            valores.append(produto_id)
+            valores.append(
+                produto_id
+            )
 
             cursor.execute(
                 f"""
                     UPDATE produtos
-                    SET {", ".join(atualizacoes)}
+                    SET {
+                        ", ".join(
+                            atualizacoes
+                        )
+                    }
                     WHERE id = %s
                 """,
                 valores
             )
 
-        return produto_id, False
+        return (
+            produto_id,
+            False
+        )
 
     # ======================================================
     # TENTAR LOCALIZAR PELO NOME
@@ -299,7 +394,11 @@ def buscar_ou_criar_produto(cursor, produto):
     cursor.execute("""
         SELECT id
         FROM produtos
-        WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s))
+        WHERE LOWER(
+            TRIM(nome)
+        ) = LOWER(
+            TRIM(%s)
+        )
         LIMIT 1
     """, (
         nome,
@@ -314,13 +413,6 @@ def buscar_ou_criar_produto(cursor, produto):
         atualizacoes = []
         valores = []
 
-        # IMPORTANTE:
-        # NÃO atualizamos custo aqui.
-        #
-        # O custo correto será calculado depois da conversão.
-        # Isso evita gravar custo de caixa/pacote como custo
-        # unitário do produto.
-
         if (
             codigo_barras
             and coluna_existe(
@@ -329,11 +421,21 @@ def buscar_ou_criar_produto(cursor, produto):
                 "codigo_barras"
             )
         ):
+
             atualizacoes.append("""
                 codigo_barras =
-                COALESCE(NULLIF(codigo_barras, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        codigo_barras,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(codigo_barras)
+
+            valores.append(
+                codigo_barras
+            )
 
         if (
             codigo_fornecedor
@@ -343,11 +445,21 @@ def buscar_ou_criar_produto(cursor, produto):
                 "sku"
             )
         ):
+
             atualizacoes.append("""
                 sku =
-                COALESCE(NULLIF(sku, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        sku,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(codigo_fornecedor)
+
+            valores.append(
+                codigo_fornecedor
+            )
 
         if (
             ncm
@@ -357,11 +469,21 @@ def buscar_ou_criar_produto(cursor, produto):
                 "ncm"
             )
         ):
+
             atualizacoes.append("""
                 ncm =
-                COALESCE(NULLIF(ncm, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        ncm,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(ncm)
+
+            valores.append(
+                ncm
+            )
 
         if (
             unidade
@@ -371,26 +493,45 @@ def buscar_ou_criar_produto(cursor, produto):
                 "unidade"
             )
         ):
+
             atualizacoes.append("""
                 unidade =
-                COALESCE(NULLIF(unidade, ''), %s)
+                COALESCE(
+                    NULLIF(
+                        unidade,
+                        ''
+                    ),
+                    %s
+                )
             """)
-            valores.append(unidade)
+
+            valores.append(
+                unidade
+            )
 
         if atualizacoes:
 
-            valores.append(produto_id)
+            valores.append(
+                produto_id
+            )
 
             cursor.execute(
                 f"""
                     UPDATE produtos
-                    SET {", ".join(atualizacoes)}
+                    SET {
+                        ", ".join(
+                            atualizacoes
+                        )
+                    }
                     WHERE id = %s
                 """,
                 valores
             )
 
-        return produto_id, False
+        return (
+            produto_id,
+            False
+        )
 
     # ======================================================
     # CRIAR NOVO PRODUTO
@@ -408,14 +549,18 @@ def buscar_ou_criar_produto(cursor, produto):
         0
     ]
 
-    # O custo será atualizado após a conversão.
     if coluna_existe(
         cursor,
         "produtos",
         "custo"
     ):
-        colunas.append("custo")
-        valores.append(0)
+        colunas.append(
+            "custo"
+        )
+
+        valores.append(
+            0
+        )
 
     if (
         codigo_barras
@@ -425,8 +570,14 @@ def buscar_ou_criar_produto(cursor, produto):
             "codigo_barras"
         )
     ):
-        colunas.append("codigo_barras")
-        valores.append(codigo_barras)
+
+        colunas.append(
+            "codigo_barras"
+        )
+
+        valores.append(
+            codigo_barras
+        )
 
     if (
         codigo_fornecedor
@@ -436,8 +587,14 @@ def buscar_ou_criar_produto(cursor, produto):
             "sku"
         )
     ):
-        colunas.append("sku")
-        valores.append(codigo_fornecedor)
+
+        colunas.append(
+            "sku"
+        )
+
+        valores.append(
+            codigo_fornecedor
+        )
 
     if (
         ncm
@@ -447,8 +604,14 @@ def buscar_ou_criar_produto(cursor, produto):
             "ncm"
         )
     ):
-        colunas.append("ncm")
-        valores.append(ncm)
+
+        colunas.append(
+            "ncm"
+        )
+
+        valores.append(
+            ncm
+        )
 
     if (
         unidade
@@ -458,22 +621,36 @@ def buscar_ou_criar_produto(cursor, produto):
             "unidade"
         )
     ):
-        colunas.append("unidade")
-        valores.append(unidade)
+
+        colunas.append(
+            "unidade"
+        )
+
+        valores.append(
+            unidade
+        )
 
     if coluna_existe(
         cursor,
         "produtos",
         "ativo"
     ):
-        colunas.append("ativo")
-        valores.append(True)
+
+        colunas.append(
+            "ativo"
+        )
+
+        valores.append(
+            True
+        )
 
     placeholders = ", ".join(
         ["%s"] * len(colunas)
     )
 
-    colunas_sql = ", ".join(colunas)
+    colunas_sql = ", ".join(
+        colunas
+    )
 
     cursor.execute(
         f"""
@@ -488,7 +665,10 @@ def buscar_ou_criar_produto(cursor, produto):
         valores
     )
 
-    return cursor.fetchone()[0], True
+    return (
+        cursor.fetchone()[0],
+        True
+    )
 
 
 # ==========================================================
@@ -509,7 +689,10 @@ def obter_custo_atual(
 
     cursor.execute("""
         SELECT
-            COALESCE(custo, 0)
+            COALESCE(
+                custo,
+                0
+            )
         FROM produtos
         WHERE id = %s
     """, (
@@ -536,16 +719,6 @@ def buscar_conversao_produto(
     codigo_barras="",
     codigo_fornecedor=""
 ):
-    """
-    Retorna a conversão cadastrada ou None.
-
-    É importante retornar None quando não existir cadastro.
-
-    Dessa forma conseguimos diferenciar:
-
-    - fator 1 cadastrado propositalmente
-    - nenhuma conversão cadastrada
-    """
 
     codigo_barras = str(
         codigo_barras or ""
@@ -584,18 +757,25 @@ def buscar_conversao_produto(
 
                 return {
                     "tipo_compra":
-                        resultado[0] or "UNIDADE",
+                        resultado[0]
+                        or "UNIDADE",
 
                     "unidade_compra":
-                        resultado[1] or "UNIDADE",
+                        resultado[1]
+                        or "UNIDADE",
 
                     "unidade_estoque":
-                        resultado[2] or "UNIDADE",
+                        resultado[2]
+                        or "UNIDADE",
 
                     "fator_conversao":
-                        float(resultado[3] or 1),
+                        float(
+                            resultado[3]
+                            or 1
+                        ),
 
-                    "cadastrada": True
+                    "cadastrada":
+                        True
                 }
 
         # ==================================================
@@ -630,18 +810,25 @@ def buscar_conversao_produto(
 
                 return {
                     "tipo_compra":
-                        resultado[0] or "UNIDADE",
+                        resultado[0]
+                        or "UNIDADE",
 
                     "unidade_compra":
-                        resultado[1] or "UNIDADE",
+                        resultado[1]
+                        or "UNIDADE",
 
                     "unidade_estoque":
-                        resultado[2] or "UNIDADE",
+                        resultado[2]
+                        or "UNIDADE",
 
                     "fator_conversao":
-                        float(resultado[3] or 1),
+                        float(
+                            resultado[3]
+                            or 1
+                        ),
 
-                    "cadastrada": True
+                    "cadastrada":
+                        True
                 }
 
         # ==================================================
@@ -676,21 +863,29 @@ def buscar_conversao_produto(
 
                 return {
                     "tipo_compra":
-                        resultado[0] or "UNIDADE",
+                        resultado[0]
+                        or "UNIDADE",
 
                     "unidade_compra":
-                        resultado[1] or "UNIDADE",
+                        resultado[1]
+                        or "UNIDADE",
 
                     "unidade_estoque":
-                        resultado[2] or "UNIDADE",
+                        resultado[2]
+                        or "UNIDADE",
 
                     "fator_conversao":
-                        float(resultado[3] or 1),
+                        float(
+                            resultado[3]
+                            or 1
+                        ),
 
-                    "cadastrada": True
+                    "cadastrada":
+                        True
                 }
 
     except Exception as erro:
+
         print(
             "Erro buscar_conversao_produto:",
             erro
@@ -753,10 +948,17 @@ def definir_conversao_item(
     # ======================================================
 
     conversao_padrao = {
-        "tipo_compra": "UNIDADE",
-        "unidade_compra": "UNIDADE",
-        "unidade_estoque": "UNIDADE",
-        "fator_conversao": 1.0
+        "tipo_compra":
+            "UNIDADE",
+
+        "unidade_compra":
+            "UNIDADE",
+
+        "unidade_estoque":
+            "UNIDADE",
+
+        "fator_conversao":
+            1.0
     }
 
     return (
@@ -766,12 +968,95 @@ def definir_conversao_item(
 
 
 # ==========================================================
+# BUSCAR CONVERSÃO CONFIRMADA NA TELA
+# ==========================================================
+
+def buscar_conversao_confirmada(
+    conversoes_confirmadas,
+    indice_item
+):
+
+    if not conversoes_confirmadas:
+        return None
+
+    for conversao in conversoes_confirmadas:
+
+        try:
+            indice = int(
+                conversao.get(
+                    "indice_item",
+                    -1
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+            continue
+
+        if indice == indice_item:
+
+            try:
+                fator = float(
+                    conversao.get(
+                        "fator_conversao",
+                        1
+                    ) or 1
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+                fator = 1.0
+
+            if fator < 1:
+                fator = 1.0
+
+            return {
+                "tipo_compra":
+                    conversao.get(
+                        "tipo_compra",
+                        "UNIDADE"
+                    )
+                    or "UNIDADE",
+
+                "unidade_compra":
+                    conversao.get(
+                        "unidade_compra",
+                        "UNIDADE"
+                    )
+                    or "UNIDADE",
+
+                "unidade_estoque":
+                    conversao.get(
+                        "unidade_estoque",
+                        "UNIDADE"
+                    )
+                    or "UNIDADE",
+
+                "fator_conversao":
+                    fator,
+
+                "origem_conversao":
+                    conversao.get(
+                        "origem_conversao",
+                        "Confirmada na conferência"
+                    )
+            }
+
+    return None
+
+
+# ==========================================================
 # IMPORTAR NF-E
 # ==========================================================
 
 def importar_nfe_xml(
     dados_xml,
-    usuario="Sistema"
+    usuario="Sistema",
+    conversoes_confirmadas=None
 ):
 
     conn = conectar()
@@ -779,18 +1064,28 @@ def importar_nfe_xml(
     if conn is None:
 
         return {
-            "sucesso": False,
-            "duplicada": False,
+            "sucesso":
+                False,
+
+            "duplicada":
+                False,
+
             "mensagem":
-                "Não foi possível conectar ao banco de dados."
+                "Não foi possível conectar "
+                "ao banco de dados."
         }
 
     cursor = conn.cursor()
 
     try:
 
-        fornecedor = dados_xml["fornecedor"]
-        produtos_xml = dados_xml["produtos"]
+        fornecedor = dados_xml[
+            "fornecedor"
+        ]
+
+        produtos_xml = dados_xml[
+            "produtos"
+        ]
 
         valor_total = float(
             dados_xml.get(
@@ -821,15 +1116,30 @@ def importar_nfe_xml(
         if duplicada:
 
             return {
-                "sucesso": False,
-                "duplicada": True,
+                "sucesso":
+                    False,
+
+                "duplicada":
+                    True,
+
                 "mensagem":
-                    "Esta NF-e já foi importada anteriormente.",
-                "compra_id": duplicada[0],
-                "numero_nfe": duplicada[1],
-                "chave_nfe": duplicada[2],
-                "data_importacao": duplicada[3],
-                "fornecedor": duplicada[4]
+                    "Esta NF-e já foi importada "
+                    "anteriormente.",
+
+                "compra_id":
+                    duplicada[0],
+
+                "numero_nfe":
+                    duplicada[1],
+
+                "chave_nfe":
+                    duplicada[2],
+
+                "data_importacao":
+                    duplicada[3],
+
+                "fornecedor":
+                    duplicada[4]
             }
 
         # ==================================================
@@ -897,7 +1207,9 @@ def importar_nfe_xml(
         # PROCESSAR PRODUTOS
         # ==================================================
 
-        for item in produtos_xml:
+        for indice_item, item in enumerate(
+            produtos_xml
+        ):
 
             produto_id, produto_novo = (
                 buscar_ou_criar_produto(
@@ -933,7 +1245,8 @@ def importar_nfe_xml(
             subtotal_xml = float(
                 item.get(
                     "subtotal",
-                    quantidade_xml * custo_xml
+                    quantidade_xml *
+                    custo_xml
                 ) or 0
             )
 
@@ -968,18 +1281,68 @@ def importar_nfe_xml(
             )
 
             # ==================================================
-            # DEFINIR CONVERSÃO
+            # PRIMEIRA PRIORIDADE:
+            # CONVERSÃO CONFIRMADA NA TELA
+            #
+            # O QUE FOI CONFERIDO É O QUE SERÁ IMPORTADO.
             # ==================================================
 
-            conversao, origem_conversao = (
-                definir_conversao_item(
-                    cursor,
-                    produto_id,
-                    codigo_barras,
-                    codigo_fornecedor,
-                    nome_produto
+            conversao_confirmada = (
+                buscar_conversao_confirmada(
+                    conversoes_confirmadas,
+                    indice_item
                 )
             )
+
+            if conversao_confirmada:
+
+                conversao = {
+                    "tipo_compra":
+                        conversao_confirmada[
+                            "tipo_compra"
+                        ],
+
+                    "unidade_compra":
+                        conversao_confirmada[
+                            "unidade_compra"
+                        ],
+
+                    "unidade_estoque":
+                        conversao_confirmada[
+                            "unidade_estoque"
+                        ],
+
+                    "fator_conversao":
+                        conversao_confirmada[
+                            "fator_conversao"
+                        ]
+                }
+
+                origem_conversao = (
+                    conversao_confirmada.get(
+                        "origem_conversao",
+                        "Confirmada na conferência"
+                    )
+                )
+
+            else:
+
+                # ==============================================
+                # COMPATIBILIDADE:
+                #
+                # Se a função for chamada por outro lugar sem
+                # conversoes_confirmadas, usa a lógica antiga.
+                # ==============================================
+
+                conversao, origem_conversao = (
+                    definir_conversao_item(
+                        cursor,
+                        produto_id,
+                        codigo_barras,
+                        codigo_fornecedor,
+                        nome_produto
+                    )
+                )
 
             # ==================================================
             # APLICAR CONVERSÃO
@@ -987,10 +1350,17 @@ def importar_nfe_xml(
 
             dados_conversao = (
                 aplicar_conversao_produto(
-                    quantidade_xml=quantidade_xml,
-                    custo_xml=custo_xml,
-                    subtotal_xml=subtotal_xml,
-                    conversao=conversao
+                    quantidade_xml=
+                        quantidade_xml,
+
+                    custo_xml=
+                        custo_xml,
+
+                    subtotal_xml=
+                        subtotal_xml,
+
+                    conversao=
+                        conversao
                 )
             )
 
@@ -1049,14 +1419,17 @@ def importar_nfe_xml(
                 produto_id,
                 quantidade,
                 quantidade_xml,
+
                 dados_conversao[
                     "fator_conversao"
                 ],
+
                 custo,
                 subtotal,
                 codigo_fornecedor,
                 codigo_barras,
                 ncm,
+
                 dados_conversao[
                     "unidade_estoque"
                 ]
@@ -1074,7 +1447,10 @@ def importar_nfe_xml(
                 UPDATE produtos
                 SET
                     estoque =
-                        COALESCE(estoque, 0) + %s,
+                        COALESCE(
+                            estoque,
+                            0
+                        ) + %s,
 
                     custo = %s
 
@@ -1210,33 +1586,50 @@ def importar_nfe_xml(
         conn.commit()
 
         return {
-            "sucesso": True,
-            "duplicada": False,
+            "sucesso":
+                True,
+
+            "duplicada":
+                False,
+
             "mensagem":
                 "NF-e importada com sucesso.",
+
             "compra_id":
                 compra_id,
+
             "numero_nfe":
                 numero_nfe,
+
             "chave_nfe":
                 chave_nfe,
+
             "fornecedor":
                 fornecedor.get(
                     "razao_social",
                     ""
                 ),
+
             "valor_total":
                 valor_total,
+
             "total_produtos":
-                len(produtos_xml),
+                len(
+                    produtos_xml
+                ),
+
             "produtos_novos":
                 produtos_novos,
+
             "produtos_atualizados":
                 produtos_atualizados,
+
             "fornecedor_novo":
                 fornecedor_novo,
+
             "conversao_xml":
                 True,
+
             "itens_convertidos":
                 itens_convertidos
         }
@@ -1251,10 +1644,15 @@ def importar_nfe_xml(
         )
 
         return {
-            "sucesso": False,
-            "duplicada": False,
+            "sucesso":
+                False,
+
+            "duplicada":
+                False,
+
             "mensagem":
-                f"Erro ao importar NF-e: {erro}"
+                f"Erro ao importar NF-e: "
+                f"{erro}"
         }
 
     finally:

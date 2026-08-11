@@ -5,8 +5,9 @@ import re
 # CONVERSÃO PADRÃO
 # ==========================================================
 
-def conversao_padrao(observacao="Nenhuma conversão detectada."):
-
+def conversao_padrao(
+    observacao="Nenhuma conversão detectada."
+):
     return {
         "detectado": False,
         "tipo_compra": "UNIDADE",
@@ -32,10 +33,13 @@ def detectar_conversao_por_descricao(descricao):
     # IMPORTANTE
     #
     # Somente detectamos conversão quando existir uma
-    # indicação CLARA de embalagem comercial.
+    # indicação clara de embalagem comercial.
     #
     # Exemplos aceitos:
     #
+    # KIT 12
+    # KIT C/12
+    # KIT COM 12
     # CX C/12
     # CAIXA C/12
     # PCT C/10
@@ -43,7 +47,6 @@ def detectar_conversao_por_descricao(descricao):
     # PACOTE C/10
     # FARDO C/6
     # DISPLAY C/24
-    # KIT C/4
     # EMB C/20
     #
     # NÃO interpretar como conversão:
@@ -59,17 +62,31 @@ def detectar_conversao_por_descricao(descricao):
 
     padroes = [
 
-        # KIT C/10
+        # --------------------------------------------------
+        # KIT
+        # --------------------------------------------------
+
+        # KIT 12
+        (
+            r"\bKIT\.?\s+(\d+)\b",
+            "KIT"
+        ),
+
+        # KIT C/12
         (
             r"\bKIT\.?\s*C\s*/\s*(\d+)\b",
             "KIT"
         ),
 
-        # KIT COM 10
+        # KIT COM 12
         (
             r"\bKIT\.?\s+COM\s+(\d+)\b",
             "KIT"
         ),
+
+        # --------------------------------------------------
+        # CAIXA / CX
+        # --------------------------------------------------
 
         # CX C/12
         (
@@ -95,6 +112,10 @@ def detectar_conversao_por_descricao(descricao):
             "CAIXA"
         ),
 
+        # --------------------------------------------------
+        # PACOTE / PCT
+        # --------------------------------------------------
+
         # PCT C/10 ou PCT.C/10
         (
             r"\bPCT\.?\s*C\s*/\s*(\d+)\b",
@@ -119,6 +140,10 @@ def detectar_conversao_por_descricao(descricao):
             "PACOTE"
         ),
 
+        # --------------------------------------------------
+        # FARDO
+        # --------------------------------------------------
+
         # FARDO C/6
         (
             r"\bFARDO\s*C\s*/\s*(\d+)\b",
@@ -131,6 +156,10 @@ def detectar_conversao_por_descricao(descricao):
             "FARDO"
         ),
 
+        # --------------------------------------------------
+        # DISPLAY
+        # --------------------------------------------------
+
         # DISPLAY C/24
         (
             r"\bDISPLAY\s*C\s*/\s*(\d+)\b",
@@ -142,6 +171,10 @@ def detectar_conversao_por_descricao(descricao):
             r"\bDISPLAY\s+COM\s+(\d+)\b",
             "DISPLAY"
         ),
+
+        # --------------------------------------------------
+        # EMBALAGEM
+        # --------------------------------------------------
 
         # EMB C/20
         (
@@ -170,13 +203,18 @@ def detectar_conversao_por_descricao(descricao):
 
     for padrao, tipo in padroes:
 
-        encontrado = re.search(padrao, texto)
+        encontrado = re.search(
+            padrao,
+            texto
+        )
 
         if not encontrado:
             continue
 
         try:
-            fator = float(encontrado.group(1))
+            fator = float(
+                encontrado.group(1)
+            )
 
         except (TypeError, ValueError):
             continue
@@ -191,8 +229,9 @@ def detectar_conversao_por_descricao(descricao):
             "unidade_estoque": "UNIDADE",
             "fator_conversao": fator,
             "observacao": (
-                f"Conversão detectada automaticamente na descrição: "
-                f"{tipo} com {int(fator)} unidades."
+                "Conversão detectada automaticamente "
+                f"na descrição: {tipo} com "
+                f"{int(fator)} unidades."
             )
         }
 
@@ -214,8 +253,12 @@ def aplicar_conversao_produto(
 
     try:
         fator = float(
-            conversao.get("fator_conversao", 1) or 1
+            conversao.get(
+                "fator_conversao",
+                1
+            ) or 1
         )
+
     except (TypeError, ValueError):
         fator = 1.0
 
@@ -223,21 +266,52 @@ def aplicar_conversao_produto(
         fator = 1.0
 
     try:
-        quantidade_xml = float(quantidade_xml or 0)
+        quantidade_xml = float(
+            quantidade_xml or 0
+        )
+
     except (TypeError, ValueError):
         quantidade_xml = 0.0
 
     try:
-        custo_xml = float(custo_xml or 0)
+        custo_xml = float(
+            custo_xml or 0
+        )
+
     except (TypeError, ValueError):
         custo_xml = 0.0
 
     try:
-        subtotal_xml = float(subtotal_xml or 0)
-    except (TypeError, ValueError):
-        subtotal_xml = quantidade_xml * custo_xml
+        subtotal_xml = float(
+            subtotal_xml or 0
+        )
 
-    quantidade_estoque = quantidade_xml * fator
+    except (TypeError, ValueError):
+        subtotal_xml = (
+            quantidade_xml *
+            custo_xml
+        )
+
+    # ======================================================
+    # QUANTIDADE FINAL DE ESTOQUE
+    # ======================================================
+
+    quantidade_estoque = (
+        quantidade_xml *
+        fator
+    )
+
+    # ======================================================
+    # CUSTO UNITÁRIO FINAL
+    #
+    # Exemplo:
+    #
+    # 1 KIT = R$ 58,14
+    # fator = 12
+    #
+    # custo unitário =
+    # 58,14 / 12 = 4,845
+    # ======================================================
 
     custo_unitario_estoque = (
         custo_xml / fator
@@ -246,25 +320,44 @@ def aplicar_conversao_produto(
     )
 
     return {
-        "fator_conversao": fator,
-        "quantidade_xml": quantidade_xml,
-        "custo_xml": custo_xml,
-        "subtotal_xml": subtotal_xml,
-        "quantidade_estoque": quantidade_estoque,
-        "custo_unitario_estoque": custo_unitario_estoque,
-        "subtotal_convertido": subtotal_xml,
-        "tipo_compra": conversao.get(
-            "tipo_compra",
-            "UNIDADE"
-        ),
-        "unidade_compra": conversao.get(
-            "unidade_compra",
-            "UNIDADE"
-        ),
-        "unidade_estoque": conversao.get(
-            "unidade_estoque",
-            "UNIDADE"
-        )
+        "fator_conversao":
+            fator,
+
+        "quantidade_xml":
+            quantidade_xml,
+
+        "custo_xml":
+            custo_xml,
+
+        "subtotal_xml":
+            subtotal_xml,
+
+        "quantidade_estoque":
+            quantidade_estoque,
+
+        "custo_unitario_estoque":
+            custo_unitario_estoque,
+
+        "subtotal_convertido":
+            subtotal_xml,
+
+        "tipo_compra":
+            conversao.get(
+                "tipo_compra",
+                "UNIDADE"
+            ),
+
+        "unidade_compra":
+            conversao.get(
+                "unidade_compra",
+                "UNIDADE"
+            ),
+
+        "unidade_estoque":
+            conversao.get(
+                "unidade_estoque",
+                "UNIDADE"
+            )
     }
 
 
@@ -283,7 +376,9 @@ def salvar_conversao_automatica(
     if not conversao_detectada:
         return False
 
-    if not conversao_detectada.get("detectado"):
+    if not conversao_detectada.get(
+        "detectado"
+    ):
         return False
 
     try:
@@ -293,6 +388,7 @@ def salvar_conversao_automatica(
                 1
             ) or 1
         )
+
     except (TypeError, ValueError):
         fator = 1.0
 
@@ -328,11 +424,19 @@ def salvar_conversao_automatica(
         produto_id,
         codigo_barras,
         codigo_fornecedor,
-        conversao_detectada["tipo_compra"],
-        conversao_detectada["unidade_compra"],
-        conversao_detectada["unidade_estoque"],
+        conversao_detectada[
+            "tipo_compra"
+        ],
+        conversao_detectada[
+            "unidade_compra"
+        ],
+        conversao_detectada[
+            "unidade_estoque"
+        ],
         fator,
-        conversao_detectada["observacao"]
+        conversao_detectada[
+            "observacao"
+        ]
     ))
 
     return True
