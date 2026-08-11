@@ -33,6 +33,7 @@ from telas.caixa import tela_caixa
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.vendas import tela_vendas
+from telas.trocas import tela_trocas
 from telas.movimentacoes import tela_movimentacoes
 from telas.fornecedores import tela_fornecedores
 from telas.compras import tela_compras
@@ -54,6 +55,7 @@ from telas.conversao_xml import tela_conversao_xml
 # CSS EXTERNO
 # ==================================================
 def carregar_css():
+
     caminho_css = os.path.join(
         BASE_DIR,
         "styles",
@@ -61,10 +63,12 @@ def carregar_css():
     )
 
     if os.path.exists(caminho_css):
+
         with open(
             caminho_css,
             encoding="utf-8"
         ) as arquivo_css:
+
             st.markdown(
                 f"<style>{arquivo_css.read()}</style>",
                 unsafe_allow_html=True
@@ -81,10 +85,6 @@ st.markdown(
     """
     <style>
 
-        /* ==================================================
-           SIDEBAR
-        ================================================== */
-
         section[data-testid="stSidebar"] {
             border-right: 3px solid #44D62C;
         }
@@ -92,10 +92,6 @@ st.markdown(
         section[data-testid="stSidebar"] > div {
             padding-top: 10px;
         }
-
-        /* ==================================================
-           BOTÕES DA SIDEBAR
-        ================================================== */
 
         section[data-testid="stSidebar"]
         div[data-testid="stButton"] {
@@ -165,10 +161,6 @@ st.markdown(
             box-shadow: 0 0 0 1px rgba(68, 214, 44, 0.35) !important;
         }
 
-        /* ==================================================
-           ITEM ATIVO
-        ================================================== */
-
         .menu-ativo {
             width: 100% !important;
             min-width: 100% !important;
@@ -205,10 +197,6 @@ st.markdown(
             text-overflow: ellipsis !important;
         }
 
-        /* ==================================================
-           CAIXA DO USUÁRIO
-        ================================================== */
-
         .usuario-box {
             width: 100%;
             padding: 11px 13px;
@@ -233,10 +221,6 @@ st.markdown(
             opacity: 0.85;
         }
 
-        /* ==================================================
-           TÍTULO MENU
-        ================================================== */
-
         .titulo-menu {
             margin-top: 5px;
             margin-bottom: 12px;
@@ -246,19 +230,11 @@ st.markdown(
             font-weight: 800;
         }
 
-        /* ==================================================
-           DIVISOR
-        ================================================== */
-
         section[data-testid="stSidebar"] hr {
             border-color: rgba(255, 255, 255, 0.15) !important;
             margin-top: 14px !important;
             margin-bottom: 14px !important;
         }
-
-        /* ==================================================
-           RESPONSIVIDADE
-        ================================================== */
 
         @media (max-width: 768px) {
 
@@ -297,7 +273,10 @@ if not st.session_state["logado"]:
 # PERFIL DO USUÁRIO
 # ==================================================
 perfil = str(
-    st.session_state.get("perfil", "")
+    st.session_state.get(
+        "perfil",
+        ""
+    )
 ).strip()
 
 perfil_normalizado = perfil.lower()
@@ -312,26 +291,37 @@ admin_total = perfil_normalizado in [
 # FUNÇÃO DE PERMISSÃO
 # ==================================================
 def tem_permissao(permissao):
+
     if admin_total:
         return True
 
     return bool(
-        st.session_state.get(permissao, False)
+        st.session_state.get(
+            permissao,
+            False
+        )
     )
 
 
 # ==================================================
 # CONSTRUÇÃO DO MENU
 # ==================================================
-menu_opcoes = ["🏠 Dashboard"]
+menu_opcoes = [
+    "🏠 Dashboard"
+]
 
 if tem_permissao("pode_caixa"):
-    menu_opcoes.append("💰 Caixa")
+    menu_opcoes.append(
+        "💰 Caixa"
+    )
 
 if tem_permissao("pode_clientes"):
-    menu_opcoes.append("👥 Clientes")
+    menu_opcoes.append(
+        "👥 Clientes"
+    )
 
 if tem_permissao("pode_produtos"):
+
     menu_opcoes.extend([
         "📦 Produtos",
         "💰 Formação de Preço",
@@ -340,40 +330,81 @@ if tem_permissao("pode_produtos"):
         "🔁 Conversão XML"
     ])
 
-if tem_permissao("pode_movimentacoes"):
-    menu_opcoes.append("💰 Movimentações")
+if tem_permissao(
+    "pode_movimentacoes"
+):
+
+    menu_opcoes.append(
+        "💰 Movimentações"
+    )
 
 if tem_permissao("pode_vendas"):
+
     menu_opcoes.extend([
         "🛒 Vendas",
+        "🔄 Trocas",
         "📢 Marketing"
     ])
 
-if tem_permissao("pode_financeiro"):
+if tem_permissao(
+    "pode_financeiro"
+):
+
     menu_opcoes.extend([
         "🏦 Contas Bancárias",
         "📊 Fluxo de Caixa"
     ])
 
-if tem_permissao("pode_contas_pagar"):
-    menu_opcoes.append("📤 Contas a Pagar")
+if tem_permissao(
+    "pode_contas_pagar"
+):
 
-if tem_permissao("pode_contas_receber"):
-    menu_opcoes.append("📥 Contas a Receber")
+    menu_opcoes.append(
+        "📤 Contas a Pagar"
+    )
 
-if tem_permissao("pode_produtos"):
-    menu_opcoes.append("🧠 Central de Compras")
+if tem_permissao(
+    "pode_contas_receber"
+):
 
-if tem_permissao("pode_relatorios"):
-    menu_opcoes.append("📊 Relatórios")
+    menu_opcoes.append(
+        "📥 Contas a Receber"
+    )
 
-if tem_permissao("pode_fechamento_caixa"):
-    menu_opcoes.append("📊 Fechamento de Caixa")
+if tem_permissao(
+    "pode_produtos"
+):
 
-if tem_permissao("pode_configuracoes"):
-    menu_opcoes.append("⚙️ Configurações")
+    menu_opcoes.append(
+        "🧠 Central de Compras"
+    )
+
+if tem_permissao(
+    "pode_relatorios"
+):
+
+    menu_opcoes.append(
+        "📊 Relatórios"
+    )
+
+if tem_permissao(
+    "pode_fechamento_caixa"
+):
+
+    menu_opcoes.append(
+        "📊 Fechamento de Caixa"
+    )
+
+if tem_permissao(
+    "pode_configuracoes"
+):
+
+    menu_opcoes.append(
+        "⚙️ Configurações"
+    )
 
 if admin_total:
+
     menu_opcoes.extend([
         "💾 Administração do Banco",
         "🔐 Permissões"
@@ -383,8 +414,16 @@ if admin_total:
 # ==================================================
 # VALIDAÇÃO DO MENU ATUAL
 # ==================================================
-if st.session_state["menu_atual"] not in menu_opcoes:
-    st.session_state["menu_atual"] = "🏠 Dashboard"
+if (
+    st.session_state[
+        "menu_atual"
+    ]
+    not in menu_opcoes
+):
+
+    st.session_state[
+        "menu_atual"
+    ] = "🏠 Dashboard"
 
 
 # ==================================================
@@ -398,21 +437,36 @@ with st.sidebar:
         "logo.png"
     )
 
-    if os.path.exists(logo_path):
+    if os.path.exists(
+        logo_path
+    ):
+
         st.image(
             logo_path,
             use_container_width=True
         )
+
     else:
-        st.title("ERP Verde Infância")
+
+        st.title(
+            "ERP Verde Infância"
+        )
 
     usuario_nome = (
-        st.session_state.get("nome")
-        or st.session_state.get("usuario")
-        or "Usuário"
+        st.session_state.get(
+            "nome"
+        )
+        or
+        st.session_state.get(
+            "usuario"
+        )
+        or
+        "Usuário"
     )
 
-    perfil_exibicao = perfil or "Usuário"
+    perfil_exibicao = (
+        perfil or "Usuário"
+    )
 
     st.markdown(
         f"""
@@ -437,7 +491,13 @@ with st.sidebar:
 
     for opcao in menu_opcoes:
 
-        if opcao == st.session_state["menu_atual"]:
+        if (
+            opcao
+            ==
+            st.session_state[
+                "menu_atual"
+            ]
+        ):
 
             st.markdown(
                 f"""
@@ -455,7 +515,11 @@ with st.sidebar:
                 key=f"menu_{opcao}",
                 use_container_width=True
             ):
-                st.session_state["menu_atual"] = opcao
+
+                st.session_state[
+                    "menu_atual"
+                ] = opcao
+
                 st.rerun()
 
     st.divider()
@@ -465,6 +529,7 @@ with st.sidebar:
         key="botao_sair_sidebar",
         use_container_width=True
     ):
+
         st.session_state.clear()
         st.rerun()
 
@@ -472,17 +537,25 @@ with st.sidebar:
 # ==================================================
 # MENU SELECIONADO
 # ==================================================
-menu = st.session_state["menu_atual"]
+menu = st.session_state[
+    "menu_atual"
+]
 
 
 # ==================================================
 # BLOQUEIO DE PERMISSÃO
 # ==================================================
 def bloquear(permissao):
-    if not tem_permissao(permissao):
+
+    if not tem_permissao(
+        permissao
+    ):
+
         st.error(
-            "⛔ Você não possui permissão para acessar esta tela."
+            "⛔ Você não possui permissão "
+            "para acessar esta tela."
         )
+
         st.stop()
 
 
@@ -492,84 +565,169 @@ def bloquear(permissao):
 try:
 
     if menu == "🏠 Dashboard":
+
         tela_dashboard()
 
     elif menu == "💰 Caixa":
-        bloquear("pode_caixa")
+
+        bloquear(
+            "pode_caixa"
+        )
+
         tela_caixa()
 
     elif menu == "👥 Clientes":
-        bloquear("pode_clientes")
+
+        bloquear(
+            "pode_clientes"
+        )
+
         tela_clientes()
 
     elif menu == "📦 Produtos":
-        bloquear("pode_produtos")
+
+        bloquear(
+            "pode_produtos"
+        )
+
         tela_produtos()
 
     elif menu == "💰 Formação de Preço":
-        bloquear("pode_produtos")
+
+        bloquear(
+            "pode_produtos"
+        )
+
         tela_produtos()
 
     elif menu == "🚚 Fornecedores":
-        bloquear("pode_produtos")
+
+        bloquear(
+            "pode_produtos"
+        )
+
         tela_fornecedores()
 
     elif menu == "📥 Compras":
-        bloquear("pode_produtos")
+
+        bloquear(
+            "pode_produtos"
+        )
+
         tela_compras()
 
     elif menu == "🔁 Conversão XML":
-        bloquear("pode_produtos")
+
+        bloquear(
+            "pode_produtos"
+        )
+
         tela_conversao_xml()
 
     elif menu == "💰 Movimentações":
-        bloquear("pode_movimentacoes")
+
+        bloquear(
+            "pode_movimentacoes"
+        )
+
         tela_movimentacoes()
 
     elif menu == "🛒 Vendas":
-        bloquear("pode_vendas")
+
+        bloquear(
+            "pode_vendas"
+        )
+
         tela_vendas()
 
+    elif menu == "🔄 Trocas":
+
+        bloquear(
+            "pode_vendas"
+        )
+
+        tela_trocas()
+
     elif menu == "📢 Marketing":
-        bloquear("pode_vendas")
+
+        bloquear(
+            "pode_vendas"
+        )
+
         tela_marketing()
 
     elif menu == "🏦 Contas Bancárias":
-        bloquear("pode_financeiro")
+
+        bloquear(
+            "pode_financeiro"
+        )
+
         tela_contas_bancarias()
 
     elif menu == "📊 Fluxo de Caixa":
-        bloquear("pode_financeiro")
+
+        bloquear(
+            "pode_financeiro"
+        )
+
         tela_fluxo_caixa()
 
     elif menu == "📤 Contas a Pagar":
-        bloquear("pode_contas_pagar")
+
+        bloquear(
+            "pode_contas_pagar"
+        )
+
         tela_contas_pagar()
 
     elif menu == "📥 Contas a Receber":
-        bloquear("pode_contas_receber")
+
+        bloquear(
+            "pode_contas_receber"
+        )
+
         tela_contas_receber()
 
     elif menu == "🧠 Central de Compras":
-        bloquear("pode_produtos")
+
+        bloquear(
+            "pode_produtos"
+        )
+
         tela_central_compras()
 
     elif menu == "📊 Relatórios":
-        bloquear("pode_relatorios")
+
+        bloquear(
+            "pode_relatorios"
+        )
+
         tela_relatorios()
 
     elif menu == "📊 Fechamento de Caixa":
-        bloquear("pode_fechamento_caixa")
+
+        bloquear(
+            "pode_fechamento_caixa"
+        )
+
         tela_fechamento_caixa()
 
     elif menu == "⚙️ Configurações":
-        bloquear("pode_configuracoes")
+
+        bloquear(
+            "pode_configuracoes"
+        )
+
         tela_configuracoes()
 
     elif menu == "💾 Administração do Banco":
 
         if not admin_total:
-            st.error("⛔ Acesso restrito ao Diretor.")
+
+            st.error(
+                "⛔ Acesso restrito ao Diretor."
+            )
+
             st.stop()
 
         tela_admin_banco()
@@ -577,18 +735,34 @@ try:
     elif menu == "🔐 Permissões":
 
         if not admin_total:
-            st.error("⛔ Acesso restrito ao Diretor.")
+
+            st.error(
+                "⛔ Acesso restrito ao Diretor."
+            )
+
             st.stop()
 
         tela_painel_permissoes()
 
     else:
-        st.warning("Tela não encontrada.")
 
-        st.session_state["menu_atual"] = "🏠 Dashboard"
+        st.warning(
+            "Tela não encontrada."
+        )
+
+        st.session_state[
+            "menu_atual"
+        ] = "🏠 Dashboard"
+
         st.rerun()
 
 
 except Exception as erro:
-    st.error("Ocorreu um erro geral na aplicação.")
-    st.exception(erro)
+
+    st.error(
+        "Ocorreu um erro geral na aplicação."
+    )
+
+    st.exception(
+        erro
+    )
