@@ -2,6 +2,9 @@ import os
 import sys
 
 import streamlit as st
+from datetime import date
+
+from database.clientes_db import listar_aniversariantes_mes
 
 
 # ==================================================
@@ -267,6 +270,174 @@ if "menu_atual" not in st.session_state:
 if not st.session_state["logado"]:
     tela_login()
     st.stop()
+
+
+# ==================================================
+# POPUP - ANIVERSARIANTES DO MÊS
+# ==================================================
+@st.dialog("🎂 Aniversariantes do Mês")
+def popup_aniversariantes(aniversariantes):
+
+    hoje = date.today()
+
+    aniversariantes_hoje = []
+    outros_aniversariantes = []
+
+    # ----------------------------------------------
+    # SEPARA ANIVERSARIANTES DE HOJE
+    # ----------------------------------------------
+    for cliente in aniversariantes:
+
+        nascimento = cliente.get(
+            "data_nascimento"
+        )
+
+        if nascimento is None:
+            continue
+
+        if (
+            nascimento.day == hoje.day
+            and
+            nascimento.month == hoje.month
+        ):
+
+            aniversariantes_hoje.append(
+                cliente
+            )
+
+        else:
+
+            outros_aniversariantes.append(
+                cliente
+            )
+
+    # ----------------------------------------------
+    # ANIVERSARIANTES DE HOJE
+    # ----------------------------------------------
+    if aniversariantes_hoje:
+
+        st.success(
+            "🎉 Temos aniversariante hoje!"
+        )
+
+        for cliente in aniversariantes_hoje:
+
+            nascimento = cliente[
+                "data_nascimento"
+            ]
+
+            telefone = (
+                cliente.get("telefone")
+                or
+                "Não informado"
+            )
+
+            st.markdown(
+                f"""
+                ### 🎈 {cliente['nome']}
+
+                **📅 Aniversário:** {nascimento.strftime('%d/%m')}
+
+                **📞 Telefone:** {telefone}
+                """
+            )
+
+            st.divider()
+
+    # ----------------------------------------------
+    # DEMAIS ANIVERSARIANTES DO MÊS
+    # ----------------------------------------------
+    if outros_aniversariantes:
+
+        st.markdown(
+            "### 🎁 Próximos aniversariantes"
+        )
+
+        for cliente in outros_aniversariantes:
+
+            nascimento = cliente[
+                "data_nascimento"
+            ]
+
+            telefone = (
+                cliente.get("telefone")
+                or
+                "Não informado"
+            )
+
+            st.markdown(
+                f"""
+                **🎂 {nascimento.strftime('%d/%m')} — {cliente['nome']}**  
+                📞 {telefone}
+                """
+            )
+
+    # ----------------------------------------------
+    # TOTAL
+    # ----------------------------------------------
+    st.divider()
+
+    total = len(aniversariantes)
+
+    if total == 1:
+
+        st.caption(
+            "🎂 1 cliente faz aniversário neste mês."
+        )
+
+    else:
+
+        st.caption(
+            f"🎂 {total} clientes fazem aniversário neste mês."
+        )
+
+    # ----------------------------------------------
+    # FECHAR
+    # ----------------------------------------------
+    if st.button(
+        "✅ Fechar",
+        use_container_width=True,
+        key="btn_fechar_popup_aniversariantes"
+    ):
+
+        st.rerun()
+
+
+# ==================================================
+# VERIFICA ANIVERSARIANTES APÓS LOGIN
+# ==================================================
+if not st.session_state.get(
+    "popup_aniversariantes_exibido",
+    False
+):
+
+    try:
+
+        aniversariantes_login = (
+            listar_aniversariantes_mes()
+        )
+
+        # Marca como verificado nesta sessão.
+        # Assim não consulta/abre toda vez que
+        # o Streamlit fizer rerun.
+        st.session_state[
+            "popup_aniversariantes_exibido"
+        ] = True
+
+        if aniversariantes_login:
+
+            popup_aniversariantes(
+                aniversariantes_login
+            )
+
+    except Exception as erro:
+
+        # Não bloqueia o ERP caso exista algum
+        # problema somente na consulta de aniversário.
+        print(
+            "Erro ao verificar aniversariantes:",
+            erro
+        )
 
 
 # ==================================================

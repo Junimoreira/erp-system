@@ -432,7 +432,6 @@ def tela_produtos():
 
         ativo = st.checkbox(
             "Produto ativo",
-            value=True,
             key="novo_ativo"
         )
 
@@ -958,10 +957,10 @@ def tela_produtos():
 
             if produto_existente:
 
-                st.warning(
-                    "Este código já está cadastrado "
-                    f"no produto: {produto_existente[1]}"
-                )
+                     st.warning(
+                       "Este código já está cadastrado "
+                       f"no produto: {produto_existente[1]}"
+            )
 
         df_sem_codigo = listar_produtos_sem_codigo()
 

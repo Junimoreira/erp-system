@@ -1004,3 +1004,136 @@ def excluir_cliente(cliente_id):
     finally:
         cursor.close()
         conn.close()
+
+
+
+def listar_aniversariantes_mes():
+
+    conn = conectar()
+
+    if conn is None:
+        return []
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                nome,
+                telefone,
+                data_nascimento
+            FROM clientes
+            WHERE data_nascimento IS NOT NULL
+              AND ativo = TRUE
+              AND EXTRACT(MONTH FROM data_nascimento)
+                  = EXTRACT(MONTH FROM CURRENT_DATE)
+            ORDER BY
+                EXTRACT(DAY FROM data_nascimento),
+                nome
+            """
+        )
+
+        resultados = cursor.fetchall()
+
+        aniversariantes = []
+
+        for linha in resultados:
+
+            aniversariantes.append(
+                {
+                    "id": linha[0],
+                    "nome": linha[1],
+                    "telefone": linha[2],
+                    "data_nascimento": linha[3]
+                }
+            )
+
+        return aniversariantes
+
+    except Exception as erro:
+
+        print(
+            "Erro ao listar aniversariantes do mês:",
+            erro
+        )
+
+        return []
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+
+# ==================================================
+# LISTAR ANIVERSARIANTES DO MÊS
+# ==================================================
+def listar_aniversariantes_mes():
+
+    conn = conectar()
+
+    if conn is None:
+        return []
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                nome,
+                telefone,
+                data_nascimento
+            FROM clientes
+            WHERE data_nascimento IS NOT NULL
+              AND COALESCE(ativo, TRUE) = TRUE
+              AND EXTRACT(
+                    MONTH FROM data_nascimento
+                  ) = EXTRACT(
+                    MONTH FROM CURRENT_DATE
+                  )
+            ORDER BY
+                EXTRACT(
+                    DAY FROM data_nascimento
+                ),
+                nome
+            """
+        )
+
+        resultados = cursor.fetchall()
+
+        aniversariantes = []
+
+        for linha in resultados:
+
+            aniversariantes.append(
+                {
+                    "id": linha[0],
+                    "nome": linha[1],
+                    "telefone": linha[2],
+                    "data_nascimento": linha[3]
+                }
+            )
+
+        return aniversariantes
+
+    except Exception as erro:
+
+        print(
+            "Erro ao listar aniversariantes do mês:",
+            erro
+        )
+
+        return []
+
+    finally:
+
+        cursor.close()
+        conn.close()
+

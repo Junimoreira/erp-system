@@ -584,7 +584,21 @@ def buscar_produto_por_codigo(codigo_barras):
             (codigo_barras,)
         )
 
-        return cursor.fetchone()
+        resultado = cursor.fetchone()
+
+        if resultado is None:
+            return None
+
+        return {
+            "id": resultado[0],
+            "nome": resultado[1],
+            "preco": resultado[2],
+            "estoque": resultado[3],
+            "codigo_barras": resultado[4],
+            "custo": resultado[5],
+            "unidade": resultado[6],
+            "ncm": resultado[7]
+        }
 
     except Exception as erro:
 
