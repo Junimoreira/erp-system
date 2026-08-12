@@ -6,6 +6,192 @@ import streamlit as st
 from database.connection import conectar
 
 
+# ==================================================
+# CÓDIGOS INTERNOS DE UNIFORMES
+# ==================================================
+
+PREFIXO_UNIFORME = "26"
+
+
+TAMANHOS_UNIFORME = {
+    "2": "02",
+    "4": "04",
+    "6": "06",
+    "8": "08",
+    "10": "10",
+    "12": "12",
+    "14": "14",
+    "16": "16",
+    "P": "21",
+    "M": "22",
+    "G": "23",
+    "GG": "24",
+    "EXG": "25",
+}
+
+
+def gerar_codigo_uniforme(
+    codigo_escola,
+    codigo_modelo,
+    tamanho
+):
+    """
+    Gera código interno numérico para uniformes.
+
+    Estrutura:
+        26 + escola + modelo + tamanho
+
+    Exemplo:
+        26 01 001 08
+
+    Resultado:
+        260100108
+
+    Onde:
+        26  = prefixo de uniforme
+        01  = escola
+        001 = modelo/tipo do uniforme
+        08  = tamanho
+    """
+
+    try:
+
+        # ------------------------------------------
+        # ESCOLA
+        # ------------------------------------------
+
+        codigo_escola = int(codigo_escola)
+
+        if codigo_escola < 1 or codigo_escola > 99:
+
+            st.error(
+                "⚠️ O código da escola deve estar "
+                "entre 1 e 99."
+            )
+
+            return None
+
+        escola_formatada = f"{codigo_escola:02d}"
+
+        # ------------------------------------------
+        # MODELO / TIPO
+        # ------------------------------------------
+
+        codigo_modelo = int(codigo_modelo)
+
+        if codigo_modelo < 1 or codigo_modelo > 999:
+
+            st.error(
+                "⚠️ O código do modelo deve estar "
+                "entre 1 e 999."
+            )
+
+            return None
+
+        modelo_formatado = f"{codigo_modelo:03d}"
+
+        # ------------------------------------------
+        # TAMANHO
+        # ------------------------------------------
+
+        tamanho = str(tamanho).strip().upper()
+
+        if tamanho not in TAMANHOS_UNIFORME:
+
+            st.error(
+                f"⚠️ Tamanho de uniforme inválido: {tamanho}"
+            )
+
+            return None
+
+        codigo_tamanho = TAMANHOS_UNIFORME[tamanho]
+
+        # ------------------------------------------
+        # MONTA O CÓDIGO
+        # ------------------------------------------
+
+        codigo = (
+            PREFIXO_UNIFORME
+            + escola_formatada
+            + modelo_formatado
+            + codigo_tamanho
+        )
+
+        return codigo
+
+    except (ValueError, TypeError):
+
+        st.error(
+            "⚠️ Código da escola ou modelo inválido."
+        )
+
+        return None
+
+
+def verificar_codigo_barras_disponivel(codigo_barras):
+    """
+    Verifica se um código de barras já está sendo
+    utilizado por outro produto.
+    """
+
+    if not codigo_barras:
+        return False
+
+    conn = conectar()
+
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                nome
+            FROM produtos
+            WHERE codigo_barras = %s
+            LIMIT 1
+            """,
+            (str(codigo_barras),)
+        )
+
+        existente = cursor.fetchone()
+
+        if existente:
+
+            return {
+                "disponivel": False,
+                "produto_id": existente[0],
+                "produto_nome": existente[1]
+            }
+
+        return {
+            "disponivel": True,
+            "produto_id": None,
+            "produto_nome": None
+        }
+
+    except Exception as erro:
+
+        st.error(
+            f"Erro ao verificar código de barras: {erro}"
+        )
+
+        return False
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+# ==================================================
+# LISTAR PRODUTOS
+# ==================================================
+
 def listar_produtos():
 
     conn = conectar()
@@ -46,12 +232,17 @@ def listar_produtos():
     except Exception as erro:
 
         st.error(f"Erro ao listar produtos: {erro}")
+
         return pd.DataFrame()
 
     finally:
 
         conn.close()
 
+
+# ==================================================
+# BUSCAR PRODUTO POR ID
+# ==================================================
 
 def buscar_produto_por_id(produto_id):
 
@@ -109,6 +300,7 @@ def buscar_produto_por_id(produto_id):
     except Exception as erro:
 
         st.error(f"Erro ao buscar produto: {erro}")
+
         return None
 
     finally:
@@ -116,6 +308,10 @@ def buscar_produto_por_id(produto_id):
         cursor.close()
         conn.close()
 
+
+# ==================================================
+# LISTAR PRODUTOS SEM CÓDIGO
+# ==================================================
 
 def listar_produtos_sem_codigo():
 
@@ -154,6 +350,10 @@ def listar_produtos_sem_codigo():
         conn.close()
 
 
+# ==================================================
+# CADASTRAR PRODUTO
+# ==================================================
+
 def cadastrar_produto(
     nome,
     preco,
@@ -184,6 +384,10 @@ def cadastrar_produto(
 
     try:
 
+        # ------------------------------------------
+        # VALIDA CÓDIGO DE BARRAS DUPLICADO
+        # ------------------------------------------
+
         if codigo_barras:
 
             cursor.execute(
@@ -204,6 +408,10 @@ def cadastrar_produto(
                 )
 
                 return False
+
+        # ------------------------------------------
+        # CADASTRA PRODUTO
+        # ------------------------------------------
 
         cursor.execute(
             """
@@ -258,6 +466,7 @@ def cadastrar_produto(
         )
 
         conn.commit()
+
         return True
 
     except Exception as erro:
@@ -275,6 +484,10 @@ def cadastrar_produto(
         cursor.close()
         conn.close()
 
+
+# ==================================================
+# ATUALIZAR PRODUTO
+# ==================================================
 
 def atualizar_produto(
     id_produto,
@@ -307,6 +520,10 @@ def atualizar_produto(
 
     try:
 
+        # ------------------------------------------
+        # VALIDA CÓDIGO DUPLICADO
+        # ------------------------------------------
+
         if codigo_barras:
 
             cursor.execute(
@@ -331,6 +548,10 @@ def atualizar_produto(
                 )
 
                 return False
+
+        # ------------------------------------------
+        # ATUALIZA PRODUTO
+        # ------------------------------------------
 
         cursor.execute(
             """
@@ -390,6 +611,7 @@ def atualizar_produto(
             return False
 
         conn.commit()
+
         return True
 
     except Exception as erro:
@@ -407,6 +629,10 @@ def atualizar_produto(
         cursor.close()
         conn.close()
 
+
+# ==================================================
+# ATUALIZAR CÓDIGO DE BARRAS
+# ==================================================
 
 def atualizar_codigo_barras(
     produto_id,
@@ -429,6 +655,10 @@ def atualizar_codigo_barras(
             )
 
             return False
+
+        # ------------------------------------------
+        # VALIDA CÓDIGO DUPLICADO
+        # ------------------------------------------
 
         cursor.execute(
             """
@@ -457,6 +687,10 @@ def atualizar_codigo_barras(
 
             return False
 
+        # ------------------------------------------
+        # ATUALIZA CÓDIGO
+        # ------------------------------------------
+
         cursor.execute(
             """
             UPDATE produtos
@@ -480,6 +714,7 @@ def atualizar_codigo_barras(
             return False
 
         conn.commit()
+
         return True
 
     except Exception as erro:
@@ -498,6 +733,10 @@ def atualizar_codigo_barras(
         conn.close()
 
 
+# ==================================================
+# EXCLUIR PRODUTO
+# ==================================================
+
 def excluir_produto(produto_id):
 
     conn = conectar()
@@ -508,6 +747,10 @@ def excluir_produto(produto_id):
     cursor = conn.cursor()
 
     try:
+
+        # ------------------------------------------
+        # VERIFICA SE POSSUI VENDAS
+        # ------------------------------------------
 
         cursor.execute(
             """
@@ -523,6 +766,10 @@ def excluir_produto(produto_id):
         if total_vendas > 0:
             return "possui_vendas"
 
+        # ------------------------------------------
+        # EXCLUI PRODUTO
+        # ------------------------------------------
+
         cursor.execute(
             """
             DELETE FROM produtos
@@ -534,9 +781,11 @@ def excluir_produto(produto_id):
         if cursor.rowcount == 0:
 
             conn.rollback()
+
             return False
 
         conn.commit()
+
         return True
 
     except Exception as erro:
@@ -554,6 +803,10 @@ def excluir_produto(produto_id):
         cursor.close()
         conn.close()
 
+
+# ==================================================
+# BUSCAR PRODUTO POR CÓDIGO DE BARRAS
+# ==================================================
 
 def buscar_produto_por_codigo(codigo_barras):
 

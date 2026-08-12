@@ -9,7 +9,9 @@ from database.produto_db import (
     atualizar_produto,
     atualizar_codigo_barras,
     excluir_produto,
-    buscar_produto_por_codigo
+    buscar_produto_por_codigo,
+    gerar_codigo_uniforme,
+    verificar_codigo_barras_disponivel
 )
 
 from utils.precificacao import (
@@ -21,6 +23,8 @@ from utils.formatacao import (
     formatar_dataframe_brasil,
     formatar_moeda
 )
+
+from services.etiquetas_service import gerar_pdf_etiquetas_produto
 
 
 UNIDADES_PRODUTO = [
@@ -1239,6 +1243,112 @@ def tela_produtos():
             "código e faça a leitura."
         )
 
+        # =====================================================
+        # GERADOR DE CÓDIGO INTERNO PARA UNIFORMES
+        # =====================================================
+        st.markdown("### 👕 Gerar código para uniforme")
+
+        st.caption(
+            "Padrão: 26 + escola + modelo + tamanho. "
+            "Exemplo: 26 + 01 + 001 + 08 = 260100108."
+        )
+
+        escolas_uniforme = {
+            "01 - Colégio dos Santos Anjos": 1,
+        }
+
+        modelos_uniforme = {
+            "001 - Camiseta": 1,
+            "002 - Bermuda": 2,
+            "003 - Calça": 3,
+            "004 - Short-saia": 4,
+            "005 - Agasalho": 5,
+        }
+
+        tamanhos_uniforme = [
+            "2",
+            "4",
+            "6",
+            "8",
+            "10",
+            "12",
+            "14",
+            "16",
+            "P",
+            "M",
+            "G",
+            "GG",
+            "EXG",
+        ]
+
+        col_uniforme_1, col_uniforme_2, col_uniforme_3 = st.columns(3)
+
+        with col_uniforme_1:
+            escola_uniforme_label = st.selectbox(
+                "Escola",
+                options=list(escolas_uniforme.keys()),
+                key="uniforme_escola"
+            )
+
+        with col_uniforme_2:
+            modelo_uniforme_label = st.selectbox(
+                "Modelo",
+                options=list(modelos_uniforme.keys()),
+                key="uniforme_modelo"
+            )
+
+        with col_uniforme_3:
+            tamanho_uniforme = st.selectbox(
+                "Tamanho",
+                options=tamanhos_uniforme,
+                key="uniforme_tamanho"
+            )
+
+        codigo_uniforme_gerado = gerar_codigo_uniforme(
+            codigo_escola=escolas_uniforme[escola_uniforme_label],
+            codigo_modelo=modelos_uniforme[modelo_uniforme_label],
+            tamanho=tamanho_uniforme
+        )
+
+        if codigo_uniforme_gerado:
+
+            st.code(
+                codigo_uniforme_gerado,
+                language=None
+            )
+
+            verificacao_uniforme = verificar_codigo_barras_disponivel(
+                codigo_uniforme_gerado
+            )
+
+            if verificacao_uniforme and verificacao_uniforme["disponivel"]:
+                st.success(
+                    f"✅ Código {codigo_uniforme_gerado} disponível."
+                )
+
+                if st.button(
+                    "👕 Usar código gerado",
+                    use_container_width=True,
+                    key="btn_usar_codigo_uniforme"
+                ):
+                    st.session_state["codigo_barras_rapido"] = (
+                        codigo_uniforme_gerado
+                    )
+                    st.session_state.pop(
+                        "ultimo_codigo_rapido_popup",
+                        None
+                    )
+                    st.rerun()
+
+            elif verificacao_uniforme:
+                st.warning(
+                    "⚠️ Este código já está cadastrado no produto: "
+                    f"{verificacao_uniforme['produto_nome']}"
+                )
+
+        st.divider()
+        st.markdown("### 📷 Ler ou digitar código")
+
         codigo_lido = st.text_input(
             "📷 Ler / Digitar Código de Barras",
             key="codigo_barras_rapido",
@@ -1396,3 +1506,155 @@ def tela_produtos():
                         )
 
                         st.rerun()
+
+
+        # =========================================================
+        # GERADOR DE ETIQUETAS
+        # =========================================================
+        st.divider()
+
+        st.markdown("### 🖨️ Gerar Etiquetas")
+
+        st.info(
+            "Selecione um produto que já possua código de barras. "
+            "O sistema gera um PDF A4 com etiquetas de 50 x 30 mm "
+            "em padrão Code 128."
+        )
+
+        df_etiquetas = listar_produtos()
+
+        if df_etiquetas.empty:
+            st.info("Nenhum produto cadastrado para gerar etiquetas.")
+        else:
+            df_etiquetas = df_etiquetas.fillna("")
+            df_etiquetas = df_etiquetas[
+                df_etiquetas["codigo_barras"]
+                .astype(str)
+                .str.strip()
+                .ne("")
+            ]
+
+            if df_etiquetas.empty:
+                st.info(
+                    "Nenhum produto com código de barras "
+                    "disponível para gerar etiquetas."
+                )
+            else:
+                produtos_etiqueta_map = {
+                    (
+                        f"{int(row['id'])} - "
+                        f"{tratar_texto(row['nome'])} "
+                        f"| Cód. {tratar_texto(row['codigo_barras'])}"
+                    ): int(row["id"])
+                    for _, row in df_etiquetas.iterrows()
+                }
+
+                produto_etiqueta_label = st.selectbox(
+                    "Produto para etiqueta",
+                    options=list(produtos_etiqueta_map.keys()),
+                    key="produto_etiqueta_select"
+                )
+
+                produto_etiqueta_id = produtos_etiqueta_map[
+                    produto_etiqueta_label
+                ]
+
+                produto_etiqueta = buscar_produto_por_id(
+                    produto_etiqueta_id
+                )
+
+                if produto_etiqueta is not None:
+                    nome_etiqueta = tratar_texto(
+                        produto_etiqueta.get("nome")
+                    )
+                    codigo_etiqueta = tratar_texto(
+                        produto_etiqueta.get("codigo_barras")
+                    )
+                    preco_etiqueta = float(
+                        produto_etiqueta.get("preco") or 0
+                    )
+
+                    col_etq1, col_etq2 = st.columns(2)
+
+                    with col_etq1:
+                        quantidade_etiquetas = st.number_input(
+                            "Quantidade de etiquetas",
+                            min_value=1,
+                            max_value=500,
+                            value=1,
+                            step=1,
+                            key="quantidade_etiquetas"
+                        )
+
+                    with col_etq2:
+                        mostrar_preco_etiqueta = st.checkbox(
+                            "Mostrar preço na etiqueta",
+                            value=True,
+                            key="mostrar_preco_etiqueta"
+                        )
+
+                    st.markdown(
+                        f"""
+**Produto:** {nome_etiqueta}  
+**Código:** `{codigo_etiqueta}`  
+**Preço:** {formatar_moeda(preco_etiqueta)}
+                        """
+                    )
+
+                    if st.button(
+                        "📄 Preparar PDF de Etiquetas",
+                        use_container_width=True,
+                        key="btn_preparar_pdf_etiquetas"
+                    ):
+                        try:
+                            pdf_etiquetas = gerar_pdf_etiquetas_produto(
+                                nome_produto=nome_etiqueta,
+                                codigo_barras=codigo_etiqueta,
+                                preco=preco_etiqueta,
+                                quantidade=int(quantidade_etiquetas),
+                                mostrar_preco=bool(
+                                    mostrar_preco_etiqueta
+                                )
+                            )
+
+                            st.session_state[
+                                "pdf_etiquetas_gerado"
+                            ] = pdf_etiquetas
+
+                            st.session_state[
+                                "pdf_etiquetas_nome"
+                            ] = (
+                                f"etiquetas_"
+                                f"{produto_etiqueta_id}_"
+                                f"{codigo_etiqueta}.pdf"
+                            )
+
+                            st.success(
+                                "✅ PDF de etiquetas preparado."
+                            )
+
+                        except Exception as erro:
+                            st.error(
+                                "Erro ao gerar etiquetas: "
+                                f"{erro}"
+                            )
+
+                    pdf_etiquetas_gerado = st.session_state.get(
+                        "pdf_etiquetas_gerado"
+                    )
+
+                    pdf_etiquetas_nome = st.session_state.get(
+                        "pdf_etiquetas_nome",
+                        "etiquetas.pdf"
+                    )
+
+                    if pdf_etiquetas_gerado:
+                        st.download_button(
+                            "⬇️ Baixar PDF para impressão",
+                            data=pdf_etiquetas_gerado,
+                            file_name=pdf_etiquetas_nome,
+                            mime="application/pdf",
+                            use_container_width=True,
+                            key="btn_baixar_pdf_etiquetas"
+                        )
+
