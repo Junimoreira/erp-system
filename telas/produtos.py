@@ -32,6 +32,9 @@ UNIDADES_PRODUTO = [
 ]
 
 
+# =========================================================
+# TRATAMENTO DE TEXTO
+# =========================================================
 def tratar_texto(valor):
 
     if valor is None:
@@ -53,6 +56,9 @@ def normalizar_campo(valor):
     return valor
 
 
+# =========================================================
+# LIMPAR FORMULÁRIO NOVO PRODUTO
+# =========================================================
 def limpar_formulario_novo_produto():
 
     valores_iniciais = {
@@ -90,7 +96,16 @@ def limpar_formulario_novo_produto():
         None
     )
 
+    # Limpa controle do popup de código existente
+    st.session_state.pop(
+        "ultimo_codigo_existente_popup",
+        None
+    )
 
+
+# =========================================================
+# CARREGAR PRODUTO PARA EDIÇÃO
+# =========================================================
 def carregar_produto_para_edicao(produto):
 
     unidade = tratar_texto(
@@ -170,9 +185,14 @@ def carregar_produto_para_edicao(produto):
     if ativo is None:
         ativo = True
 
-    st.session_state["edit_ativo"] = bool(ativo)
+    st.session_state["edit_ativo"] = bool(
+        ativo
+    )
 
 
+# =========================================================
+# LIMPAR ESTADO DE EDIÇÃO
+# =========================================================
 def limpar_estado_edicao():
 
     chaves = [
@@ -197,20 +217,115 @@ def limpar_estado_edicao():
     ]
 
     for chave in chaves:
+
         st.session_state.pop(
             chave,
             None
         )
 
 
+# =========================================================
+# TELA DE PRODUTOS
+# =========================================================
 def tela_produtos():
 
+    # =====================================================
+    # LIMPEZA PENDENTE DO NOVO PRODUTO
+    # =====================================================
     if st.session_state.pop(
         "limpar_novo_produto_pendente",
         False
     ):
         limpar_formulario_novo_produto()
 
+    # =====================================================
+    # POPUP - PRODUTO JÁ CADASTRADO
+    # =====================================================
+    @st.dialog("⚠️ Produto já cadastrado")
+    def popup_produto_existente(produto):
+
+        st.warning(
+            "Este código de barras já pertence "
+            "a um produto cadastrado."
+        )
+
+        nome_produto = tratar_texto(
+            produto.get("nome")
+        )
+
+        codigo_produto = tratar_texto(
+            produto.get("codigo_barras")
+        )
+
+        preco_produto = float(
+            produto.get("preco") or 0
+        )
+
+        estoque_produto = int(
+            produto.get("estoque") or 0
+        )
+
+        st.markdown(
+            f"""
+### 📦 {nome_produto}
+
+**Código de Barras:** `{codigo_produto}`
+
+**Preço de Venda:** {formatar_moeda(preco_produto)}
+
+**Estoque Atual:** {estoque_produto}
+            """
+        )
+
+        st.info(
+            "Não é necessário cadastrar este produto "
+            "novamente. Se precisar alterar algum dado, "
+            "utilize a aba ✏️ Editar Produto."
+        )
+
+        if st.button(
+            "✅ Fechar",
+            use_container_width=True,
+            key="btn_fechar_produto_existente"
+        ):
+            st.rerun()
+
+    # =====================================================
+    # POPUP - CÓDIGO JÁ CADASTRADO NA ABA RÁPIDA
+    # =====================================================
+    @st.dialog("⚠️ Código de barras já cadastrado")
+    def popup_codigo_existente(produto):
+
+        nome_produto = tratar_texto(
+            produto.get("nome")
+        )
+
+        codigo_produto = tratar_texto(
+            produto.get("codigo_barras")
+        )
+
+        st.warning(
+            "Este código de barras já está cadastrado."
+        )
+
+        st.markdown(
+            f"""
+**Produto:** {nome_produto}
+
+**Código:** `{codigo_produto}`
+            """
+        )
+
+        if st.button(
+            "✅ Fechar",
+            use_container_width=True,
+            key="btn_fechar_codigo_existente"
+        ):
+            st.rerun()
+
+    # =====================================================
+    # ABAS
+    # =====================================================
     abas = st.tabs(
         [
             "➕ Novo Produto",
@@ -223,7 +338,6 @@ def tela_produtos():
     # =========================================================
     # NOVO PRODUTO
     # =========================================================
-
     with abas[0]:
 
         mensagem_novo = st.session_state.pop(
@@ -232,10 +346,96 @@ def tela_produtos():
         )
 
         if mensagem_novo:
-            st.success(mensagem_novo)
 
-        st.subheader("📦 Cadastro de Produto")
-        st.markdown("## 📦 Dados Básicos")
+            st.success(
+                mensagem_novo
+            )
+
+        st.subheader(
+            "📦 Cadastro de Produto"
+        )
+
+        # =====================================================
+        # VERIFICAÇÃO PRÉVIA DO CÓDIGO DE BARRAS
+        # =====================================================
+        st.markdown(
+            "### 🔎 Verificar Produto"
+        )
+
+        st.info(
+            "Antes de cadastrar, clique no campo abaixo "
+            "e faça a leitura do código de barras. "
+            "O sistema verificará automaticamente se o "
+            "produto já está cadastrado."
+        )
+
+        codigo_barras = st.text_input(
+            "📷 Ler / Digitar Código de Barras",
+            key="novo_codigo_barras",
+            placeholder=(
+                "Clique aqui e leia o código "
+                "com o leitor"
+            )
+        )
+
+        codigo_verificacao = tratar_texto(
+            codigo_barras
+        )
+
+        produto_codigo_existente = None
+
+        if codigo_verificacao:
+
+            produto_codigo_existente = (
+                buscar_produto_por_codigo(
+                    codigo_verificacao
+                )
+            )
+
+            if produto_codigo_existente:
+
+                st.error(
+                    "⚠️ Este código já está cadastrado no "
+                    f"produto: "
+                    f"{produto_codigo_existente['nome']}"
+                )
+
+                ultimo_codigo_popup = (
+                    st.session_state.get(
+                        "ultimo_codigo_existente_popup"
+                    )
+                )
+
+                if (
+                    ultimo_codigo_popup
+                    != codigo_verificacao
+                ):
+
+                    st.session_state[
+                        "ultimo_codigo_existente_popup"
+                    ] = codigo_verificacao
+
+                    popup_produto_existente(
+                        produto_codigo_existente
+                    )
+
+            else:
+
+                st.success(
+                    "✅ Código não encontrado. "
+                    "Pode continuar o cadastro "
+                    "do novo produto."
+                )
+
+                st.session_state.pop(
+                    "ultimo_codigo_existente_popup",
+                    None
+                )
+
+        st.divider()
+        st.markdown(
+            "## 📦 Dados Básicos"
+        )
 
         col1, col2 = st.columns(2)
 
@@ -244,11 +444,6 @@ def tela_produtos():
             nome = st.text_input(
                 "Nome do Produto",
                 key="novo_nome"
-            )
-
-            codigo_barras = st.text_input(
-                "Código de Barras",
-                key="novo_codigo_barras"
             )
 
             sku = st.text_input(
@@ -294,8 +489,13 @@ def tela_produtos():
                 key="novo_cfop"
             )
 
+        # =====================================================
+        # FINANCEIRO
+        # =====================================================
         st.divider()
-        st.markdown("## 💰 Financeiro")
+        st.markdown(
+            "## 💰 Financeiro"
+        )
 
         col3, col4, col5 = st.columns(3)
 
@@ -310,7 +510,8 @@ def tela_produtos():
             )
 
             margem_padrao = float(
-                buscar_margem_padrao() or 30
+                buscar_margem_padrao()
+                or 30
             )
 
             st.number_input(
@@ -355,14 +556,24 @@ def tela_produtos():
             margem=margem_padrao
         )
 
-        if "novo_preco" not in st.session_state:
+        if (
+            "novo_preco"
+            not in st.session_state
+        ):
 
-            st.session_state["novo_preco"] = float(
+            st.session_state[
+                "novo_preco"
+            ] = float(
                 preco_automatico
             )
 
         lucro_estimado = round(
-            float(st.session_state["novo_preco"]) -
+            float(
+                st.session_state[
+                    "novo_preco"
+                ]
+            )
+            -
             float(custo),
             2
         )
@@ -395,8 +606,13 @@ def tela_produtos():
                 )
             )
 
+        # =====================================================
+        # ESTOQUE
+        # =====================================================
         st.divider()
-        st.markdown("## 📦 Estoque")
+        st.markdown(
+            "## 📦 Estoque"
+        )
 
         col6, col7 = st.columns(2)
 
@@ -443,13 +659,31 @@ def tela_produtos():
             key="btn_salvar_produto"
         )
 
+        # =====================================================
+        # SALVAR NOVO PRODUTO
+        # =====================================================
         if salvar_novo:
 
             nome_normalizado = tratar_texto(
                 nome
             )
 
-            if not nome_normalizado:
+            # ----------------------------------------------
+            # PRODUTO JÁ EXISTE PELO CÓDIGO
+            # ----------------------------------------------
+            if produto_codigo_existente:
+
+                st.error(
+                    "⚠️ Não é possível cadastrar. "
+                    "Este código de barras já pertence "
+                    f"ao produto: "
+                    f"{produto_codigo_existente['nome']}."
+                )
+
+            # ----------------------------------------------
+            # NOME OBRIGATÓRIO
+            # ----------------------------------------------
+            elif not nome_normalizado:
 
                 st.warning(
                     "Informe o nome do produto."
@@ -496,7 +730,9 @@ def tela_produtos():
                     localizacao=normalizar_campo(
                         localizacao
                     ),
-                    ativo=bool(ativo),
+                    ativo=bool(
+                        ativo
+                    ),
                     observacoes=normalizar_campo(
                         observacoes
                     )
@@ -520,10 +756,11 @@ def tela_produtos():
     # =========================================================
     # LISTAGEM DE PRODUTOS
     # =========================================================
-
     with abas[1]:
 
-        st.subheader("📋 Produtos")
+        st.subheader(
+            "📋 Produtos"
+        )
 
         busca = st.text_input(
             "🔎 Buscar produto",
@@ -540,24 +777,32 @@ def tela_produtos():
 
         else:
 
-            df_produtos = df_produtos.fillna("")
+            df_produtos = (
+                df_produtos.fillna("")
+            )
 
             if busca:
 
-                df_produtos = df_produtos[
+                df_produtos = (
                     df_produtos[
-                        "nome"
-                    ].astype(str).str.contains(
-                        busca,
-                        case=False,
-                        na=False
-                    )
-                ]
+                        df_produtos[
+                            "nome"
+                        ]
+                        .astype(str)
+                        .str.contains(
+                            busca,
+                            case=False,
+                            na=False
+                        )
+                    ]
+                )
 
-            df_exibicao = formatar_dataframe_brasil(
-                df_produtos,
-                com_hora=False,
-                moedas=True
+            df_exibicao = (
+                formatar_dataframe_brasil(
+                    df_produtos,
+                    com_hora=False,
+                    moedas=True
+                )
             )
 
             st.dataframe(
@@ -569,18 +814,24 @@ def tela_produtos():
     # =========================================================
     # EDITAR PRODUTO
     # =========================================================
-
     with abas[2]:
 
-        mensagem_edicao = st.session_state.pop(
-            "mensagem_edicao_produto",
-            None
+        mensagem_edicao = (
+            st.session_state.pop(
+                "mensagem_edicao_produto",
+                None
+            )
         )
 
         if mensagem_edicao:
-            st.success(mensagem_edicao)
 
-        st.subheader("✏️ Editar Produto")
+            st.success(
+                mensagem_edicao
+            )
+
+        st.subheader(
+            "✏️ Editar Produto"
+        )
 
         df_edicao = listar_produtos()
 
@@ -596,7 +847,8 @@ def tela_produtos():
                 int(row["id"]): tratar_texto(
                     row["nome"]
                 )
-                for _, row in df_edicao.iterrows()
+                for _, row
+                in df_edicao.iterrows()
             }
 
             ids_produtos = list(
@@ -606,9 +858,11 @@ def tela_produtos():
             produto_id = st.selectbox(
                 "Selecione o Produto",
                 options=ids_produtos,
-                format_func=lambda identificador: (
-                    f"{identificador} - "
-                    f"{produtos_resumo[identificador]}"
+                format_func=(
+                    lambda identificador: (
+                        f"{identificador} - "
+                        f"{produtos_resumo[identificador]}"
+                    )
                 ),
                 key="editar_select_id"
             )
@@ -619,7 +873,10 @@ def tela_produtos():
                 )
             )
 
-            if produto_carregado_id != produto_id:
+            if (
+                produto_carregado_id
+                != produto_id
+            ):
 
                 produto_para_carregar = (
                     buscar_produto_por_id(
@@ -627,7 +884,10 @@ def tela_produtos():
                     )
                 )
 
-                if produto_para_carregar is not None:
+                if (
+                    produto_para_carregar
+                    is not None
+                ):
 
                     carregar_produto_para_edicao(
                         produto_para_carregar
@@ -661,9 +921,11 @@ def tela_produtos():
                         key="edit_nome"
                     )
 
-                    codigo_barras_edit = st.text_input(
-                        "Código de Barras",
-                        key="edit_codigo"
+                    codigo_barras_edit = (
+                        st.text_input(
+                            "Código de Barras",
+                            key="edit_codigo"
+                        )
                     )
 
                     sku_edit = st.text_input(
@@ -671,9 +933,11 @@ def tela_produtos():
                         key="edit_sku"
                     )
 
-                    referencia_edit = st.text_input(
-                        "Referência",
-                        key="edit_referencia"
+                    referencia_edit = (
+                        st.text_input(
+                            "Referência",
+                            key="edit_referencia"
+                        )
                     )
 
                     marca_edit = st.text_input(
@@ -683,15 +947,19 @@ def tela_produtos():
 
                 with col2:
 
-                    categoria_edit = st.text_input(
-                        "Categoria",
-                        key="edit_categoria"
+                    categoria_edit = (
+                        st.text_input(
+                            "Categoria",
+                            key="edit_categoria"
+                        )
                     )
 
-                    unidade_edit = st.selectbox(
-                        "Unidade",
-                        UNIDADES_PRODUTO,
-                        key="edit_unidade"
+                    unidade_edit = (
+                        st.selectbox(
+                            "Unidade",
+                            UNIDADES_PRODUTO,
+                            key="edit_unidade"
+                        )
                     )
 
                     ncm_edit = st.text_input(
@@ -715,48 +983,60 @@ def tela_produtos():
 
                 with col3:
 
-                    custo_edit = st.number_input(
-                        "Custo",
-                        min_value=0.0,
-                        step=0.01,
-                        format="%.2f",
-                        key="edit_custo"
+                    custo_edit = (
+                        st.number_input(
+                            "Custo",
+                            min_value=0.0,
+                            step=0.01,
+                            format="%.2f",
+                            key="edit_custo"
+                        )
                     )
 
-                    preco_edit = st.number_input(
-                        "Preço Venda",
-                        min_value=0.0,
-                        step=0.01,
-                        format="%.2f",
-                        key="edit_preco"
+                    preco_edit = (
+                        st.number_input(
+                            "Preço Venda",
+                            min_value=0.0,
+                            step=0.01,
+                            format="%.2f",
+                            key="edit_preco"
+                        )
                     )
 
                 with col4:
 
-                    estoque_edit = st.number_input(
-                        "Estoque",
-                        min_value=0,
-                        step=1,
-                        key="edit_estoque"
+                    estoque_edit = (
+                        st.number_input(
+                            "Estoque",
+                            min_value=0,
+                            step=1,
+                            key="edit_estoque"
+                        )
                     )
 
-                    estoque_minimo_edit = st.number_input(
-                        "Estoque Mínimo",
-                        min_value=0,
-                        step=1,
-                        key="edit_estoque_minimo"
+                    estoque_minimo_edit = (
+                        st.number_input(
+                            "Estoque Mínimo",
+                            min_value=0,
+                            step=1,
+                            key="edit_estoque_minimo"
+                        )
                     )
 
                 st.divider()
 
-                localizacao_edit = st.text_input(
-                    "Localização",
-                    key="edit_localizacao"
+                localizacao_edit = (
+                    st.text_input(
+                        "Localização",
+                        key="edit_localizacao"
+                    )
                 )
 
-                observacoes_edit = st.text_area(
-                    "Observações",
-                    key="edit_observacoes"
+                observacoes_edit = (
+                    st.text_area(
+                        "Observações",
+                        key="edit_observacoes"
+                    )
                 )
 
                 ativo_edit = st.checkbox(
@@ -766,14 +1046,18 @@ def tela_produtos():
 
                 st.divider()
 
-                col_btn1, col_btn2 = st.columns(2)
+                col_btn1, col_btn2 = (
+                    st.columns(2)
+                )
 
                 with col_btn1:
 
-                    salvar_edicao = st.button(
-                        "💾 Salvar Alterações",
-                        use_container_width=True,
-                        key="btn_salvar_edicao"
+                    salvar_edicao = (
+                        st.button(
+                            "💾 Salvar Alterações",
+                            use_container_width=True,
+                            key="btn_salvar_edicao"
+                        )
                     )
 
                 with col_btn2:
@@ -784,10 +1068,15 @@ def tela_produtos():
                         key="btn_excluir_produto"
                     )
 
+                # =================================================
+                # SALVAR EDIÇÃO
+                # =================================================
                 if salvar_edicao:
 
-                    nome_edit_normalizado = tratar_texto(
-                        nome_edit
+                    nome_edit_normalizado = (
+                        tratar_texto(
+                            nome_edit
+                        )
                     )
 
                     if not nome_edit_normalizado:
@@ -839,7 +1128,9 @@ def tela_produtos():
                             normalizar_campo(
                                 localizacao_edit
                             ),
-                            bool(ativo_edit),
+                            bool(
+                                ativo_edit
+                            ),
                             normalizar_campo(
                                 observacoes_edit
                             )
@@ -860,13 +1151,19 @@ def tela_produtos():
 
                             st.rerun()
 
+                # =================================================
+                # EXCLUIR
+                # =================================================
                 if excluir:
 
                     resultado = excluir_produto(
                         produto_id
                     )
 
-                    if resultado == "possui_vendas":
+                    if (
+                        resultado
+                        == "possui_vendas"
+                    ):
 
                         st.warning(
                             "Este produto não pode ser "
@@ -902,24 +1199,34 @@ def tela_produtos():
     # =========================================================
     # CÓDIGO DE BARRAS
     # =========================================================
-
     with abas[3]:
 
-        mensagem_codigo = st.session_state.pop(
-            "mensagem_codigo_barras",
-            None
+        mensagem_codigo = (
+            st.session_state.pop(
+                "mensagem_codigo_barras",
+                None
+            )
         )
 
         if mensagem_codigo:
-            st.success(mensagem_codigo)
+
+            st.success(
+                mensagem_codigo
+            )
 
         if st.session_state.pop(
             "limpar_codigo_barras_pendente",
             False
         ):
+
             st.session_state[
                 "codigo_barras_rapido"
             ] = ""
+
+            st.session_state.pop(
+                "ultimo_codigo_rapido_popup",
+                None
+            )
 
         st.subheader(
             "🏷️ Atualizar Código de Barras"
@@ -927,10 +1234,9 @@ def tela_produtos():
 
         st.info(
             "Use esta tela para atualizar rapidamente "
-            "produtos sem código. No celular, abra o ERP "
-            "e use um leitor/teclado de código de barras. "
-            "Com leitor físico, clique no campo e leia "
-            "o produto."
+            "produtos sem código. Com o leitor físico, "
+            "selecione o produto, clique no campo de "
+            "código e faça a leitura."
         )
 
         codigo_lido = st.text_input(
@@ -957,12 +1263,41 @@ def tela_produtos():
 
             if produto_existente:
 
-                     st.warning(
-                       "Este código já está cadastrado "
-                       f"no produto: {produto_existente[1]}"
-            )
+                st.warning(
+                    "⚠️ Este código já está cadastrado "
+                    f"no produto: "
+                    f"{produto_existente['nome']}"
+                )
 
-        df_sem_codigo = listar_produtos_sem_codigo()
+                ultimo_codigo_rapido = (
+                    st.session_state.get(
+                        "ultimo_codigo_rapido_popup"
+                    )
+                )
+
+                if (
+                    ultimo_codigo_rapido
+                    != codigo_normalizado
+                ):
+
+                    st.session_state[
+                        "ultimo_codigo_rapido_popup"
+                    ] = codigo_normalizado
+
+                    popup_codigo_existente(
+                        produto_existente
+                    )
+
+            else:
+
+                st.session_state.pop(
+                    "ultimo_codigo_rapido_popup",
+                    None
+                )
+
+        df_sem_codigo = (
+            listar_produtos_sem_codigo()
+        )
 
         if df_sem_codigo.empty:
 
@@ -978,21 +1313,29 @@ def tela_produtos():
             )
 
             produtos_map = {
-                f"{row['id']} - {row['nome']}": int(
-                    row["id"]
-                )
-                for _, row in df_sem_codigo.iterrows()
+                f"{row['id']} - {row['nome']}":
+                int(row["id"])
+                for _, row
+                in df_sem_codigo.iterrows()
             }
 
-            produto_escolhido = st.selectbox(
-                "Selecione o produto",
-                list(produtos_map.keys()),
-                key="produto_codigo_barras_select"
+            produto_escolhido = (
+                st.selectbox(
+                    "Selecione o produto",
+                    list(
+                        produtos_map.keys()
+                    ),
+                    key=(
+                        "produto_codigo_barras_select"
+                    )
+                )
             )
 
-            produto_id_codigo = produtos_map[
-                produto_escolhido
-            ]
+            produto_id_codigo = (
+                produtos_map[
+                    produto_escolhido
+                ]
+            )
 
             df_sem_codigo_exibicao = (
                 formatar_dataframe_brasil(
@@ -1032,9 +1375,11 @@ def tela_produtos():
 
                 else:
 
-                    sucesso = atualizar_codigo_barras(
-                        produto_id_codigo,
-                        codigo_normalizado
+                    sucesso = (
+                        atualizar_codigo_barras(
+                            produto_id_codigo,
+                            codigo_normalizado
+                        )
                     )
 
                     if sucesso:
