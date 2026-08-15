@@ -7,6 +7,51 @@ from services.xml_conversao_service import (
 
 
 # ==========================================================
+# NORMALIZAR CÓDIGO DE BARRAS / GTIN
+# ==========================================================
+
+def normalizar_codigo_barras(
+    codigo_barras
+):
+
+    codigo = str(
+        codigo_barras or ""
+    ).strip()
+
+    codigo_normalizado = (
+        codigo
+        .upper()
+        .replace("-", " ")
+        .replace("_", " ")
+    )
+
+    codigo_normalizado = " ".join(
+        codigo_normalizado.split()
+    )
+
+    valores_sem_codigo = {
+        "",
+        "SEM GTIN",
+        "SEM EAN",
+        "SEM CODIGO",
+        "SEM CÓDIGO",
+        "NAO INFORMADO",
+        "NÃO INFORMADO",
+        "NAO POSSUI",
+        "NÃO POSSUI",
+        "S/G",
+        "S/EAN",
+        "NULL",
+        "NONE"
+    }
+
+    if codigo_normalizado in valores_sem_codigo:
+        return ""
+
+    return codigo
+
+
+# ==========================================================
 # VERIFICAR SE COLUNA EXISTE
 # ==========================================================
 
@@ -135,9 +180,9 @@ def buscar_produto_por_codigo(
     codigo_fornecedor
 ):
 
-    codigo_barras = str(
-        codigo_barras or ""
-    ).strip()
+    codigo_barras = normalizar_codigo_barras(
+        codigo_barras
+    )
 
     codigo_fornecedor = str(
         codigo_fornecedor or ""
@@ -224,12 +269,12 @@ def buscar_ou_criar_produto(
         "Produto XML"
     )
 
-    codigo_barras = str(
+    codigo_barras = normalizar_codigo_barras(
         produto.get(
             "ean",
             ""
-        ) or ""
-    ).strip()
+        )
+    )
 
     codigo_fornecedor = str(
         produto.get(
@@ -720,9 +765,9 @@ def buscar_conversao_produto(
     codigo_fornecedor=""
 ):
 
-    codigo_barras = str(
-        codigo_barras or ""
-    ).strip()
+    codigo_barras = normalizar_codigo_barras(
+        codigo_barras
+    )
 
     codigo_fornecedor = str(
         codigo_fornecedor or ""
@@ -1257,12 +1302,12 @@ def importar_nfe_xml(
                 ) or ""
             ).strip()
 
-            codigo_barras = str(
+            codigo_barras = normalizar_codigo_barras(
                 item.get(
                     "ean",
                     ""
-                ) or ""
-            ).strip()
+                )
+            )
 
             ncm = str(
                 item.get(
