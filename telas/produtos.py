@@ -1,6 +1,12 @@
 import pandas as pd
 import streamlit as st
 
+
+from database.modelos_uniforme_db import (
+    listar_modelos_uniforme,
+    cadastrar_modelo_uniforme
+)
+
 from database.produto_db import (
     listar_produtos,
     buscar_produto_por_id,
@@ -1257,12 +1263,15 @@ def tela_produtos():
             "01 - Colégio dos Santos Anjos": 1,
         }
 
+        # Modelos carregados do banco de dados
+        modelos_uniforme_db = listar_modelos_uniforme()
+
         modelos_uniforme = {
-            "001 - Camiseta": 1,
-            "002 - Bermuda": 2,
-            "003 - Calça": 3,
-            "004 - Short-saia": 4,
-            "005 - Agasalho": 5,
+            (
+                f"{int(modelo['codigo']):03d} - "
+                f"{tratar_texto(modelo['nome'])}"
+            ): int(modelo["codigo"])
+            for modelo in modelos_uniforme_db
         }
 
         tamanhos_uniforme = [
@@ -1281,34 +1290,147 @@ def tela_produtos():
             "EXG",
         ]
 
-        col_uniforme_1, col_uniforme_2, col_uniforme_3 = st.columns(3)
+        (
+            col_uniforme_1,
+            col_uniforme_2,
+            col_uniforme_3
+        ) = st.columns(3)
 
         with col_uniforme_1:
+
             escola_uniforme_label = st.selectbox(
                 "Escola",
-                options=list(escolas_uniforme.keys()),
+                options=list(
+                    escolas_uniforme.keys()
+                ),
+                index=None,
+                placeholder="Selecione a escola...",
                 key="uniforme_escola"
             )
 
         with col_uniforme_2:
-            modelo_uniforme_label = st.selectbox(
-                "Modelo",
-                options=list(modelos_uniforme.keys()),
-                key="uniforme_modelo"
-            )
+
+            if modelos_uniforme:
+
+                modelo_uniforme_label = st.selectbox(
+                    "Modelo",
+                    options=list(
+                        modelos_uniforme.keys()
+                    ),
+                    index=None,
+                    placeholder="Selecione o modelo...",
+                    key="uniforme_modelo"
+                )
+
+            else:
+
+                modelo_uniforme_label = None
+
+                st.warning(
+                    "Nenhum modelo de uniforme cadastrado."
+                )
 
         with col_uniforme_3:
+
             tamanho_uniforme = st.selectbox(
                 "Tamanho",
                 options=tamanhos_uniforme,
+                index=None,
+                placeholder="Selecione o tamanho...",
                 key="uniforme_tamanho"
             )
 
-        codigo_uniforme_gerado = gerar_codigo_uniforme(
-            codigo_escola=escolas_uniforme[escola_uniforme_label],
-            codigo_modelo=modelos_uniforme[modelo_uniforme_label],
-            tamanho=tamanho_uniforme
-        )
+        # =====================================================
+        # CADASTRAR NOVO MODELO DE UNIFORME
+        # =====================================================
+        with st.expander(
+            "➕ Cadastrar novo modelo de uniforme"
+        ):
+
+            novo_modelo_uniforme = st.text_input(
+                "Nome do modelo",
+                placeholder=(
+                    "Ex.: Jaqueta, Saia, "
+                    "Camiseta Polo..."
+                ),
+                key="novo_modelo_uniforme"
+            )
+
+            cadastrar_novo_modelo = st.button(
+                "💾 Cadastrar modelo",
+                use_container_width=True,
+                key="btn_cadastrar_modelo_uniforme"
+            )
+
+            if cadastrar_novo_modelo:
+
+                nome_novo_modelo = tratar_texto(
+                    novo_modelo_uniforme
+                )
+
+                if not nome_novo_modelo:
+
+                    st.warning(
+                        "Informe o nome do modelo."
+                    )
+
+                else:
+
+                    sucesso_modelo = (
+                        cadastrar_modelo_uniforme(
+                            nome_novo_modelo
+                        )
+                    )
+
+                    if sucesso_modelo:
+
+                        st.session_state.pop(
+                            "uniforme_modelo",
+                            None
+                        )
+
+                        st.session_state.pop(
+                            "novo_modelo_uniforme",
+                            None
+                        )
+
+                        st.success(
+                            "✅ Modelo cadastrado com sucesso!"
+                        )
+
+                        st.rerun()
+
+                    else:
+
+                        st.error(
+                            "Não foi possível cadastrar "
+                            "o modelo. Verifique se ele "
+                            "já existe."
+                        )
+
+        codigo_uniforme_gerado = None
+
+        if (
+            escola_uniforme_label
+            and
+            modelo_uniforme_label
+            and
+            tamanho_uniforme
+        ):
+
+            codigo_uniforme_gerado = gerar_codigo_uniforme(
+                codigo_escola=(
+                    escolas_uniforme[
+                        escola_uniforme_label
+                    ]
+                ),
+                codigo_modelo=(
+                    modelos_uniforme[
+                        modelo_uniforme_label
+                    ]
+                ),
+                tamanho=tamanho_uniforme
+            )
 
         if codigo_uniforme_gerado:
 
