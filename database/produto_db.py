@@ -26,7 +26,8 @@ TAMANHOS_UNIFORME = {
     "M": "22",
     "G": "23",
     "GG": "24",
-    "EXG": "25",
+    "EG": "25",
+    "EXG": "26",
 }
 
 
@@ -205,6 +206,7 @@ def listar_produtos():
             SELECT
                 id,
                 nome,
+                tamanho,
                 sku,
                 referencia,
                 marca,
@@ -260,6 +262,7 @@ def buscar_produto_por_id(produto_id):
             SELECT
                 id,
                 nome,
+                tamanho,
                 sku,
                 referencia,
                 marca,
@@ -326,6 +329,7 @@ def listar_produtos_sem_codigo():
             SELECT
                 id,
                 nome,
+                tamanho,
                 codigo_barras,
                 preco,
                 estoque
@@ -372,7 +376,8 @@ def cadastrar_produto(
     estoque_minimo,
     localizacao,
     ativo,
-    observacoes
+    observacoes,
+    tamanho=None
 ):
 
     conn = conectar()
@@ -417,6 +422,7 @@ def cadastrar_produto(
             """
             INSERT INTO produtos (
                 nome,
+                tamanho,
                 preco,
                 estoque,
                 codigo_barras,
@@ -440,11 +446,12 @@ def cadastrar_produto(
                 %s, %s, %s, %s,
                 %s, %s, %s, %s,
                 %s, %s, %s, %s,
-                %s, %s
+                %s, %s, %s
             )
             """,
             (
                 nome,
+                tamanho,
                 preco,
                 estoque,
                 codigo_barras,
@@ -508,7 +515,8 @@ def atualizar_produto(
     estoque_minimo,
     localizacao,
     ativo,
-    observacoes
+    observacoes,
+    tamanho=None
 ):
 
     conn = conectar()
@@ -558,6 +566,7 @@ def atualizar_produto(
             UPDATE produtos
             SET
                 nome = %s,
+                tamanho = %s,
                 preco = %s,
                 estoque = %s,
                 codigo_barras = %s,
@@ -579,6 +588,7 @@ def atualizar_produto(
             """,
             (
                 nome,
+                tamanho,
                 preco,
                 estoque,
                 codigo_barras,
@@ -824,6 +834,7 @@ def buscar_produto_por_codigo(codigo_barras):
             SELECT
                 id,
                 nome,
+                tamanho,
                 preco,
                 estoque,
                 codigo_barras,
@@ -845,12 +856,13 @@ def buscar_produto_por_codigo(codigo_barras):
         return {
             "id": resultado[0],
             "nome": resultado[1],
-            "preco": resultado[2],
-            "estoque": resultado[3],
-            "codigo_barras": resultado[4],
-            "custo": resultado[5],
-            "unidade": resultado[6],
-            "ncm": resultado[7]
+            "tamanho": resultado[2],
+            "preco": resultado[3],
+            "estoque": resultado[4],
+            "codigo_barras": resultado[5],
+            "custo": resultado[6],
+            "unidade": resultado[7],
+            "ncm": resultado[8]
         }
 
     except Exception as erro:

@@ -66,6 +66,17 @@ def normalizar_campo(valor):
     return valor
 
 
+def formatar_nome_tamanho(nome, tamanho=None):
+
+    nome = tratar_texto(nome)
+    tamanho = tratar_texto(tamanho)
+
+    if tamanho:
+        return f"{nome} | Tam. {tamanho}"
+
+    return nome
+
+
 # =========================================================
 # LIMPAR FORMULÁRIO NOVO PRODUTO
 # =========================================================
@@ -73,6 +84,7 @@ def limpar_formulario_novo_produto():
 
     valores_iniciais = {
         "novo_nome": "",
+        "novo_tamanho": "",
         "novo_codigo_barras": "",
         "novo_sku": "",
         "novo_referencia": "",
@@ -106,7 +118,6 @@ def limpar_formulario_novo_produto():
         None
     )
 
-    # Limpa controle do popup de código existente
     st.session_state.pop(
         "ultimo_codigo_existente_popup",
         None
@@ -130,6 +141,10 @@ def carregar_produto_para_edicao(produto):
 
     st.session_state["edit_nome"] = tratar_texto(
         produto.get("nome")
+    )
+
+    st.session_state["edit_tamanho"] = tratar_texto(
+        produto.get("tamanho")
     )
 
     st.session_state["edit_codigo"] = tratar_texto(
@@ -207,6 +222,7 @@ def limpar_estado_edicao():
 
     chaves = [
         "edit_nome",
+        "edit_tamanho",
         "edit_codigo",
         "edit_sku",
         "edit_referencia",
@@ -249,6 +265,45 @@ def tela_produtos():
         limpar_formulario_novo_produto()
 
     # =====================================================
+    # LIMPEZA PENDENTE DA EDIÇÃO
+    # Executada antes da criação dos widgets
+    # =====================================================
+    if st.session_state.pop(
+        "limpar_edicao_produto_pendente",
+        False
+    ):
+
+        limpar_estado_edicao()
+
+        st.session_state.pop(
+            "editar_select_id",
+            None
+        )
+
+    # =====================================================
+    # LIMPEZA PENDENTE DO CÓDIGO DE BARRAS
+    # Executada antes da criação dos widgets
+    # =====================================================
+    if st.session_state.pop(
+        "limpar_codigo_barras_pendente",
+        False
+    ):
+
+        st.session_state[
+            "codigo_barras_rapido"
+        ] = ""
+
+        st.session_state.pop(
+            "produto_codigo_barras_select",
+            None
+        )
+
+        st.session_state.pop(
+            "ultimo_codigo_rapido_popup",
+            None
+        )
+
+    # =====================================================
     # POPUP - PRODUTO JÁ CADASTRADO
     # =====================================================
     @st.dialog("⚠️ Produto já cadastrado")
@@ -259,8 +314,9 @@ def tela_produtos():
             "a um produto cadastrado."
         )
 
-        nome_produto = tratar_texto(
-            produto.get("nome")
+        nome_produto = formatar_nome_tamanho(
+            produto.get("nome"),
+            produto.get("tamanho")
         )
 
         codigo_produto = tratar_texto(
@@ -306,8 +362,9 @@ def tela_produtos():
     @st.dialog("⚠️ Código de barras já cadastrado")
     def popup_codigo_existente(produto):
 
-        nome_produto = tratar_texto(
-            produto.get("nome")
+        nome_produto = formatar_nome_tamanho(
+            produto.get("nome"),
+            produto.get("tamanho")
         )
 
         codigo_produto = tratar_texto(
@@ -443,6 +500,7 @@ def tela_produtos():
                 )
 
         st.divider()
+
         st.markdown(
             "## 📦 Dados Básicos"
         )
@@ -454,6 +512,14 @@ def tela_produtos():
             nome = st.text_input(
                 "Nome do Produto",
                 key="novo_nome"
+            )
+
+            tamanho = st.text_input(
+                "Tamanho",
+                key="novo_tamanho",
+                placeholder=(
+                    "Ex.: 6, 10, P, M, G, EG..."
+                )
             )
 
             sku = st.text_input(
@@ -503,6 +569,7 @@ def tela_produtos():
         # FINANCEIRO
         # =====================================================
         st.divider()
+
         st.markdown(
             "## 💰 Financeiro"
         )
@@ -620,6 +687,7 @@ def tela_produtos():
         # ESTOQUE
         # =====================================================
         st.divider()
+
         st.markdown(
             "## 📦 Estoque"
         )
@@ -678,9 +746,6 @@ def tela_produtos():
                 nome
             )
 
-            # ----------------------------------------------
-            # PRODUTO JÁ EXISTE PELO CÓDIGO
-            # ----------------------------------------------
             if produto_codigo_existente:
 
                 st.error(
@@ -690,9 +755,6 @@ def tela_produtos():
                     f"{produto_codigo_existente['nome']}."
                 )
 
-            # ----------------------------------------------
-            # NOME OBRIGATÓRIO
-            # ----------------------------------------------
             elif not nome_normalizado:
 
                 st.warning(
@@ -703,6 +765,9 @@ def tela_produtos():
 
                 sucesso = cadastrar_produto(
                     nome=nome_normalizado,
+                    tamanho=normalizar_campo(
+                        tamanho
+                    ),
                     preco=float(preco),
                     estoque=int(estoque),
                     codigo_barras=normalizar_campo(
@@ -774,7 +839,10 @@ def tela_produtos():
 
         busca = st.text_input(
             "🔎 Buscar produto",
-            key="buscar_produto"
+            key="buscar_produto",
+            placeholder=(
+                "Digite parte do nome do produto..."
+            )
         )
 
         df_produtos = listar_produtos()
@@ -793,19 +861,43 @@ def tela_produtos():
 
             if busca:
 
-                df_produtos = (
-                    df_produtos[
-                        df_produtos[
-                            "nome"
-                        ]
+                busca_normalizada = str(busca).strip()
+
+                mascara_busca = (
+                    df_produtos["nome"]
+                    .astype(str)
+                    .str.contains(
+                        busca_normalizada,
+                        case=False,
+                        na=False
+                    )
+                )
+
+                if "tamanho" in df_produtos.columns:
+                    mascara_busca = (
+                        mascara_busca
+                        | df_produtos["tamanho"]
                         .astype(str)
                         .str.contains(
-                            busca,
+                            busca_normalizada,
                             case=False,
                             na=False
                         )
-                    ]
-                )
+                    )
+
+                if "codigo_barras" in df_produtos.columns:
+                    mascara_busca = (
+                        mascara_busca
+                        | df_produtos["codigo_barras"]
+                        .astype(str)
+                        .str.contains(
+                            busca_normalizada,
+                            case=False,
+                            na=False
+                        )
+                    )
+
+                df_produtos = df_produtos[mascara_busca]
 
             df_exibicao = (
                 formatar_dataframe_brasil(
@@ -843,6 +935,11 @@ def tela_produtos():
             "✏️ Editar Produto"
         )
 
+        st.info(
+            "🔎 Digite o nome ou o código do produto "
+            "no campo abaixo e selecione o registro correto."
+        )
+
         df_edicao = listar_produtos()
 
         if df_edicao.empty:
@@ -854,9 +951,17 @@ def tela_produtos():
         else:
 
             produtos_resumo = {
-                int(row["id"]): tratar_texto(
-                    row["nome"]
-                )
+                int(row["id"]): {
+                    "nome": tratar_texto(
+                        row["nome"]
+                    ),
+                    "tamanho": tratar_texto(
+                        row.get("tamanho")
+                    ),
+                    "codigo": tratar_texto(
+                        row.get("codigo_barras")
+                    )
+                }
                 for _, row
                 in df_edicao.iterrows()
             }
@@ -866,345 +971,401 @@ def tela_produtos():
             )
 
             produto_id = st.selectbox(
-                "Selecione o Produto",
+                "🔎 Procurar produto",
                 options=ids_produtos,
+                index=None,
+                placeholder=(
+                    "Digite o nome, código ou ID..."
+                ),
                 format_func=(
                     lambda identificador: (
                         f"{identificador} - "
-                        f"{produtos_resumo[identificador]}"
+                        f"{produtos_resumo[identificador]['nome']}"
+                        +
+                        (
+                            f" | Tam. "
+                            f"{produtos_resumo[identificador]['tamanho']}"
+                            if produtos_resumo[
+                                identificador
+                            ]["tamanho"]
+                            else ""
+                        )
+                        +
+                        (
+                            f" | Cód. "
+                            f"{produtos_resumo[identificador]['codigo']}"
+                            if produtos_resumo[
+                                identificador
+                            ]["codigo"]
+                            else ""
+                        )
                     )
                 ),
                 key="editar_select_id"
             )
 
-            produto_carregado_id = (
-                st.session_state.get(
-                    "edit_produto_carregado_id"
-                )
-            )
+            # =================================================
+            # NENHUM PRODUTO SELECIONADO
+            # =================================================
+            if produto_id is None:
 
-            if (
-                produto_carregado_id
-                != produto_id
-            ):
+                limpar_estado_edicao()
 
-                produto_para_carregar = (
-                    buscar_produto_por_id(
-                        produto_id
-                    )
-                )
-
-                if (
-                    produto_para_carregar
-                    is not None
-                ):
-
-                    carregar_produto_para_edicao(
-                        produto_para_carregar
-                    )
-
-                    st.session_state[
-                        "edit_produto_carregado_id"
-                    ] = produto_id
-
-            produto = buscar_produto_por_id(
-                produto_id
-            )
-
-            if produto is None:
-
-                st.error(
-                    "Não foi possível carregar "
-                    "o produto selecionado."
+                st.info(
+                    "Selecione um produto acima "
+                    "para visualizar e editar seus dados."
                 )
 
             else:
 
-                st.divider()
-
-                col1, col2 = st.columns(2)
-
-                with col1:
-
-                    nome_edit = st.text_input(
-                        "Nome",
-                        key="edit_nome"
-                    )
-
-                    codigo_barras_edit = (
-                        st.text_input(
-                            "Código de Barras",
-                            key="edit_codigo"
-                        )
-                    )
-
-                    sku_edit = st.text_input(
-                        "SKU",
-                        key="edit_sku"
-                    )
-
-                    referencia_edit = (
-                        st.text_input(
-                            "Referência",
-                            key="edit_referencia"
-                        )
-                    )
-
-                    marca_edit = st.text_input(
-                        "Marca",
-                        key="edit_marca"
-                    )
-
-                with col2:
-
-                    categoria_edit = (
-                        st.text_input(
-                            "Categoria",
-                            key="edit_categoria"
-                        )
-                    )
-
-                    unidade_edit = (
-                        st.selectbox(
-                            "Unidade",
-                            UNIDADES_PRODUTO,
-                            key="edit_unidade"
-                        )
-                    )
-
-                    ncm_edit = st.text_input(
-                        "NCM",
-                        key="edit_ncm"
-                    )
-
-                    cest_edit = st.text_input(
-                        "CEST",
-                        key="edit_cest"
-                    )
-
-                    cfop_edit = st.text_input(
-                        "CFOP",
-                        key="edit_cfop"
-                    )
-
-                st.divider()
-
-                col3, col4 = st.columns(2)
-
-                with col3:
-
-                    custo_edit = (
-                        st.number_input(
-                            "Custo",
-                            min_value=0.0,
-                            step=0.01,
-                            format="%.2f",
-                            key="edit_custo"
-                        )
-                    )
-
-                    preco_edit = (
-                        st.number_input(
-                            "Preço Venda",
-                            min_value=0.0,
-                            step=0.01,
-                            format="%.2f",
-                            key="edit_preco"
-                        )
-                    )
-
-                with col4:
-
-                    estoque_edit = (
-                        st.number_input(
-                            "Estoque",
-                            min_value=0,
-                            step=1,
-                            key="edit_estoque"
-                        )
-                    )
-
-                    estoque_minimo_edit = (
-                        st.number_input(
-                            "Estoque Mínimo",
-                            min_value=0,
-                            step=1,
-                            key="edit_estoque_minimo"
-                        )
-                    )
-
-                st.divider()
-
-                localizacao_edit = (
-                    st.text_input(
-                        "Localização",
-                        key="edit_localizacao"
+                produto_carregado_id = (
+                    st.session_state.get(
+                        "edit_produto_carregado_id"
                     )
                 )
 
-                observacoes_edit = (
-                    st.text_area(
-                        "Observações",
-                        key="edit_observacoes"
-                    )
-                )
+                if (
+                    produto_carregado_id
+                    != produto_id
+                ):
 
-                ativo_edit = st.checkbox(
-                    "Produto ativo",
-                    key="edit_ativo"
-                )
+                    # Remove dados do produto anterior
+                    # antes de carregar o novo
+                    limpar_estado_edicao()
 
-                st.divider()
-
-                col_btn1, col_btn2 = (
-                    st.columns(2)
-                )
-
-                with col_btn1:
-
-                    salvar_edicao = (
-                        st.button(
-                            "💾 Salvar Alterações",
-                            use_container_width=True,
-                            key="btn_salvar_edicao"
+                    produto_para_carregar = (
+                        buscar_produto_por_id(
+                            produto_id
                         )
                     )
 
-                with col_btn2:
+                    if (
+                        produto_para_carregar
+                        is not None
+                    ):
 
-                    excluir = st.button(
-                        "🗑️ Excluir Produto",
-                        use_container_width=True,
-                        key="btn_excluir_produto"
-                    )
-
-                # =================================================
-                # SALVAR EDIÇÃO
-                # =================================================
-                if salvar_edicao:
-
-                    nome_edit_normalizado = (
-                        tratar_texto(
-                            nome_edit
-                        )
-                    )
-
-                    if not nome_edit_normalizado:
-
-                        st.warning(
-                            "Informe o nome do produto."
+                        carregar_produto_para_edicao(
+                            produto_para_carregar
                         )
 
-                    else:
+                        st.session_state[
+                            "edit_produto_carregado_id"
+                        ] = produto_id
 
-                        sucesso = atualizar_produto(
-                            produto_id,
-                            nome_edit_normalizado,
-                            float(preco_edit),
-                            int(estoque_edit),
-                            normalizar_campo(
-                                codigo_barras_edit
-                            ),
-                            normalizar_campo(
-                                sku_edit
-                            ),
-                            normalizar_campo(
-                                referencia_edit
-                            ),
-                            normalizar_campo(
-                                marca_edit
-                            ),
-                            normalizar_campo(
-                                categoria_edit
-                            ),
-                            unidade_edit,
-                            normalizar_campo(
-                                ncm_edit
-                            ),
-                            normalizar_campo(
-                                cest_edit
-                            ),
-                            normalizar_campo(
-                                cfop_edit
-                            ),
-                            float(custo_edit),
-                            float(
-                                buscar_margem_padrao()
-                                or 30
-                            ),
-                            int(
-                                estoque_minimo_edit
-                            ),
-                            normalizar_campo(
-                                localizacao_edit
-                            ),
-                            bool(
-                                ativo_edit
-                            ),
-                            normalizar_campo(
-                                observacoes_edit
+                produto = buscar_produto_por_id(
+                    produto_id
+                )
+
+                if produto is None:
+
+                    st.error(
+                        "Não foi possível carregar "
+                        "o produto selecionado."
+                    )
+
+                else:
+
+                    st.divider()
+
+                    st.caption(
+                        f"Editando produto ID {produto_id}: "
+                        f"{formatar_nome_tamanho(
+                            produto.get('nome'),
+                            produto.get('tamanho')
+                        )}"
+                    )
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        nome_edit = st.text_input(
+                            "Nome",
+                            key="edit_nome"
+                        )
+
+                        tamanho_edit = st.text_input(
+                            "Tamanho",
+                            key="edit_tamanho",
+                            placeholder=(
+                                "Ex.: 6, 10, P, M, G, EG..."
                             )
                         )
 
-                        if sucesso:
+                        codigo_barras_edit = (
+                            st.text_input(
+                                "Código de Barras",
+                                key="edit_codigo"
+                            )
+                        )
+
+                        sku_edit = st.text_input(
+                            "SKU",
+                            key="edit_sku"
+                        )
+
+                        referencia_edit = (
+                            st.text_input(
+                                "Referência",
+                                key="edit_referencia"
+                            )
+                        )
+
+                        marca_edit = st.text_input(
+                            "Marca",
+                            key="edit_marca"
+                        )
+
+                    with col2:
+
+                        categoria_edit = (
+                            st.text_input(
+                                "Categoria",
+                                key="edit_categoria"
+                            )
+                        )
+
+                        unidade_edit = (
+                            st.selectbox(
+                                "Unidade",
+                                UNIDADES_PRODUTO,
+                                key="edit_unidade"
+                            )
+                        )
+
+                        ncm_edit = st.text_input(
+                            "NCM",
+                            key="edit_ncm"
+                        )
+
+                        cest_edit = st.text_input(
+                            "CEST",
+                            key="edit_cest"
+                        )
+
+                        cfop_edit = st.text_input(
+                            "CFOP",
+                            key="edit_cfop"
+                        )
+
+                    st.divider()
+
+                    col3, col4 = st.columns(2)
+
+                    with col3:
+
+                        custo_edit = (
+                            st.number_input(
+                                "Custo",
+                                min_value=0.0,
+                                step=0.01,
+                                format="%.2f",
+                                key="edit_custo"
+                            )
+                        )
+
+                        preco_edit = (
+                            st.number_input(
+                                "Preço Venda",
+                                min_value=0.0,
+                                step=0.01,
+                                format="%.2f",
+                                key="edit_preco"
+                            )
+                        )
+
+                    with col4:
+
+                        estoque_edit = (
+                            st.number_input(
+                                "Estoque",
+                                min_value=0,
+                                step=1,
+                                key="edit_estoque"
+                            )
+                        )
+
+                        estoque_minimo_edit = (
+                            st.number_input(
+                                "Estoque Mínimo",
+                                min_value=0,
+                                step=1,
+                                key="edit_estoque_minimo"
+                            )
+                        )
+
+                    st.divider()
+
+                    localizacao_edit = (
+                        st.text_input(
+                            "Localização",
+                            key="edit_localizacao"
+                        )
+                    )
+
+                    observacoes_edit = (
+                        st.text_area(
+                            "Observações",
+                            key="edit_observacoes"
+                        )
+                    )
+
+                    ativo_edit = st.checkbox(
+                        "Produto ativo",
+                        key="edit_ativo"
+                    )
+
+                    st.divider()
+
+                    col_btn1, col_btn2 = (
+                        st.columns(2)
+                    )
+
+                    with col_btn1:
+
+                        salvar_edicao = (
+                            st.button(
+                                "💾 Salvar Alterações",
+                                use_container_width=True,
+                                key="btn_salvar_edicao"
+                            )
+                        )
+
+                    with col_btn2:
+
+                        excluir = st.button(
+                            "🗑️ Excluir Produto",
+                            use_container_width=True,
+                            key="btn_excluir_produto"
+                        )
+
+                    # =================================================
+                    # SALVAR EDIÇÃO
+                    # =================================================
+                    if salvar_edicao:
+
+                        nome_edit_normalizado = (
+                            tratar_texto(
+                                nome_edit
+                            )
+                        )
+
+                        if not nome_edit_normalizado:
+
+                            st.warning(
+                                "Informe o nome do produto."
+                            )
+
+                        else:
+
+                            sucesso = atualizar_produto(
+                                produto_id,
+                                nome_edit_normalizado,
+                                float(preco_edit),
+                                int(estoque_edit),
+                                normalizar_campo(
+                                    codigo_barras_edit
+                                ),
+                                normalizar_campo(
+                                    sku_edit
+                                ),
+                                normalizar_campo(
+                                    referencia_edit
+                                ),
+                                normalizar_campo(
+                                    marca_edit
+                                ),
+                                normalizar_campo(
+                                    categoria_edit
+                                ),
+                                unidade_edit,
+                                normalizar_campo(
+                                    ncm_edit
+                                ),
+                                normalizar_campo(
+                                    cest_edit
+                                ),
+                                normalizar_campo(
+                                    cfop_edit
+                                ),
+                                float(custo_edit),
+                                float(
+                                    buscar_margem_padrao()
+                                    or 30
+                                ),
+                                int(
+                                    estoque_minimo_edit
+                                ),
+                                normalizar_campo(
+                                    localizacao_edit
+                                ),
+                                bool(
+                                    ativo_edit
+                                ),
+                                normalizar_campo(
+                                    observacoes_edit
+                                ),
+                                normalizar_campo(
+                                    tamanho_edit
+                                )
+                            )
+
+                            if sucesso:
+
+                                st.session_state[
+                                    "limpar_edicao_produto_pendente"
+                                ] = True
+
+                                st.session_state[
+                                    "mensagem_edicao_produto"
+                                ] = (
+                                    "✅ Produto atualizado "
+                                    "com sucesso!"
+                                )
+
+                                st.rerun()
+
+                    # =================================================
+                    # EXCLUIR
+                    # =================================================
+                    if excluir:
+
+                        resultado = excluir_produto(
+                            produto_id
+                        )
+
+                        if (
+                            resultado
+                            == "possui_vendas"
+                        ):
+
+                            st.warning(
+                                "Este produto não pode ser "
+                                "excluído porque já possui "
+                                "vendas vinculadas."
+                            )
+
+                        elif resultado is True:
 
                             st.session_state[
-                                "edit_produto_carregado_id"
-                            ] = None
+                                "limpar_edicao_produto_pendente"
+                            ] = True
 
                             st.session_state[
                                 "mensagem_edicao_produto"
                             ] = (
-                                "✅ Produto atualizado "
+                                "🗑️ Produto excluído "
                                 "com sucesso!"
                             )
 
                             st.rerun()
 
-                # =================================================
-                # EXCLUIR
-                # =================================================
-                if excluir:
+                        else:
 
-                    resultado = excluir_produto(
-                        produto_id
-                    )
-
-                    if (
-                        resultado
-                        == "possui_vendas"
-                    ):
-
-                        st.warning(
-                            "Este produto não pode ser "
-                            "excluído porque já possui "
-                            "vendas vinculadas."
-                        )
-
-                    elif resultado is True:
-
-                        limpar_estado_edicao()
-
-                        st.session_state.pop(
-                            "editar_select_id",
-                            None
-                        )
-
-                        st.session_state[
-                            "mensagem_edicao_produto"
-                        ] = (
-                            "🗑️ Produto excluído "
-                            "com sucesso!"
-                        )
-
-                        st.rerun()
-
-                    else:
-
-                        st.error(
-                            "Não foi possível excluir "
-                            "o produto."
-                        )
+                            st.error(
+                                "Não foi possível excluir "
+                                "o produto."
+                            )
 
     # =========================================================
     # CÓDIGO DE BARRAS
@@ -1224,20 +1385,6 @@ def tela_produtos():
                 mensagem_codigo
             )
 
-        if st.session_state.pop(
-            "limpar_codigo_barras_pendente",
-            False
-        ):
-
-            st.session_state[
-                "codigo_barras_rapido"
-            ] = ""
-
-            st.session_state.pop(
-                "ultimo_codigo_rapido_popup",
-                None
-            )
-
         st.subheader(
             "🏷️ Atualizar Código de Barras"
         )
@@ -1245,14 +1392,16 @@ def tela_produtos():
         st.info(
             "Use esta tela para atualizar rapidamente "
             "produtos sem código. Com o leitor físico, "
-            "selecione o produto, clique no campo de "
+            "localize o produto, clique no campo de "
             "código e faça a leitura."
         )
 
         # =====================================================
         # GERADOR DE CÓDIGO INTERNO PARA UNIFORMES
         # =====================================================
-        st.markdown("### 👕 Gerar código para uniforme")
+        st.markdown(
+            "### 👕 Gerar código para uniforme"
+        )
 
         st.caption(
             "Padrão: 26 + escola + modelo + tamanho. "
@@ -1287,6 +1436,7 @@ def tela_produtos():
             "M",
             "G",
             "GG",
+            "EG",
             "EXG",
         ]
 
@@ -1439,13 +1589,22 @@ def tela_produtos():
                 language=None
             )
 
-            verificacao_uniforme = verificar_codigo_barras_disponivel(
-                codigo_uniforme_gerado
+            verificacao_uniforme = (
+                verificar_codigo_barras_disponivel(
+                    codigo_uniforme_gerado
+                )
             )
 
-            if verificacao_uniforme and verificacao_uniforme["disponivel"]:
+            if (
+                verificacao_uniforme
+                and
+                verificacao_uniforme["disponivel"]
+            ):
+
                 st.success(
-                    f"✅ Código {codigo_uniforme_gerado} disponível."
+                    f"✅ Código "
+                    f"{codigo_uniforme_gerado} "
+                    f"disponível."
                 )
 
                 if st.button(
@@ -1453,23 +1612,31 @@ def tela_produtos():
                     use_container_width=True,
                     key="btn_usar_codigo_uniforme"
                 ):
-                    st.session_state["codigo_barras_rapido"] = (
-                        codigo_uniforme_gerado
-                    )
+
+                    st.session_state[
+                        "codigo_barras_rapido"
+                    ] = codigo_uniforme_gerado
+
                     st.session_state.pop(
                         "ultimo_codigo_rapido_popup",
                         None
                     )
+
                     st.rerun()
 
             elif verificacao_uniforme:
+
                 st.warning(
-                    "⚠️ Este código já está cadastrado no produto: "
+                    "⚠️ Este código já está cadastrado "
+                    "no produto: "
                     f"{verificacao_uniforme['produto_nome']}"
                 )
 
         st.divider()
-        st.markdown("### 📷 Ler ou digitar código")
+
+        st.markdown(
+            "### 📷 Ler ou digitar código"
+        )
 
         codigo_lido = st.text_input(
             "📷 Ler / Digitar Código de Barras",
@@ -1541,21 +1708,35 @@ def tela_produtos():
         else:
 
             st.markdown(
-                "### Produtos sem código"
+                "### 🔎 Localizar produto sem código"
+            )
+
+            st.caption(
+                "Digite parte do nome do produto "
+                "e selecione o registro correto."
             )
 
             produtos_map = {
-                f"{row['id']} - {row['nome']}":
-                int(row["id"])
+                (
+                    f"{int(row['id'])} - "
+                    f"{formatar_nome_tamanho(
+                        row['nome'],
+                        row.get('tamanho')
+                    )}"
+                ): int(row["id"])
                 for _, row
                 in df_sem_codigo.iterrows()
             }
 
             produto_escolhido = (
                 st.selectbox(
-                    "Selecione o produto",
-                    list(
+                    "Produto",
+                    options=list(
                         produtos_map.keys()
+                    ),
+                    index=None,
+                    placeholder=(
+                        "Digite o nome do produto..."
                     ),
                     key=(
                         "produto_codigo_barras_select"
@@ -1563,11 +1744,15 @@ def tela_produtos():
                 )
             )
 
-            produto_id_codigo = (
-                produtos_map[
-                    produto_escolhido
-                ]
-            )
+            produto_id_codigo = None
+
+            if produto_escolhido is not None:
+
+                produto_id_codigo = (
+                    produtos_map[
+                        produto_escolhido
+                    ]
+                )
 
             df_sem_codigo_exibicao = (
                 formatar_dataframe_brasil(
@@ -1583,15 +1768,31 @@ def tela_produtos():
                 hide_index=True
             )
 
+            if produto_escolhido is None:
+
+                st.info(
+                    "Selecione o produto que receberá "
+                    "o código de barras."
+                )
+
             salvar_codigo = st.button(
                 "💾 Salvar Código neste Produto",
                 use_container_width=True,
-                key="btn_salvar_codigo_barras"
+                key="btn_salvar_codigo_barras",
+                disabled=(
+                    produto_escolhido is None
+                )
             )
 
             if salvar_codigo:
 
-                if not codigo_normalizado:
+                if produto_id_codigo is None:
+
+                    st.warning(
+                        "Selecione o produto."
+                    )
+
+                elif not codigo_normalizado:
 
                     st.warning(
                         "Leia ou digite o código "
@@ -1629,26 +1830,36 @@ def tela_produtos():
 
                         st.rerun()
 
-
         # =========================================================
         # GERADOR DE ETIQUETAS
         # =========================================================
         st.divider()
 
-        st.markdown("### 🖨️ Gerar Etiquetas")
+        st.markdown(
+            "### 🖨️ Gerar Etiquetas"
+        )
 
         st.info(
-            "Selecione um produto que já possua código de barras. "
-            "O sistema gera um PDF A4 com etiquetas de 50 x 30 mm "
-            "em padrão Code 128."
+            "Digite o nome do produto que já possua "
+            "código de barras. O sistema gera um PDF A4 "
+            "com etiquetas de 50 x 30 mm em padrão Code 128."
         )
 
         df_etiquetas = listar_produtos()
 
         if df_etiquetas.empty:
-            st.info("Nenhum produto cadastrado para gerar etiquetas.")
+
+            st.info(
+                "Nenhum produto cadastrado "
+                "para gerar etiquetas."
+            )
+
         else:
-            df_etiquetas = df_etiquetas.fillna("")
+
+            df_etiquetas = (
+                df_etiquetas.fillna("")
+            )
+
             df_etiquetas = df_etiquetas[
                 df_etiquetas["codigo_barras"]
                 .astype(str)
@@ -1657,126 +1868,199 @@ def tela_produtos():
             ]
 
             if df_etiquetas.empty:
+
                 st.info(
                     "Nenhum produto com código de barras "
                     "disponível para gerar etiquetas."
                 )
+
             else:
+
                 produtos_etiqueta_map = {
                     (
                         f"{int(row['id'])} - "
-                        f"{tratar_texto(row['nome'])} "
-                        f"| Cód. {tratar_texto(row['codigo_barras'])}"
+                        f"{formatar_nome_tamanho(
+                            row['nome'],
+                            row.get('tamanho')
+                        )} "
+                        f"| Cód. "
+                        f"{tratar_texto(row['codigo_barras'])}"
                     ): int(row["id"])
-                    for _, row in df_etiquetas.iterrows()
+                    for _, row
+                    in df_etiquetas.iterrows()
                 }
 
-                produto_etiqueta_label = st.selectbox(
-                    "Produto para etiqueta",
-                    options=list(produtos_etiqueta_map.keys()),
-                    key="produto_etiqueta_select"
+                produto_etiqueta_label = (
+                    st.selectbox(
+                        "🔎 Produto para etiqueta",
+                        options=list(
+                            produtos_etiqueta_map.keys()
+                        ),
+                        index=None,
+                        placeholder=(
+                            "Digite o nome ou código "
+                            "do produto..."
+                        ),
+                        key="produto_etiqueta_select"
+                    )
                 )
 
-                produto_etiqueta_id = produtos_etiqueta_map[
-                    produto_etiqueta_label
-                ]
+                if produto_etiqueta_label is None:
 
-                produto_etiqueta = buscar_produto_por_id(
-                    produto_etiqueta_id
-                )
-
-                if produto_etiqueta is not None:
-                    nome_etiqueta = tratar_texto(
-                        produto_etiqueta.get("nome")
-                    )
-                    codigo_etiqueta = tratar_texto(
-                        produto_etiqueta.get("codigo_barras")
-                    )
-                    preco_etiqueta = float(
-                        produto_etiqueta.get("preco") or 0
+                    st.info(
+                        "Selecione um produto para "
+                        "preparar as etiquetas."
                     )
 
-                    col_etq1, col_etq2 = st.columns(2)
+                else:
 
-                    with col_etq1:
-                        quantidade_etiquetas = st.number_input(
-                            "Quantidade de etiquetas",
-                            min_value=1,
-                            max_value=500,
-                            value=1,
-                            step=1,
-                            key="quantidade_etiquetas"
+                    produto_etiqueta_id = (
+                        produtos_etiqueta_map[
+                            produto_etiqueta_label
+                        ]
+                    )
+
+                    produto_etiqueta = (
+                        buscar_produto_por_id(
+                            produto_etiqueta_id
+                        )
+                    )
+
+                    if produto_etiqueta is not None:
+
+                        nome_etiqueta = formatar_nome_tamanho(
+                            produto_etiqueta.get(
+                                "nome"
+                            ),
+                            produto_etiqueta.get(
+                                "tamanho"
+                            )
                         )
 
-                    with col_etq2:
-                        mostrar_preco_etiqueta = st.checkbox(
-                            "Mostrar preço na etiqueta",
-                            value=True,
-                            key="mostrar_preco_etiqueta"
+                        codigo_etiqueta = tratar_texto(
+                            produto_etiqueta.get(
+                                "codigo_barras"
+                            )
                         )
 
-                    st.markdown(
-                        f"""
-**Produto:** {nome_etiqueta}  
-**Código:** `{codigo_etiqueta}`  
-**Preço:** {formatar_moeda(preco_etiqueta)}
-                        """
-                    )
+                        preco_etiqueta = float(
+                            produto_etiqueta.get(
+                                "preco"
+                            )
+                            or 0
+                        )
 
-                    if st.button(
-                        "📄 Preparar PDF de Etiquetas",
-                        use_container_width=True,
-                        key="btn_preparar_pdf_etiquetas"
-                    ):
-                        try:
-                            pdf_etiquetas = gerar_pdf_etiquetas_produto(
-                                nome_produto=nome_etiqueta,
-                                codigo_barras=codigo_etiqueta,
-                                preco=preco_etiqueta,
-                                quantidade=int(quantidade_etiquetas),
-                                mostrar_preco=bool(
-                                    mostrar_preco_etiqueta
+                        col_etq1, col_etq2 = (
+                            st.columns(2)
+                        )
+
+                        with col_etq1:
+
+                            quantidade_etiquetas = (
+                                st.number_input(
+                                    "Quantidade de etiquetas",
+                                    min_value=1,
+                                    max_value=500,
+                                    value=1,
+                                    step=1,
+                                    key="quantidade_etiquetas"
                                 )
                             )
 
-                            st.session_state[
-                                "pdf_etiquetas_gerado"
-                            ] = pdf_etiquetas
+                        with col_etq2:
 
-                            st.session_state[
-                                "pdf_etiquetas_nome"
-                            ] = (
-                                f"etiquetas_"
-                                f"{produto_etiqueta_id}_"
-                                f"{codigo_etiqueta}.pdf"
+                            mostrar_preco_etiqueta = (
+                                st.checkbox(
+                                    "Mostrar preço na etiqueta",
+                                    value=True,
+                                    key=(
+                                        "mostrar_preco_etiqueta"
+                                    )
+                                )
                             )
 
-                            st.success(
-                                "✅ PDF de etiquetas preparado."
-                            )
-
-                        except Exception as erro:
-                            st.error(
-                                "Erro ao gerar etiquetas: "
-                                f"{erro}"
-                            )
-
-                    pdf_etiquetas_gerado = st.session_state.get(
-                        "pdf_etiquetas_gerado"
-                    )
-
-                    pdf_etiquetas_nome = st.session_state.get(
-                        "pdf_etiquetas_nome",
-                        "etiquetas.pdf"
-                    )
-
-                    if pdf_etiquetas_gerado:
-                        st.download_button(
-                            "⬇️ Baixar PDF para impressão",
-                            data=pdf_etiquetas_gerado,
-                            file_name=pdf_etiquetas_nome,
-                            mime="application/pdf",
-                            use_container_width=True,
-                            key="btn_baixar_pdf_etiquetas"
+                        st.markdown(
+                            f"""
+**Produto:** {nome_etiqueta}  
+**Código:** `{codigo_etiqueta}`  
+**Preço:** {formatar_moeda(preco_etiqueta)}
+                            """
                         )
 
+                        if st.button(
+                            "📄 Preparar PDF de Etiquetas",
+                            use_container_width=True,
+                            key="btn_preparar_pdf_etiquetas"
+                        ):
+
+                            try:
+
+                                pdf_etiquetas = (
+                                    gerar_pdf_etiquetas_produto(
+                                        nome_produto=(
+                                            nome_etiqueta
+                                        ),
+                                        codigo_barras=(
+                                            codigo_etiqueta
+                                        ),
+                                        preco=(
+                                            preco_etiqueta
+                                        ),
+                                        quantidade=int(
+                                            quantidade_etiquetas
+                                        ),
+                                        mostrar_preco=bool(
+                                            mostrar_preco_etiqueta
+                                        )
+                                    )
+                                )
+
+                                st.session_state[
+                                    "pdf_etiquetas_gerado"
+                                ] = pdf_etiquetas
+
+                                st.session_state[
+                                    "pdf_etiquetas_nome"
+                                ] = (
+                                    f"etiquetas_"
+                                    f"{produto_etiqueta_id}_"
+                                    f"{codigo_etiqueta}.pdf"
+                                )
+
+                                st.success(
+                                    "✅ PDF de etiquetas "
+                                    "preparado."
+                                )
+
+                            except Exception as erro:
+
+                                st.error(
+                                    "Erro ao gerar etiquetas: "
+                                    f"{erro}"
+                                )
+
+                        pdf_etiquetas_gerado = (
+                            st.session_state.get(
+                                "pdf_etiquetas_gerado"
+                            )
+                        )
+
+                        pdf_etiquetas_nome = (
+                            st.session_state.get(
+                                "pdf_etiquetas_nome",
+                                "etiquetas.pdf"
+                            )
+                        )
+
+                        if pdf_etiquetas_gerado:
+
+                            st.download_button(
+                                "⬇️ Baixar PDF para impressão",
+                                data=pdf_etiquetas_gerado,
+                                file_name=(
+                                    pdf_etiquetas_nome
+                                ),
+                                mime="application/pdf",
+                                use_container_width=True,
+                                key="btn_baixar_pdf_etiquetas"
+                            )
