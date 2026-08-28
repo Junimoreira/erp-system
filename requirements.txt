@@ -5,3 +5,8 @@ bcrypt
 pandas
 reportlab==4.0.9
 openpyxl
+cloudinary
+requests
+requests-pkcs12
+lxml==6.1.1
+xmlsec==1.3.17

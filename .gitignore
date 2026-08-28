@@ -3,3 +3,65 @@ __pycache__/
 *.pyc
 venv/
 .streamlit/
+# Certificados digitais - NUNCA versionar
+Documentação/Certificado/
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Documentos sensiveis do certificado digital
+**/Certificado/
+**/termoTitularidade.pdf
+
+# Chaves e certificados - nunca versionar
+*.pfx
+*.p12
+*.pem
+*.key
+
+# ============================================================
+# Arquivos locais e gerados - ERP Verde Infancia
+# ============================================================
+
+# Bancos, dumps e backups locais
+*.dump
+*.backup
+*.bak
+
+# Arquivos gerados de NF-e / testes fiscais
+NF_Teste/
+xml/gerados_teste/
+xml/Notas_teste/
+temp/
+
+# Copias locais e arquivos de recuperacao
+copias/
+recuperacao_danfe/
+*_ANTES_*.py
+*_BACKUP_*.py
+*_CORRIGIDO_*.py
+
+# Arquivos temporarios / resultados locais
+resultado_api_ibs_cbs*.txt
+diff_*.txt
+
+# Dados e documentos locais
+Etiquetas/
+PRODUTOS*.csv
+produto_db_completo.txt
+
+# XMLs fiscais reais/importados armazenados localmente
+xml/*.xml
+
+# PDFs/DANFEs avulsos de teste
+danfe*_teste.pdf
+DANFE*_teste.pdf
+
+# Anotacoes locais de banco de homologacao
+**/Banco_homologa*_teste.txt
+
+# Arquivos de teste/rascunho dentro do nucleo fiscal
+services/fiscal/*_QUEBRADO.py
+services/fiscal/*_teste_*.py
+

@@ -36,6 +36,7 @@ from telas.caixa import tela_caixa
 from telas.clientes import tela_clientes
 from telas.produtos import tela_produtos
 from telas.vendas import tela_vendas
+from telas.emissao_nfe import tela_emissao_nfe
 from telas.trocas import tela_trocas
 from telas.movimentacoes import tela_movimentacoes
 from telas.fornecedores import tela_fornecedores
@@ -513,6 +514,7 @@ if tem_permissao("pode_vendas"):
 
     menu_opcoes.extend([
         "🛒 Vendas",
+        "🧾 Emissão NF-e",
         "🔄 Trocas",
         "📢 Marketing"
     ])
@@ -810,6 +812,14 @@ try:
         )
 
         tela_vendas()
+
+    elif menu == "🧾 Emissão NF-e":
+
+        bloquear(
+            "pode_vendas"
+        )
+
+        tela_emissao_nfe()
 
     elif menu == "🔄 Trocas":
 
