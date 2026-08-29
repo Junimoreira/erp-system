@@ -1,3 +1,7 @@
+import base64
+import binascii
+import os
+import tempfile
 from pathlib import Path
 
 from database.connection import conectar
@@ -75,9 +79,80 @@ def _normalizar_caminho_certificado(
 # ============================================================
 # RESOLVER CAMINHO PORTÁTIL DO CERTIFICADO
 # ============================================================
+def _materializar_certificado_base64():
+
+    conteudo_base64 = _normalizar_caminho_certificado(
+        os.getenv("CERTIFICADO_PFX_BASE64")
+    )
+
+    if not conteudo_base64:
+        return None
+
+    try:
+        dados = base64.b64decode(
+            conteudo_base64,
+            validate=True,
+        )
+
+    except (binascii.Error, ValueError):
+        return None
+
+    if not dados:
+        return None
+
+    pasta_temporaria = (
+        Path(tempfile.gettempdir())
+        / "erp_verde_infancia"
+    )
+
+    pasta_temporaria.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    path = (
+        pasta_temporaria
+        / "certificado_fiscal.pfx"
+    )
+
+    if (
+        not path.is_file()
+        or path.read_bytes() != dados
+    ):
+        path.write_bytes(dados)
+
+    try:
+        path.chmod(0o600)
+
+    except OSError:
+        pass
+
+    return path.resolve()
+
+
 def _resolver_caminho_certificado(
     caminho
 ):
+
+    # Em servidores como o Render, o certificado pode ser
+    # disponibilizado por um caminho externo ao repositorio.
+    caminho_ambiente = _normalizar_caminho_certificado(
+        os.getenv("CERTIFICADO_PFX")
+    )
+
+    if caminho_ambiente:
+        path_ambiente = Path(caminho_ambiente)
+
+        if path_ambiente.is_file():
+            return path_ambiente.resolve()
+
+    path_base64 = _materializar_certificado_base64()
+
+    if (
+        path_base64
+        and path_base64.is_file()
+    ):
+        return path_base64
 
     caminho = _normalizar_caminho_certificado(caminho)
 
@@ -293,7 +368,19 @@ def buscar_certificado_fiscal():
         caminho_salvo
     )
 
-    if not caminho_salvo:
+    caminho_ambiente = _normalizar_caminho_certificado(
+        os.getenv("CERTIFICADO_PFX")
+    )
+
+    certificado_base64 = _normalizar_caminho_certificado(
+        os.getenv("CERTIFICADO_PFX_BASE64")
+    )
+
+    if (
+        not caminho_salvo
+        and not caminho_ambiente
+        and not certificado_base64
+    ):
 
         return {
             "sucesso": True,
@@ -310,7 +397,7 @@ def buscar_certificado_fiscal():
         }
 
     path = _resolver_caminho_certificado(
-        caminho_salvo
+        caminho_salvo or caminho_ambiente
     )
 
     existe = bool(
