@@ -18,7 +18,7 @@ from services.fiscal.envi_nfe import (
 )
 
 from services.fiscal.sefaz_autorizacao_nfe import (
-    autorizar_nfe_homologacao_mg,
+    autorizar_nfe_mg,
     consultar_recibo_autorizacao_mg,
 )
 
@@ -434,6 +434,7 @@ def _recuperar_autorizacao_por_recibo(
     retorno_original,
     caminho_certificado,
     senha_certificado,
+    ambiente,
     timeout
 ):
 
@@ -491,7 +492,7 @@ def _recuperar_autorizacao_por_recibo(
             senha=
                 senha_certificado,
             ambiente=
-                2,
+                ambiente,
             timeout=
                 timeout
         )
@@ -604,13 +605,14 @@ def _recuperar_autorizacao_por_recibo(
 #   quando houver cStat 204/539 e nRec disponÃ­vel
 # - nÃ£o retransmite automaticamente apÃ³s retorno ambÃ­guo
 # ============================================================
-def emitir_nfe_homologacao(
+def emitir_nfe(
     venda_id,
     uf_destino,
     caminho_certificado,
     senha_certificado,
     diretorio_saida=None,
-    timeout=60
+    timeout=60,
+    permitir_producao=False
 ):
 
     modelo = 55
@@ -788,15 +790,55 @@ def emitir_nfe_homologacao(
         "ambiente"
     )
 
-    if ambiente != 2:
-
+    try:
+        ambiente = int(
+            ambiente
+        )
+    except (
+        TypeError,
+        ValueError
+    ):
         return {
             "sucesso": False,
             "etapa": "AMBIENTE",
             "mensagem": (
-                "O emissor de teste aceita somente "
-                "ambiente de homologaÃ§Ã£o."
-            )
+                "Ambiente fiscal invalido. "
+                "Use 1 para producao ou 2 para homologacao."
+            ),
+            "ambiente": ambiente,
+            "nao_retransmitir": True
+        }
+
+    if ambiente not in (
+        1,
+        2
+    ):
+        return {
+            "sucesso": False,
+            "etapa": "AMBIENTE",
+            "mensagem": (
+                "Ambiente fiscal invalido. "
+                "Use 1 para producao ou 2 para homologacao."
+            ),
+            "ambiente": ambiente,
+            "nao_retransmitir": True
+        }
+
+    if (
+        ambiente == 1
+        and
+        permitir_producao is not True
+    ):
+        return {
+            "sucesso": False,
+            "etapa": "PRODUCAO_BLOQUEADA",
+            "mensagem": (
+                "Emissao de NF-e em producao permanece "
+                "bloqueada por seguranca. "
+                "A liberacao deve ser explicita."
+            ),
+            "ambiente": ambiente,
+            "nao_retransmitir": True
         }
 
     # ========================================================
@@ -1040,13 +1082,15 @@ def emitir_nfe_homologacao(
     # 5 - TRANSMITIR
     # ========================================================
     resultado_sefaz = (
-        autorizar_nfe_homologacao_mg(
+        autorizar_nfe_mg(
             origem_envi_nfe=
                 caminho_envi,
             caminho_certificado=
                 caminho_certificado,
             senha=
                 senha_certificado,
+            ambiente=
+                ambiente,
             timeout=
                 timeout
         )
@@ -1158,6 +1202,8 @@ def emitir_nfe_homologacao(
                     caminho_certificado,
                 senha_certificado=
                     senha_certificado,
+                ambiente=
+                    ambiente,
                 timeout=
                     timeout
             )
@@ -1385,8 +1431,11 @@ def emitir_nfe_homologacao(
                 caminho_assinado,
             venda_id=
                 venda_id,
-            origem_documento=
-                "ERP_HOMOLOGACAO"
+            origem_documento=(
+                "ERP_PRODUCAO"
+                if ambiente == 1
+                else "ERP_HOMOLOGACAO"
+            )
         )
     )
 
@@ -1487,3 +1536,26 @@ def emitir_nfe_homologacao(
                 )
         }
     }
+
+# ============================================================
+# COMPATIBILIDADE COM TELAS/CHAMADAS ATUAIS
+#
+# Nunca libera producao.
+# ============================================================
+def emitir_nfe_homologacao(
+    venda_id,
+    uf_destino,
+    caminho_certificado,
+    senha_certificado,
+    diretorio_saida=None,
+    timeout=60
+):
+    return emitir_nfe(
+        venda_id=venda_id,
+        uf_destino=uf_destino,
+        caminho_certificado=caminho_certificado,
+        senha_certificado=senha_certificado,
+        diretorio_saida=diretorio_saida,
+        timeout=timeout,
+        permitir_producao=False
+    )

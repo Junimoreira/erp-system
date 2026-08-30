@@ -46,15 +46,70 @@ NAMESPACE_DS = (
     "http://www.w3.org/2000/09/xmldsig#"
 )
 
+URL_PRODUCAO_MG = (
+    "https://nfe.fazenda.mg.gov.br/"
+    "nfe2/services/NFeAutorizacao4"
+)
+
 URL_HOMOLOGACAO_MG = (
     "https://hnfe.fazenda.mg.gov.br/"
     "nfe2/services/NFeAutorizacao4"
+)
+
+URL_RET_AUTORIZACAO_PRODUCAO_MG = (
+    "https://nfe.fazenda.mg.gov.br/"
+    "nfe2/services/NFeRetAutorizacao4"
 )
 
 URL_RET_AUTORIZACAO_HOMOLOGACAO_MG = (
     "https://hnfe.fazenda.mg.gov.br/"
     "nfe2/services/NFeRetAutorizacao4"
 )
+
+
+def _normalizar_ambiente(
+    ambiente
+):
+    ambiente = str(
+        ambiente
+    ).strip()
+
+    if ambiente not in {
+        "1",
+        "2"
+    }:
+        raise ValueError(
+            "Ambiente fiscal invalido. "
+            "Use 1 para producao ou 2 para homologacao."
+        )
+
+    return ambiente
+
+
+def _url_autorizacao_por_ambiente(
+    ambiente
+):
+    ambiente = _normalizar_ambiente(
+        ambiente
+    )
+
+    if ambiente == "1":
+        return URL_PRODUCAO_MG
+
+    return URL_HOMOLOGACAO_MG
+
+
+def _url_ret_autorizacao_por_ambiente(
+    ambiente
+):
+    ambiente = _normalizar_ambiente(
+        ambiente
+    )
+
+    if ambiente == "1":
+        return URL_RET_AUTORIZACAO_PRODUCAO_MG
+
+    return URL_RET_AUTORIZACAO_HOMOLOGACAO_MG
 
 
 # ============================================================
@@ -145,9 +200,30 @@ def _carregar_elemento(
 # ============================================================
 # VALIDAR ENVELOPE ANTES DO ENVIO
 # ============================================================
-def validar_envelope_para_homologacao(
-    origem
+def validar_envelope_para_ambiente(
+    origem,
+    ambiente_esperado
 ):
+
+    try:
+
+        ambiente_esperado = (
+            _normalizar_ambiente(
+                ambiente_esperado
+            )
+        )
+
+    except Exception as erro:
+
+        return {
+            "sucesso": False,
+            "erros": [
+                (
+                    "Ambiente fiscal invalido: "
+                    f"{type(erro).__name__}: {erro}"
+                )
+            ]
+        }
 
     try:
 
@@ -316,15 +392,16 @@ def validar_envelope_para_homologacao(
                 ]
             }
 
-        if tp_amb != "2":
+        if tp_amb != ambiente_esperado:
 
             return {
                 "sucesso": False,
                 "erros": [
                     (
-                        "ENVIO BLOQUEADO: este módulo de teste "
-                        "aceita somente tpAmb=2 (homologação). "
-                        f"Encontrado tpAmb={tp_amb}."
+                        "ENVIO BLOQUEADO: o tpAmb do XML "
+                        "nao corresponde ao ambiente solicitado. "
+                        f"Esperado tpAmb={ambiente_esperado}; "
+                        f"encontrado tpAmb={tp_amb}."
                     )
                 ]
             }
@@ -705,15 +782,47 @@ def interpretar_retorno_autorizacao(
 # ============================================================
 # AUTORIZAR NF-e EM HOMOLOGAÇÃO
 # ============================================================
-def autorizar_nfe_homologacao_mg(
+def autorizar_nfe_mg(
     origem_envi_nfe,
     caminho_certificado,
     senha,
+    ambiente,
     timeout=60
 ):
 
-    validacao = validar_envelope_para_homologacao(
-        origem_envi_nfe
+    try:
+
+        ambiente = _normalizar_ambiente(
+            ambiente
+        )
+
+        url_autorizacao = (
+            _url_autorizacao_por_ambiente(
+                ambiente
+            )
+        )
+
+    except Exception as erro:
+
+        return {
+            "sucesso_http": False,
+            "enviado": False,
+            "validacao": None,
+            "http_status": None,
+            "content_type": None,
+            "resposta_bruta": None,
+            "retorno": None,
+            "erros": [
+                (
+                    "Ambiente fiscal invalido: "
+                    f"{type(erro).__name__}: {erro}"
+                )
+            ]
+        }
+
+    validacao = validar_envelope_para_ambiente(
+        origem_envi_nfe,
+        ambiente_esperado=ambiente
     )
 
     if not validacao.get(
@@ -781,7 +890,7 @@ def autorizar_nfe_homologacao_mg(
     try:
 
         resposta = sessao.post(
-            URL_HOMOLOGACAO_MG,
+            url_autorizacao,
             data=soap,
             headers=headers,
             timeout=timeout
@@ -839,6 +948,28 @@ def autorizar_nfe_homologacao_mg(
         "erros": []
     }
 
+def autorizar_nfe_homologacao_mg(
+    origem_envi_nfe,
+    caminho_certificado,
+    senha,
+    timeout=60
+):
+    """
+    Compatibilidade com o emissor atual.
+
+    Esta funcao continua FORCANDO homologacao.
+    A producao devera chamar autorizar_nfe_mg
+    explicitamente com ambiente=1.
+    """
+    return autorizar_nfe_mg(
+        origem_envi_nfe=origem_envi_nfe,
+        caminho_certificado=caminho_certificado,
+        senha=senha,
+        ambiente=2,
+        timeout=timeout
+    )
+
+
 # ============================================================
 # NORMALIZAR NÚMERO DO RECIBO
 # ============================================================
@@ -877,33 +1008,9 @@ def gerar_consulta_recibo_nfe(
     ambiente=2
 ):
 
-    try:
-
-        ambiente = int(
-            ambiente
-        )
-
-    except (
-        TypeError,
-        ValueError
-    ) as erro:
-
-        raise ValueError(
-            "Ambiente fiscal inválido."
-        ) from erro
-
-    # --------------------------------------------------------
-    # ESTE MÓDULO CONTINUA RESTRITO À HOMOLOGAÇÃO
-    # --------------------------------------------------------
-    if ambiente != 2:
-
-        raise ValueError(
-            (
-                "Consulta bloqueada. "
-                "Este módulo aceita somente "
-                "ambiente de homologação (tpAmb=2)."
-            )
-        )
+    ambiente = _normalizar_ambiente(
+        ambiente
+    )
 
     numero_recibo = (
         _normalizar_numero_recibo(
@@ -1256,6 +1363,16 @@ def consultar_recibo_autorizacao_mg(
 
     try:
 
+        ambiente = _normalizar_ambiente(
+            ambiente
+        )
+
+        url_ret_autorizacao = (
+            _url_ret_autorizacao_por_ambiente(
+                ambiente
+            )
+        )
+
         numero_recibo = (
             _normalizar_numero_recibo(
                 numero_recibo
@@ -1307,7 +1424,7 @@ def consultar_recibo_autorizacao_mg(
     try:
 
         resposta = sessao.post(
-            URL_RET_AUTORIZACAO_HOMOLOGACAO_MG,
+            url_ret_autorizacao,
             data=soap,
             headers=headers,
             timeout=timeout

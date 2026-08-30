@@ -1,3 +1,5 @@
+import os
+
 from pathlib import Path
 
 import pandas as pd
@@ -11,7 +13,27 @@ from database.configuracoes_fiscais_db import (
 )
 from database.documentos_fiscais_db import buscar_documento_autorizado_por_venda
 from services.fiscal.rascunho_documento_fiscal import montar_rascunho_documento_fiscal
-from services.fiscal.emissor_nfe import emitir_nfe_homologacao
+from services.fiscal.emissor_nfe import emitir_nfe
+
+# Trava adicional da interface.
+# Por padrao, producao permanece BLOQUEADA.
+# Para liberar, o ambiente precisa definir explicitamente:
+# NFE_PRODUCAO_LIBERADA=true
+PRODUCAO_INTERFACE_LIBERADA = (
+    os.getenv(
+        "NFE_PRODUCAO_LIBERADA",
+        "false"
+    )
+    .strip()
+    .lower()
+    in {
+        "1",
+        "true",
+        "sim",
+        "yes",
+        "on",
+    }
+)
 from services.fiscal.danfe_nfe import gerar_danfe_nfe
 
 
@@ -1044,99 +1066,244 @@ def tela_emissao_nfe():
     st.divider()
     st.markdown("## 📡 Transmissão para a SEFAZ")
 
-    if ambiente != 2:
-        st.error("🚫 Emissão bloqueada. Esta tela está habilitada somente para HOMOLOGAÇÃO.")
+    try:
+        ambiente = int(ambiente)
+    except (TypeError, ValueError):
+        st.error(
+            "Ambiente fiscal invalido. "
+            "A transmissao foi bloqueada."
+        )
         return
 
+    if ambiente not in (1, 2):
+        st.error(
+            "Ambiente fiscal invalido. "
+            "A transmissao foi bloqueada."
+        )
+        return
+
+    ambiente_producao = ambiente == 1
+
+    if ambiente_producao:
+        st.error(
+            "🚨 AMBIENTE DE PRODUÇÃO — uma NF-e autorizada aqui "
+            "possui validade fiscal real."
+        )
+
+        if not PRODUCAO_INTERFACE_LIBERADA:
+            st.warning(
+                "🔒 A transmissão em PRODUÇÃO continua bloqueada "
+                "pela trava de segurança da interface."
+            )
+            st.info(
+                "O ERP já reconhece o ambiente de produção, mas "
+                "a liberação final ainda não foi ativada."
+            )
+            return
+    else:
+        st.info(
+            "🧪 Transmissão configurada para HOMOLOGAÇÃO."
+        )
+
     if not certificado_pronto:
-        st.error("🚫 Emissão bloqueada porque o certificado digital não está disponível.")
+        st.error(
+            "🚫 Emissão bloqueada porque o certificado digital "
+            "não está disponível."
+        )
         return
 
     caminho_certificado = certificado.get("caminho")
 
     if not caminho_certificado:
-        st.error("Caminho do certificado não informado.")
+        st.error(
+            "Caminho do certificado não informado."
+        )
         return
 
     if not Path(caminho_certificado).is_file():
-        st.error("O arquivo do certificado não foi localizado nesta máquina.")
+        st.error(
+            "O arquivo do certificado não foi localizado "
+            "nesta máquina."
+        )
         return
 
     # --------------------------------------------------------
-    # CONFERÊNCIA DE NUMERAÇÃO
+    # CONFERENCIA FINAL DA CONFIGURACAO E NUMERACAO
     # --------------------------------------------------------
     configuracao_atual = buscar_configuracao_fiscal()
 
     if not configuracao_atual:
-        st.error("Não foi possível reconferir a configuração fiscal.")
+        st.error(
+            "Não foi possível reconferir a configuração fiscal."
+        )
         return
 
+    ambiente_atual = configuracao_atual.get("ambiente")
     serie_atual = configuracao_atual.get("serie_nfe")
     numero_atual = configuracao_atual.get("proximo_numero_nfe")
+
+    try:
+        ambiente_atual = int(ambiente_atual)
+    except (TypeError, ValueError):
+        ambiente_atual = None
+
+    if ambiente_atual != ambiente:
+        st.error(
+            "🚫 O ambiente fiscal mudou desde a preparação "
+            "desta NF-e."
+        )
+        st.warning(
+            "Clique novamente em Preparar NF-e antes de transmitir."
+        )
+        return
 
     if (
         serie_atual != rascunho.get("serie")
         or numero_atual != rascunho.get("numero_sugerido")
     ):
-        st.error("🚫 O rascunho ficou desatualizado.")
+        st.error(
+            "🚫 O rascunho ficou desatualizado."
+        )
         st.warning(
-            "A série ou o próximo número da NF-e mudou desde a preparação. "
-            "Clique novamente em Preparar NF-e antes de transmitir."
+            "A série ou o próximo número da NF-e mudou desde "
+            "a preparação. Clique novamente em Preparar NF-e "
+            "antes de transmitir."
         )
         return
 
-    st.warning(
-        "⚠️ Ao confirmar abaixo, a NF-e será realmente transmitida para a SEFAZ-MG "
-        "no ambiente de HOMOLOGAÇÃO."
+    nome_ambiente = (
+        "PRODUÇÃO"
+        if ambiente_producao
+        else "HOMOLOGAÇÃO"
     )
 
+    if ambiente_producao:
+        st.error(
+            "⚠️ Ao confirmar abaixo, a NF-e será REALMENTE "
+            "transmitida para a SEFAZ-MG em PRODUÇÃO."
+        )
+    else:
+        st.warning(
+            "⚠️ Ao confirmar abaixo, a NF-e será transmitida "
+            "para a SEFAZ-MG em HOMOLOGAÇÃO."
+        )
+
     confirmacao = st.checkbox(
-        "Confirmo que revisei os dados acima e desejo transmitir esta NF-e em HOMOLOGAÇÃO.",
+        (
+            "Confirmo que revisei os dados acima e desejo "
+            f"transmitir esta NF-e em {nome_ambiente}."
+        ),
         value=False,
         key="emissao_nfe_confirmacao",
     )
+
+    confirmacao_producao = True
+
+    if ambiente_producao:
+        frase_esperada = "EMITIR NF-E EM PRODUCAO"
+
+        frase_digitada = st.text_input(
+            "Confirmação adicional de produção",
+            value="",
+            key="emissao_nfe_confirmacao_producao",
+            help=(
+                "Digite exatamente: "
+                "EMITIR NF-E EM PRODUCAO"
+            ),
+        )
+
+        confirmacao_producao = (
+            frase_digitada.strip().upper()
+            ==
+            frase_esperada
+        )
+
+        if not confirmacao_producao:
+            st.info(
+                "Para produção, digite exatamente: "
+                "EMITIR NF-E EM PRODUCAO"
+            )
 
     senha_certificado = st.text_input(
         "Senha do Certificado Digital A1",
         type="password",
         value="",
         key="emissao_nfe_senha_certificado",
-        help="A senha é utilizada apenas durante esta emissão e não é armazenada pelo ERP.",
+        help=(
+            "A senha é utilizada apenas durante esta emissão "
+            "e não é armazenada pelo ERP."
+        ),
     )
 
-    senha_preenchida = bool(senha_certificado and senha_certificado.strip())
-    pronto_para_emitir = confirmacao and senha_preenchida
+    senha_preenchida = bool(
+        senha_certificado
+        and
+        senha_certificado.strip()
+    )
+
+    pronto_para_emitir = (
+        confirmacao
+        and
+        confirmacao_producao
+        and
+        senha_preenchida
+    )
 
     if not confirmacao:
-        st.info("Marque a confirmação para liberar o botão de emissão.")
+        st.info(
+            "Marque a confirmação para liberar o botão de emissão."
+        )
     elif not senha_preenchida:
-        st.info("Informe a senha do certificado para liberar a emissão.")
+        st.info(
+            "Informe a senha do certificado para liberar a emissão."
+        )
 
     # --------------------------------------------------------
-    # BOTÃO DE EMISSÃO
+    # BOTAO DE EMISSAO
     # --------------------------------------------------------
+    texto_botao = (
+        "📡 Emitir NF-e em Produção"
+        if ambiente_producao
+        else "📡 Emitir NF-e em Homologação"
+    )
+
+    chave_botao = (
+        "btn_emitir_nfe_producao"
+        if ambiente_producao
+        else "btn_emitir_nfe_homologacao"
+    )
+
     if st.button(
-        "📡 Emitir NF-e em Homologação",
+        texto_botao,
         type="primary",
         use_container_width=True,
         disabled=not pronto_para_emitir,
-        key="btn_emitir_nfe_homologacao",
+        key=chave_botao,
     ):
-        documento_existente = _buscar_documento_autorizado_venda(venda_id)
+        documento_existente = (
+            _buscar_documento_autorizado_venda(
+                venda_id
+            )
+        )
 
         if documento_existente:
             st.error(
-                "A emissão foi cancelada porque esta venda já possui documento fiscal autorizado."
+                "A emissão foi cancelada porque esta venda "
+                "já possui documento fiscal autorizado."
             )
             return
 
-        with st.spinner("Transmitindo NF-e para a SEFAZ-MG em homologação..."):
+        with st.spinner(
+            "Transmitindo NF-e para a SEFAZ-MG "
+            f"em {nome_ambiente.lower()}..."
+        ):
             try:
-                resultado_emissao = emitir_nfe_homologacao(
+                resultado_emissao = emitir_nfe(
                     venda_id=venda_id,
                     uf_destino=uf_destino,
                     caminho_certificado=caminho_certificado,
                     senha_certificado=senha_certificado,
+                    permitir_producao=ambiente_producao,
                 )
             except Exception as erro:
                 resultado_emissao = {
@@ -1145,15 +1312,19 @@ def tela_emissao_nfe():
                     "mensagem": str(erro),
                 }
 
-        # Não alteramos diretamente o widget da senha aqui.
-        # A limpeza ocorre no próximo rerun.
-        st.session_state["emissao_nfe_limpar_senha"] = True
-        st.session_state["emissao_nfe_resultado"] = resultado_emissao
-        st.session_state["emissao_nfe_resultado_venda"] = venda_id
+        # A senha sera limpa no proximo rerun.
+        st.session_state[
+            "emissao_nfe_limpar_senha"
+        ] = True
 
-    # ========================================================
-    # RESULTADO DA EMISSÃO
-    # ========================================================
+        st.session_state[
+            "emissao_nfe_resultado"
+        ] = resultado_emissao
+
+        st.session_state[
+            "emissao_nfe_resultado_venda"
+        ] = venda_id
+
     resultado_emissao = st.session_state.get("emissao_nfe_resultado")
     resultado_venda_id = st.session_state.get("emissao_nfe_resultado_venda")
 

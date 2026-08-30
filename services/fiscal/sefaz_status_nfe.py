@@ -23,10 +23,42 @@ NAMESPACE_SOAP12 = (
     "http://www.w3.org/2003/05/soap-envelope"
 )
 
+NAMESPACE_WSDL_STATUS = (
+    "http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"
+)
+
+URL_PRODUCAO_MG = (
+    "https://nfe.fazenda.mg.gov.br/"
+    "nfe2/services/NFeStatusServico4"
+)
+
 URL_HOMOLOGACAO_MG = (
     "https://hnfe.fazenda.mg.gov.br/"
     "nfe2/services/NFeStatusServico4"
 )
+
+
+def _normalizar_ambiente(ambiente):
+    ambiente = str(ambiente).strip()
+
+    if ambiente not in {"1", "2"}:
+        raise ValueError(
+            "Ambiente fiscal inválido. "
+            "Use 1 para produção ou 2 para homologação."
+        )
+
+    return ambiente
+
+
+def _url_por_ambiente(ambiente):
+    ambiente = _normalizar_ambiente(
+        ambiente
+    )
+
+    if ambiente == "1":
+        return URL_PRODUCAO_MG
+
+    return URL_HOMOLOGACAO_MG
 
 
 # ============================================================
@@ -36,6 +68,9 @@ def gerar_consulta_status(
     ambiente=2,
     codigo_uf="31"
 ):
+    ambiente = _normalizar_ambiente(
+        ambiente
+    )
 
     raiz = etree.Element(
         etree.QName(
@@ -57,9 +92,7 @@ def gerar_consulta_status(
         )
     )
 
-    tp_amb.text = str(
-        ambiente
-    )
+    tp_amb.text = ambiente
 
     c_uf = etree.SubElement(
         raiz,
@@ -98,14 +131,13 @@ def gerar_consulta_status(
 def gerar_envelope_soap(
     xml_consulta
 ):
-
     envelope = etree.Element(
         etree.QName(
             NAMESPACE_SOAP12,
             "Envelope"
         ),
         nsmap={
-            "soap12":
+            None:
                 NAMESPACE_SOAP12
         }
     )
@@ -120,8 +152,14 @@ def gerar_envelope_soap(
 
     nfe_dados_msg = etree.SubElement(
         body,
-        "{http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4}"
-        "nfeDadosMsg"
+        etree.QName(
+            NAMESPACE_WSDL_STATUS,
+            "nfeDadosMsg"
+        ),
+        nsmap={
+            None:
+                NAMESPACE_WSDL_STATUS
+        }
     )
 
     consulta = etree.fromstring(
@@ -137,7 +175,8 @@ def gerar_envelope_soap(
     return etree.tostring(
         envelope,
         encoding="utf-8",
-        xml_declaration=True
+        xml_declaration=False,
+        pretty_print=False
     )
 
 
@@ -151,6 +190,28 @@ def consultar_status_sefaz_mg(
     codigo_uf="31",
     timeout=30
 ):
+    try:
+        ambiente = _normalizar_ambiente(
+            ambiente
+        )
+
+        url = _url_por_ambiente(
+            ambiente
+        )
+
+    except Exception as erro:
+        return {
+            "sucesso": False,
+            "http_status": None,
+            "ambiente": None,
+            "url": None,
+            "xml_consulta": None,
+            "soap_enviado": None,
+            "resposta": None,
+            "erros": [
+                f"{type(erro).__name__}: {erro}"
+            ]
+        }
 
     xml_consulta = gerar_consulta_status(
         ambiente=ambiente,
@@ -182,27 +243,26 @@ def consultar_status_sefaz_mg(
     }
 
     try:
-
         resposta = sessao.post(
-            URL_HOMOLOGACAO_MG,
+            url,
             data=soap,
             headers=headers,
             timeout=timeout
         )
 
     except Exception as erro:
-
         return {
             "sucesso": False,
             "http_status": None,
+            "ambiente": ambiente,
+            "url": url,
             "xml_consulta":
                 xml_consulta,
             "soap_enviado":
                 soap.decode(
                     "utf-8"
                 ),
-            "resposta":
-                None,
+            "resposta": None,
             "erros": [
                 (
                     f"{type(erro).__name__}: "
@@ -217,6 +277,12 @@ def consultar_status_sefaz_mg(
 
         "http_status":
             resposta.status_code,
+
+        "ambiente":
+            ambiente,
+
+        "url":
+            url,
 
         "xml_consulta":
             xml_consulta,
