@@ -256,6 +256,60 @@ st.markdown(
 
 
 # ==================================================
+# PAGINAS PUBLICAS
+# ==================================================
+pagina_publica = str(st.query_params.get("public", "")).strip().lower()
+
+if pagina_publica == "termos":
+    st.title("Termos de Uso")
+    st.markdown(
+        """
+        ### ERP Verde Infância
+
+        Este sistema é utilizado pela **Alastrar Educativos Ltda. - Verde Infância**
+        para gestão interna e integração com plataformas de marketplace.
+
+        A integração com marketplaces tem como finalidade permitir a consulta e o
+        processamento de informações relacionadas a pedidos, entregas, logística
+        e documentos fiscais da própria empresa.
+
+        O acesso às informações ocorre somente mediante autorização da conta
+        responsável pela loja no respectivo marketplace.
+
+        As informações obtidas pelas integrações são utilizadas exclusivamente
+        para as atividades administrativas, comerciais, fiscais e logísticas
+        relacionadas à operação da Verde Infância.
+        """
+    )
+    st.stop()
+
+if pagina_publica == "privacidade":
+    st.title("Política de Privacidade")
+    st.markdown(
+        """
+        ### ERP Verde Infância
+
+        A **Alastrar Educativos Ltda. - Verde Infância** utiliza este sistema para
+        gestão de suas operações comerciais e integração com marketplaces.
+
+        Os dados acessados por meio das integrações são utilizados somente para
+        finalidades relacionadas à gestão de pedidos, faturamento, logística,
+        atendimento e conciliação das operações da empresa.
+
+        O sistema não comercializa dados obtidos por meio das integrações.
+
+        Credenciais de acesso, tokens e demais informações de autenticação devem
+        ser armazenados de forma protegida e utilizados exclusivamente para a
+        comunicação autorizada entre o ERP e os serviços integrados.
+
+        O acesso às áreas internas do ERP permanece restrito a usuários
+        autorizados.
+        """
+    )
+    st.stop()
+
+
+# ==================================================
 # SESSION STATE
 # ==================================================
 if "logado" not in st.session_state:
