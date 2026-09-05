@@ -1,8 +1,12 @@
 import os
 import sys
+import hmac
 
 import streamlit as st
 from datetime import date
+
+from services.marketplaces.magalu import MagaluMarketplace
+from database.marketplaces_db import consumir_oauth_state
 
 from database.clientes_db import listar_aniversariantes_mes
 
@@ -49,6 +53,7 @@ from telas.fechamento_caixa import tela_fechamento_caixa
 from telas.painel_admin_permissoes import tela_painel_permissoes
 from telas.relatorios.financeiro_diario import tela_relatorios
 from telas.marketing import tela_marketing
+from telas.marketplaces import tela_marketplaces
 from telas.fluxo_caixa import tela_fluxo_caixa
 from telas.central_compras import tela_central_compras
 from telas.admin_banco import tela_admin_banco
@@ -320,6 +325,155 @@ if "menu_atual" not in st.session_state:
 
 
 # ==================================================
+# CALLBACK OAUTH - MAGALU
+# ==================================================
+oauth_code = str(
+    st.query_params.get("code", "")
+).strip()
+
+oauth_state = str(
+    st.query_params.get("state", "")
+).strip()
+
+if oauth_code or oauth_state:
+
+    # O callback somente e aceito quando code e state
+    # chegam juntos.
+    if not oauth_code or not oauth_state:
+        st.error(
+            "Retorno OAuth invalido: parametros incompletos."
+        )
+        st.query_params.clear()
+        st.stop()
+
+    # --------------------------------------------------------
+    # VALIDAR STATE OAUTH NO BANCO
+    # --------------------------------------------------------
+
+    try:
+
+        conector_validacao = MagaluMarketplace()
+
+        canal_id_magalu = (
+            conector_validacao
+            ._obter_canal_id()
+        )
+
+        state_valido = consumir_oauth_state(
+            canal_id=canal_id_magalu,
+            state=oauth_state,
+        )
+
+    except Exception as erro:
+
+        st.query_params.clear()
+
+        st.error(
+            "Nao foi possivel validar a autorizacao "
+            "do Magalu."
+        )
+
+        st.exception(
+            erro
+        )
+
+        st.stop()
+
+    if not state_valido:
+
+        st.session_state.pop(
+            "magalu_oauth_state",
+            None,
+        )
+
+        st.query_params.clear()
+
+        st.error(
+            "A autorizacao do Magalu e invalida, "
+            "expirou ou ja foi utilizada."
+        )
+
+        st.stop()
+
+    # O state ja foi consumido e nao pode ser reutilizado.
+
+    # --------------------------------------------------------
+    # TROCAR CODE POR TOKENS E SALVAR CREDENCIAIS
+    # --------------------------------------------------------
+
+    try:
+
+        conector_magalu = MagaluMarketplace()
+
+        dados_tokens = (
+            conector_magalu
+            .trocar_codigo_por_tokens(
+                oauth_code
+            )
+        )
+
+        credencial_id = (
+            conector_magalu
+            .salvar_resposta_tokens(
+                dados_tokens,
+                autorizado=True,
+                renovacao=False,
+            )
+        )
+
+    except Exception as erro:
+
+        # O state e de uso unico mesmo em caso de falha.
+        st.session_state.pop(
+            "magalu_oauth_state",
+            None,
+        )
+
+        # Remove code/state da URL imediatamente.
+        st.query_params.clear()
+
+        st.error(
+            "Nao foi possivel concluir a autorizacao "
+            "do Magalu."
+        )
+
+        st.exception(
+            erro
+        )
+
+        st.stop()
+
+    # O state e de uso unico.
+    st.session_state.pop(
+        "magalu_oauth_state",
+        None,
+    )
+
+    st.session_state[
+        "magalu_oauth_callback_validado"
+    ] = True
+
+    st.session_state[
+        "magalu_oauth_credencial_id"
+    ] = credencial_id
+
+    # Remove code/state da URL imediatamente.
+    st.query_params.clear()
+
+    st.success(
+        "Integracao Magalu autorizada e salva "
+        "com sucesso."
+    )
+
+    st.info(
+        "As credenciais foram armazenadas de forma "
+        "segura no ERP."
+    )
+
+    st.stop()
+
+
+# ==================================================
 # LOGIN
 # ==================================================
 if not st.session_state["logado"]:
@@ -551,6 +705,7 @@ if tem_permissao("pode_produtos"):
     menu_opcoes.extend([
         "📦 Produtos",
         "💰 Formação de Preço",
+        "🛍️ Marketplaces",
         "🚚 Fornecedores",
         "📥 Compras",
         "🔁 Conversão XML"
@@ -826,6 +981,14 @@ try:
         )
 
         tela_produtos()
+
+    elif menu == "🛍️ Marketplaces":
+
+        bloquear(
+            "pode_produtos"
+        )
+
+        tela_marketplaces()
 
     elif menu == "🚚 Fornecedores":
 

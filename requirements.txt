@@ -10,3 +10,4 @@ requests
 requests-pkcs12
 lxml==6.1.1
 xmlsec==1.3.17
+cryptography==46.0.1
