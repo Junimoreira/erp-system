@@ -36,7 +36,7 @@ class MagaluMarketplace(MarketplaceBase):
         # Escrita necessaria para faturamento e logistica
 
         "open:order-delivery-seller:write",
-        "open:order-logistics-seller:write",
+
     )
 
     def __init__(
