@@ -996,7 +996,7 @@ def tela_marketplaces():
             # --------------------------------------------
 
             st.markdown(
-                "### ?? Integra??o com o Magalu"
+                "### 🔗 Integração com o Magalu"
             )
 
             try:
@@ -1004,19 +1004,19 @@ def tela_marketplaces():
 
                 if not conector_magalu.oauth_configurado():
                     st.warning(
-                        "Configura??o OAuth do Magalu "
-                        "ainda n?o est? dispon?vel "
+                        "Configuração OAuth do Magalu "
+                        "ainda não está disponível "
                         "neste ambiente."
                     )
 
                 else:
                     st.success(
-                        "Aplica??o OAuth do Magalu "
+                        "Aplicação OAuth do Magalu "
                         "configurada neste ambiente."
                     )
 
                     if st.button(
-                        "Preparar conex?o com o Magalu",
+                        "Preparar conexão com o Magalu",
                         key="preparar_oauth_magalu",
                     ):
                         state = secrets.token_urlsafe(32)
@@ -1030,9 +1030,9 @@ def tela_marketplaces():
                             validade_minutos=10,
                         )
 
-                        # Mantemos tambem na sessao apenas como
-                        # apoio visual/local, mas a validacao
-                        # real sera feita pelo banco.
+                        # Mantemos também na sessão apenas como
+                        # apoio visual/local, mas a validação
+                        # real será feita pelo banco.
                         st.session_state[
                             "magalu_oauth_state"
                         ] = state
@@ -1049,7 +1049,7 @@ def tela_marketplaces():
                         ] = url_autorizacao
 
                         st.success(
-                            "Conex?o preparada com seguran?a."
+                            "Conexão preparada com segurança."
                         )
 
                     url_autorizacao = (
@@ -1060,20 +1060,84 @@ def tela_marketplaces():
 
                     if url_autorizacao:
                         st.info(
-                            "A autoriza??o foi preparada. "
-                            "Ainda n?o prossiga com a "
-                            "conex?o real."
+                            "A autorização foi preparada. "
+                            "Clique abaixo para continuar "
+                            "no ID Magalu."
                         )
 
                         st.link_button(
-                            "Abrir autoriza??o do Magalu",
+                            "Abrir autorização do Magalu",
                             url_autorizacao,
                         )
 
-            except Exception:
+                    st.divider()
+
+                    st.markdown(
+                        "### 🧪 Teste da API Magalu"
+                    )
+
+                    st.caption(
+                        "Consulta a API usando as credenciais "
+                        "salvas pelo OAuth, sem exibir tokens."
+                    )
+
+                    if st.button(
+                        "Testar leitura de pedidos Magalu",
+                        key="testar_leitura_pedidos_magalu",
+                    ):
+                        try:
+                            conector_teste = MagaluMarketplace()
+
+                            credenciais_ok = (
+                                conector_teste
+                                .carregar_credenciais_banco()
+                            )
+
+                            if not credenciais_ok:
+                                st.warning(
+                                    "Nenhuma credencial válida do Magalu "
+                                    "foi encontrada no banco."
+                                )
+
+                            else:
+                                with st.spinner(
+                                    "Consultando pedidos no Magalu..."
+                                ):
+                                    resposta_pedidos = (
+                                        conector_teste
+                                        .listar_pedidos()
+                                    )
+
+                                st.success(
+                                    "Consulta realizada com sucesso."
+                                )
+
+                                st.write(
+                                    "Resposta recebida da API:"
+                                )
+
+                                st.json(
+                                    resposta_pedidos
+                                )
+
+                        except Exception as erro:
+                            st.error(
+                                "Não foi possível consultar os "
+                                "pedidos do Magalu."
+                            )
+
+                            st.exception(
+                                erro
+                            )
+
+            except Exception as erro:
                 st.error(
-                    "N?o foi poss?vel preparar a "
-                    "integra??o com o Magalu."
+                    "Não foi possível preparar a "
+                    "integração com o Magalu."
+                )
+
+                st.exception(
+                    erro
                 )
 
             st.divider()
