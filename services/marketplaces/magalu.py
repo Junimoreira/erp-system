@@ -34,7 +34,7 @@ class MagaluMarketplace(MarketplaceBase):
         "open:order-logistics-seller:read",
 
         # Escrita necessaria para faturamento e logistica
-        "open:order-order-seller:write",
+
         "open:order-delivery-seller:write",
         "open:order-logistics-seller:write",
     )
