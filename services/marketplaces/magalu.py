@@ -35,7 +35,7 @@ class MagaluMarketplace(MarketplaceBase):
 
         # Escrita necessaria para faturamento e logistica
 
-        "open:order-delivery-seller:write",
+
 
     )
 
