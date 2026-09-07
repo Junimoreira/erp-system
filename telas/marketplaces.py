@@ -1135,6 +1135,99 @@ def tela_marketplaces():
                     st.divider()
 
                     # --------------------------------------------
+                    # CONSULTAR PEDIDO ESPECIFICO MAGALU
+                    # --------------------------------------------
+
+                    st.markdown(
+                        "### 🔎 Consultar pedido Magalu"
+                    )
+
+                    st.caption(
+                        "Consulta um pedido específico pelo código "
+                        "informado no Magalu Seller."
+                    )
+
+                    codigo_pedido_magalu = st.text_input(
+                        "Código do pedido Magalu",
+                        placeholder="Ex.: LU-1531770107905712",
+                        key="codigo_pedido_magalu_consulta",
+                    )
+
+                    if st.button(
+                        "Consultar pedido",
+                        key="consultar_pedido_magalu",
+                    ):
+                        try:
+                            codigo_pedido_magalu = str(
+                                codigo_pedido_magalu or ""
+                            ).strip()
+
+                            if not codigo_pedido_magalu:
+                                st.warning(
+                                    "Informe o código do pedido Magalu."
+                                )
+
+                            else:
+                                conector_pedido = MagaluMarketplace()
+
+                                credenciais_ok = (
+                                    conector_pedido
+                                    .carregar_credenciais_banco()
+                                )
+
+                                if not credenciais_ok:
+                                    st.warning(
+                                        "Nenhuma credencial válida "
+                                        "do Magalu foi encontrada."
+                                    )
+
+                                else:
+                                    with st.spinner(
+                                        "Consultando pedido no Magalu..."
+                                    ):
+                                        pedido_magalu = (
+                                            conector_pedido
+                                            .buscar_pedido(
+                                                codigo_pedido_magalu
+                                            )
+                                        )
+
+                                    st.session_state[
+                                        "pedido_magalu_consultado"
+                                    ] = pedido_magalu
+
+                                    st.success(
+                                        "Pedido consultado com sucesso."
+                                    )
+
+                        except Exception as erro:
+                            st.error(
+                                "Não foi possível consultar "
+                                "o pedido do Magalu."
+                            )
+
+                            st.exception(
+                                erro
+                            )
+
+                    pedido_magalu_consultado = (
+                        st.session_state.get(
+                            "pedido_magalu_consultado"
+                        )
+                    )
+
+                    if pedido_magalu_consultado:
+                        st.markdown(
+                            "#### 📦 Dados do pedido consultado"
+                        )
+
+                        st.json(
+                            pedido_magalu_consultado
+                        )
+
+                    st.divider()
+
+                    # --------------------------------------------
                     # VINCULO DE PRODUTOS MAGALU -> ERP
                     # --------------------------------------------
 
