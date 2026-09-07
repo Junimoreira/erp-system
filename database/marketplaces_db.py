@@ -1540,3 +1540,341 @@ def consumir_oauth_state(
 
         cursor.close()
         conn.close()
+
+
+# ============================================================
+# VINCULOS DE PRODUTOS DOS MARKETPLACES
+# ============================================================
+
+def buscar_vinculo_produto_marketplace(
+    canal_id,
+    sku_marketplace,
+):
+
+    canal_id = int(
+        canal_id
+    )
+
+    sku_marketplace = str(
+        sku_marketplace or ""
+    ).strip()
+
+    if not sku_marketplace:
+        return None
+
+    conn = conectar()
+
+    if conn is None:
+        raise RuntimeError(
+            "Nao foi possivel conectar ao banco."
+        )
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                mpv.id,
+                mpv.canal_id,
+                mpv.produto_id,
+                mpv.sku_marketplace,
+                mpv.codigo_anuncio,
+                mpv.ativo,
+
+                p.nome AS produto_nome,
+                p.sku AS produto_sku,
+                p.codigo_barras,
+                p.preco,
+                p.custo,
+                p.estoque
+
+            FROM marketplace_produto_vinculos mpv
+
+            INNER JOIN produtos p
+                ON p.id = mpv.produto_id
+
+            WHERE
+                mpv.canal_id = %s
+                AND mpv.sku_marketplace = %s
+                AND mpv.ativo = TRUE
+
+            LIMIT 1
+            """,
+            (
+                canal_id,
+                sku_marketplace,
+            )
+        )
+
+        registro = cursor.fetchone()
+
+        if registro is None:
+            return None
+
+        colunas = [
+            descricao[0]
+            for descricao in cursor.description
+        ]
+
+        return dict(
+            zip(
+                colunas,
+                registro
+            )
+        )
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+def salvar_vinculo_produto_marketplace(
+    canal_id,
+    produto_id,
+    sku_marketplace,
+    codigo_anuncio=None,
+    ativo=True,
+):
+
+    canal_id = int(
+        canal_id
+    )
+
+    produto_id = int(
+        produto_id
+    )
+
+    sku_marketplace = str(
+        sku_marketplace or ""
+    ).strip()
+
+    codigo_anuncio = str(
+        codigo_anuncio or ""
+    ).strip() or None
+
+    ativo = bool(
+        ativo
+    )
+
+    if not sku_marketplace:
+        raise ValueError(
+            "Informe o SKU do marketplace."
+        )
+
+    conn = conectar()
+
+    if conn is None:
+        raise RuntimeError(
+            "Nao foi possivel conectar ao banco."
+        )
+
+    cursor = conn.cursor()
+
+    try:
+
+        # ----------------------------------------------------
+        # VALIDAR CANAL
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM marketplace_canais
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (
+                canal_id,
+            )
+        )
+
+        if cursor.fetchone() is None:
+            raise ValueError(
+                "Marketplace nao encontrado."
+            )
+
+        # ----------------------------------------------------
+        # VALIDAR PRODUTO
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM produtos
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (
+                produto_id,
+            )
+        )
+
+        if cursor.fetchone() is None:
+            raise ValueError(
+                "Produto do ERP nao encontrado."
+            )
+
+        # ----------------------------------------------------
+        # INSERIR OU ATUALIZAR
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            INSERT INTO marketplace_produto_vinculos (
+                canal_id,
+                produto_id,
+                sku_marketplace,
+                codigo_anuncio,
+                ativo
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+
+            ON CONFLICT (
+                canal_id,
+                sku_marketplace
+            )
+
+            DO UPDATE SET
+                produto_id = EXCLUDED.produto_id,
+                codigo_anuncio = EXCLUDED.codigo_anuncio,
+                ativo = EXCLUDED.ativo,
+                atualizado_em = CURRENT_TIMESTAMP
+
+            RETURNING id
+            """,
+            (
+                canal_id,
+                produto_id,
+                sku_marketplace,
+                codigo_anuncio,
+                ativo,
+            )
+        )
+
+        vinculo_id = int(
+            cursor.fetchone()[0]
+        )
+
+        conn.commit()
+
+        return {
+            "sucesso": True,
+            "vinculo_id": vinculo_id,
+        }
+
+    except Exception:
+
+        conn.rollback()
+        raise
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+def listar_vinculos_produtos_marketplace(
+    canal_id=None,
+    apenas_ativos=True,
+):
+
+    conn = conectar()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+
+        query = """
+            SELECT
+                mpv.id,
+
+                mpv.canal_id,
+
+                mc.codigo
+                    AS marketplace_codigo,
+
+                mc.nome
+                    AS marketplace,
+
+                mpv.produto_id,
+
+                p.nome
+                    AS produto,
+
+                p.sku
+                    AS produto_sku,
+
+                p.codigo_barras,
+
+                mpv.sku_marketplace,
+                mpv.codigo_anuncio,
+                mpv.ativo,
+
+                mpv.criado_em,
+                mpv.atualizado_em
+
+            FROM marketplace_produto_vinculos mpv
+
+            INNER JOIN marketplace_canais mc
+                ON mc.id = mpv.canal_id
+
+            INNER JOIN produtos p
+                ON p.id = mpv.produto_id
+
+            WHERE 1 = 1
+        """
+
+        params = []
+
+        if canal_id is not None:
+
+            query += """
+                AND mpv.canal_id = %s
+            """
+
+            params.append(
+                int(canal_id)
+            )
+
+        if apenas_ativos:
+
+            query += """
+                AND mpv.ativo = TRUE
+            """
+
+        query += """
+            ORDER BY
+                mc.nome,
+                p.nome,
+                mpv.sku_marketplace
+        """
+
+        return pd.read_sql(
+            query,
+            conn,
+            params=params,
+        )
+
+    except Exception as erro:
+
+        print(
+            "Erro ao listar vinculos "
+            "de produtos dos marketplaces:",
+            erro
+        )
+
+        return pd.DataFrame()
+
+    finally:
+
+        conn.close()
