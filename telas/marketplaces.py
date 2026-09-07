@@ -1187,8 +1187,8 @@ def tela_marketplaces():
                                     ):
                                         pedido_magalu = (
                                             conector_pedido
-                                            .buscar_pedido(
-                                                codigo_pedido_magalu
+                                            .listar_pedidos(
+                                                code=codigo_pedido_magalu
                                             )
                                         )
 
