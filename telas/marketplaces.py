@@ -1241,6 +1241,98 @@ def tela_marketplaces():
                                         "na resposta dos pedidos."
                                     )
 
+                                # ------------------------------------
+                                # PROCURAR UUIDS NA RESPOSTA
+                                # ------------------------------------
+
+                                import re
+
+                                uuids_encontrados = []
+
+                                padrao_uuid = re.compile(
+                                    r"^[0-9a-fA-F]{8}-"
+                                    r"[0-9a-fA-F]{4}-"
+                                    r"[0-9a-fA-F]{4}-"
+                                    r"[0-9a-fA-F]{4}-"
+                                    r"[0-9a-fA-F]{12}$"
+                                )
+
+                                def procurar_uuid(
+                                    valor,
+                                    caminho="raiz",
+                                ):
+                                    if isinstance(
+                                        valor,
+                                        dict,
+                                    ):
+                                        for chave, conteudo in (
+                                            valor.items()
+                                        ):
+                                            procurar_uuid(
+                                                conteudo,
+                                                (
+                                                    f"{caminho}."
+                                                    f"{chave}"
+                                                ),
+                                            )
+
+                                    elif isinstance(
+                                        valor,
+                                        list,
+                                    ):
+                                        for indice, item in enumerate(
+                                            valor
+                                        ):
+                                            procurar_uuid(
+                                                item,
+                                                (
+                                                    f"{caminho}"
+                                                    f"[{indice}]"
+                                                ),
+                                            )
+
+                                    elif isinstance(
+                                        valor,
+                                        str,
+                                    ):
+                                        texto_uuid = valor.strip()
+
+                                        if padrao_uuid.fullmatch(
+                                            texto_uuid
+                                        ):
+                                            registro_uuid = {
+                                                "campo": caminho,
+                                                "valor": texto_uuid,
+                                            }
+
+                                            if (
+                                                registro_uuid
+                                                not in uuids_encontrados
+                                            ):
+                                                uuids_encontrados.append(
+                                                    registro_uuid
+                                                )
+
+                                procurar_uuid(
+                                    resposta_diagnostico
+                                )
+
+                                if uuids_encontrados:
+                                    st.success(
+                                        "UUID(s) encontrado(s) "
+                                        "na resposta dos pedidos."
+                                    )
+
+                                    st.json(
+                                        uuids_encontrados
+                                    )
+
+                                else:
+                                    st.info(
+                                        "Nenhum UUID foi encontrado "
+                                        "na resposta dos pedidos."
+                                    )
+
                         except Exception as erro:
                             st.error(
                                 "Não foi possível executar "
