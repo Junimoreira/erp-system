@@ -14,8 +14,10 @@ from database.marketplaces_db import (
     listar_pedidos_marketplace,
     registrar_pedido_marketplace,
     registrar_oauth_state,
+    buscar_vinculo_produto_marketplace,
+    salvar_vinculo_produto_marketplace,
+    listar_vinculos_produtos_marketplace,
 )
-
 
 # ============================================================
 # FUNÇÕES AUXILIARES
@@ -1129,6 +1131,423 @@ def tela_marketplaces():
                             st.exception(
                                 erro
                             )
+
+                    st.divider()
+
+                    # --------------------------------------------
+                    # VINCULO DE PRODUTOS MAGALU -> ERP
+                    # --------------------------------------------
+
+                    st.markdown(
+                        "### 🔗 Vincular produtos do Magalu"
+                    )
+
+                    st.caption(
+                        "Relaciona o SKU recebido do Magalu "
+                        "ao produto correspondente no ERP."
+                    )
+
+                    if st.button(
+                        "Carregar produtos dos pedidos Magalu",
+                        key="carregar_produtos_magalu_api",
+                    ):
+                        try:
+                            conector_produtos = MagaluMarketplace()
+
+                            credenciais_ok = (
+                                conector_produtos
+                                .carregar_credenciais_banco()
+                            )
+
+                            if not credenciais_ok:
+                                st.warning(
+                                    "Nenhuma credencial válida "
+                                    "do Magalu foi encontrada."
+                                )
+
+                            else:
+                                with st.spinner(
+                                    "Buscando produtos no Magalu..."
+                                ):
+                                    resposta = (
+                                        conector_produtos
+                                        .listar_pedidos()
+                                    )
+
+                                produtos_api = {}
+
+                                for pedido in (
+                                    resposta.get(
+                                        "results",
+                                        []
+                                    )
+                                    or []
+                                ):
+                                    pedido_codigo = str(
+                                        pedido.get(
+                                            "code"
+                                        )
+                                        or ""
+                                    ).strip()
+
+                                    for entrega in (
+                                        pedido.get(
+                                            "deliveries",
+                                            []
+                                        )
+                                        or []
+                                    ):
+                                        for item in (
+                                            entrega.get(
+                                                "items",
+                                                []
+                                            )
+                                            or []
+                                        ):
+                                            info = (
+                                                item.get(
+                                                    "info"
+                                                )
+                                                or {}
+                                            )
+
+                                            sku = str(
+                                                info.get(
+                                                    "sku"
+                                                )
+                                                or ""
+                                            ).strip()
+
+                                            if not sku:
+                                                continue
+
+                                            nome = str(
+                                                info.get(
+                                                    "name"
+                                                )
+                                                or info.get(
+                                                    "description"
+                                                )
+                                                or "Produto sem nome"
+                                            ).strip()
+
+                                            marca = str(
+                                                info.get(
+                                                    "brand"
+                                                )
+                                                or ""
+                                            ).strip()
+
+                                            quantidade = float(
+                                                item.get(
+                                                    "quantity",
+                                                    0
+                                                )
+                                                or 0
+                                            )
+
+                                            preco_info = (
+                                                item.get(
+                                                    "unit_price"
+                                                )
+                                                or {}
+                                            )
+
+                                            normalizador = float(
+                                                preco_info.get(
+                                                    "normalizer",
+                                                    100
+                                                )
+                                                or 100
+                                            )
+
+                                            valor_bruto = float(
+                                                preco_info.get(
+                                                    "value",
+                                                    0
+                                                )
+                                                or 0
+                                            )
+
+                                            if normalizador == 0:
+                                                normalizador = 100
+
+                                            valor_unitario = (
+                                                valor_bruto
+                                                / normalizador
+                                            )
+
+                                            if sku not in produtos_api:
+                                                produtos_api[sku] = {
+                                                    "sku": sku,
+                                                    "nome": nome,
+                                                    "marca": marca,
+                                                    "quantidade": 0,
+                                                    "valor_unitario": (
+                                                        valor_unitario
+                                                    ),
+                                                    "pedidos": [],
+                                                }
+
+                                            produtos_api[
+                                                sku
+                                            ][
+                                                "quantidade"
+                                            ] += quantidade
+
+                                            if (
+                                                pedido_codigo
+                                                and pedido_codigo
+                                                not in produtos_api[
+                                                    sku
+                                                ][
+                                                    "pedidos"
+                                                ]
+                                            ):
+                                                produtos_api[
+                                                    sku
+                                                ][
+                                                    "pedidos"
+                                                ].append(
+                                                    pedido_codigo
+                                                )
+
+                                st.session_state[
+                                    "magalu_produtos_api"
+                                ] = produtos_api
+
+                                st.success(
+                                    f"{len(produtos_api)} SKU(s) "
+                                    "encontrado(s) nos pedidos."
+                                )
+
+                        except Exception as erro:
+                            st.error(
+                                "Não foi possível carregar "
+                                "os produtos do Magalu."
+                            )
+                            st.exception(
+                                erro
+                            )
+
+                    produtos_api = (
+                        st.session_state.get(
+                            "magalu_produtos_api",
+                            {}
+                        )
+                        or {}
+                    )
+
+                    if produtos_api:
+                        opcoes_sku = list(
+                            produtos_api.keys()
+                        )
+
+                        sku_selecionado = st.selectbox(
+                            "Produto encontrado no Magalu",
+                            options=opcoes_sku,
+                            index=None,
+                            placeholder=(
+                                "Selecione um SKU do Magalu"
+                            ),
+                            format_func=lambda sku: (
+                                f"{produtos_api[sku]['nome']} "
+                                f"| SKU: {sku}"
+                            ),
+                            key="magalu_sku_vinculo",
+                        )
+
+                        if sku_selecionado:
+                            dados_produto_api = (
+                                produtos_api[
+                                    sku_selecionado
+                                ]
+                            )
+
+                            st.write(
+                                "**Produto Magalu:** "
+                                f"{dados_produto_api['nome']}"
+                            )
+
+                            if dados_produto_api["marca"]:
+                                st.write(
+                                    "**Marca:** "
+                                    f"{dados_produto_api['marca']}"
+                                )
+
+                            st.write(
+                                "**SKU Magalu:** "
+                                f"{sku_selecionado}"
+                            )
+
+                            st.write(
+                                "**Preço encontrado:** "
+                                f"{formatar_brl(
+                                    dados_produto_api[
+                                        'valor_unitario'
+                                    ]
+                                )}"
+                            )
+
+                            st.write(
+                                "**Pedidos encontrados:** "
+                                + ", ".join(
+                                    dados_produto_api[
+                                        "pedidos"
+                                    ]
+                                )
+                            )
+
+                            vinculo_atual = (
+                                buscar_vinculo_produto_marketplace(
+                                    canal_id=canal_id,
+                                    sku_marketplace=(
+                                        sku_selecionado
+                                    ),
+                                )
+                            )
+
+                            if vinculo_atual:
+                                st.success(
+                                    "Este SKU já está vinculado a: "
+                                    f"{vinculo_atual[
+                                        'produto_nome'
+                                    ]}"
+                                )
+
+                            produtos_erp = (
+                                listar_produtos_marketplace()
+                            )
+
+                            if produtos_erp.empty:
+                                st.warning(
+                                    "Nenhum produto disponível "
+                                    "no ERP."
+                                )
+
+                            else:
+                                mapa_produtos_erp = {}
+
+                                for _, produto in (
+                                    produtos_erp.iterrows()
+                                ):
+                                    produto_id = int(
+                                        produto["id"]
+                                    )
+
+                                    nome_produto = str(
+                                        produto["nome"]
+                                    )
+
+                                    codigo_barras = str(
+                                        produto.get(
+                                            "codigo_barras"
+                                        )
+                                        or ""
+                                    ).strip()
+
+                                    texto = (
+                                        f"{produto_id} - "
+                                        f"{nome_produto}"
+                                    )
+
+                                    if codigo_barras:
+                                        texto += (
+                                            " | Código: "
+                                            f"{codigo_barras}"
+                                        )
+
+                                    mapa_produtos_erp[
+                                        produto_id
+                                    ] = texto
+
+                                produto_erp_id = st.selectbox(
+                                    "Produto correspondente no ERP",
+                                    options=list(
+                                        mapa_produtos_erp.keys()
+                                    ),
+                                    index=None,
+                                    placeholder=(
+                                        "Selecione o produto correto"
+                                    ),
+                                    format_func=lambda produto_id: (
+                                        mapa_produtos_erp[
+                                            produto_id
+                                        ]
+                                    ),
+                                    key=(
+                                        "magalu_produto_erp_vinculo"
+                                    ),
+                                )
+
+                                if st.button(
+                                    "Salvar vínculo do produto",
+                                    type="primary",
+                                    key="salvar_vinculo_magalu",
+                                ):
+                                    if produto_erp_id is None:
+                                        st.warning(
+                                            "Selecione primeiro "
+                                            "o produto do ERP."
+                                        )
+
+                                    else:
+                                        try:
+                                            resultado_vinculo = (
+                                                salvar_vinculo_produto_marketplace(
+                                                    canal_id=canal_id,
+                                                    produto_id=(
+                                                        produto_erp_id
+                                                    ),
+                                                    sku_marketplace=(
+                                                        sku_selecionado
+                                                    ),
+                                                    codigo_anuncio=None,
+                                                    ativo=True,
+                                                )
+                                            )
+
+                                            if resultado_vinculo.get(
+                                                "sucesso"
+                                            ):
+                                                st.success(
+                                                    "Produto vinculado "
+                                                    "com sucesso."
+                                                )
+                                                st.rerun()
+
+                                        except Exception as erro:
+                                            st.error(
+                                                "Não foi possível salvar "
+                                                "o vínculo do produto."
+                                            )
+                                            st.exception(
+                                                erro
+                                            )
+
+                    vinculos_magalu = (
+                        listar_vinculos_produtos_marketplace(
+                            canal_id=canal_id
+                        )
+                    )
+
+                    if not vinculos_magalu.empty:
+                        st.markdown(
+                            "#### ✅ Produtos já vinculados"
+                        )
+
+                        st.dataframe(
+                            vinculos_magalu[
+                                [
+                                    "produto",
+                                    "sku_marketplace",
+                                    "codigo_barras",
+                                    "ativo",
+                                ]
+                            ],
+                            use_container_width=True,
+                            hide_index=True,
+                        )
 
             except Exception as erro:
                 st.error(
