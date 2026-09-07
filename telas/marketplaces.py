@@ -1354,14 +1354,9 @@ def tela_marketplaces():
                     )
 
                     st.caption(
-                        "Consulta entregas pelo código do pedido "
-                        "usando o header X-Channel-Id."
-                    )
-
-                    codigo_entrega_magalu = st.text_input(
-                        "Código do pedido para consultar entregas",
-                        value="LU-1531770107905712",
-                        key="codigo_entrega_magalu_consulta",
+                        "Diagnóstico por período de compra. "
+                        "O filtro por código retornou vazio; agora "
+                        "vamos localizar as entregas pela data."
                     )
 
                     channel_id_manual = st.text_input(
@@ -1377,14 +1372,24 @@ def tela_marketplaces():
                         key="channel_id_magalu_consulta",
                     )
 
+                    data_inicial_entregas = st.text_input(
+                        "Data/hora inicial UTC",
+                        value="2026-04-27T00:00:00Z",
+                        key="magalu_entregas_data_inicial",
+                    )
+
+                    data_final_entregas = st.text_input(
+                        "Data/hora final UTC",
+                        value="2026-04-28T00:00:00Z",
+                        key="magalu_entregas_data_final",
+                    )
+
                     if st.button(
-                        "Consultar entregas do pedido",
+                        "Consultar entregas por período",
                         key="consultar_entregas_magalu",
                     ):
                         try:
-                            conector_entregas = (
-                                MagaluMarketplace()
-                            )
+                            conector_entregas = MagaluMarketplace()
 
                             credenciais_ok = (
                                 conector_entregas
@@ -1398,30 +1403,44 @@ def tela_marketplaces():
                                 )
 
                             else:
-                                codigo_consulta = str(
-                                    codigo_entrega_magalu or ""
-                                ).strip()
-
                                 channel_id_consulta = str(
                                     channel_id_manual or ""
                                 ).strip()
 
-                                if not codigo_consulta:
-                                    st.warning(
-                                        "Informe o código do pedido "
-                                        "para consultar as entregas."
-                                    )
+                                data_inicial_consulta = str(
+                                    data_inicial_entregas or ""
+                                ).strip()
 
-                                elif not channel_id_consulta:
+                                data_final_consulta = str(
+                                    data_final_entregas or ""
+                                ).strip()
+
+                                if not channel_id_consulta:
                                     st.warning(
                                         "Informe o X-Channel-Id "
                                         "do Magazine Luiza."
+                                    )
+
+                                elif not data_inicial_consulta:
+                                    st.warning(
+                                        "Informe a data/hora inicial."
+                                    )
+
+                                elif not data_final_consulta:
+                                    st.warning(
+                                        "Informe a data/hora final."
                                     )
 
                                 else:
                                     st.info(
                                         "X-Channel-Id usado no teste: "
                                         f"{channel_id_consulta}"
+                                    )
+
+                                    st.info(
+                                        "Período consultado: "
+                                        f"{data_inicial_consulta} até "
+                                        f"{data_final_consulta}"
                                     )
 
                                     with st.spinner(
@@ -1433,7 +1452,13 @@ def tela_marketplaces():
                                                 channel_id=(
                                                     channel_id_consulta
                                                 ),
-                                                code=codigo_consulta,
+                                                purchased_at__gte=(
+                                                    data_inicial_consulta
+                                                ),
+                                                purchased_at__lte=(
+                                                    data_final_consulta
+                                                ),
+                                                _limit=50,
                                             )
                                         )
 
@@ -1441,9 +1466,30 @@ def tela_marketplaces():
                                         "magalu_entregas_consultadas"
                                     ] = resposta_entregas
 
-                                    st.success(
-                                        "Consulta de entregas concluída."
+                                    resultados_entregas = (
+                                        resposta_entregas.get(
+                                            "results",
+                                            [],
+                                        )
+                                        if isinstance(
+                                            resposta_entregas,
+                                            dict,
+                                        )
+                                        else []
                                     )
+
+                                    if resultados_entregas:
+                                        st.success(
+                                            f"{len(resultados_entregas)} "
+                                            "entrega(s) encontrada(s) "
+                                            "no período."
+                                        )
+                                    else:
+                                        st.warning(
+                                            "A consulta foi concluída, "
+                                            "mas nenhuma entrega foi "
+                                            "encontrada nesse período."
+                                        )
 
                         except Exception as erro:
                             st.error(
