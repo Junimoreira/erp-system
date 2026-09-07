@@ -1,4 +1,6 @@
 import os
+import base64
+import json
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
@@ -72,6 +74,8 @@ class MagaluMarketplace(MarketplaceBase):
         self.canal_id = None
         self.refresh_token = None
         self.access_token_expira_em = None
+        self.tenant_id = None
+        self.tenant_nome = None
 
         super().__init__()
 
@@ -121,11 +125,70 @@ class MagaluMarketplace(MarketplaceBase):
             )
         )
 
+        self.tenant_id = (
+            credencial.get(
+                "tenant_id"
+            )
+        )
+
+        self.tenant_nome = (
+            credencial.get(
+                "tenant_nome"
+            )
+        )
+
         return bool(
             str(
                 self.access_token or ""
             ).strip()
         )
+
+    @staticmethod
+    def _extrair_payload_jwt(token):
+        token = str(
+            token or ""
+        ).strip()
+
+        partes = token.split(".")
+
+        if len(partes) != 3:
+            return {}
+
+        try:
+            payload_base64 = partes[1]
+
+            padding = (
+                "="
+                * (
+                    -len(payload_base64)
+                    % 4
+                )
+            )
+
+            payload_bytes = (
+                base64.urlsafe_b64decode(
+                    payload_base64
+                    + padding
+                )
+            )
+
+            payload = json.loads(
+                payload_bytes.decode(
+                    "utf-8"
+                )
+            )
+
+            if not isinstance(
+                payload,
+                dict,
+            ):
+                return {}
+
+            return payload
+
+        except Exception:
+            return {}
+
 
     @staticmethod
     def _calcular_expiracao_token(dados):
@@ -198,6 +261,28 @@ class MagaluMarketplace(MarketplaceBase):
             or "Bearer"
         ).strip()
 
+        payload_token = (
+            self._extrair_payload_jwt(
+                access_token
+            )
+        )
+
+        tenant_id = str(
+            payload_token.get("sub")
+            or dados.get("tenant_id")
+            or dados.get("tenant")
+            or ""
+        ).strip() or None
+
+        tenant_nome = str(
+            payload_token.get("tenant_name")
+            or payload_token.get("tenant_nome")
+            or payload_token.get("organization_name")
+            or dados.get("tenant_name")
+            or dados.get("tenant_nome")
+            or ""
+        ).strip() or None
+
         expiracao = (
             self._calcular_expiracao_token(
                 dados
@@ -228,6 +313,8 @@ class MagaluMarketplace(MarketplaceBase):
                     if renovacao
                     else None
                 ),
+                tenant_id=tenant_id,
+                tenant_nome=tenant_nome,
                 scopes=dados.get("scope"),
                 ativo=True,
             )
@@ -243,6 +330,9 @@ class MagaluMarketplace(MarketplaceBase):
         self.access_token_expira_em = (
             expiracao
         )
+
+        self.tenant_id = tenant_id
+        self.tenant_nome = tenant_nome
 
         return credencial_id
 
