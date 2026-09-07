@@ -594,7 +594,8 @@ class MagaluMarketplace(MarketplaceBase):
         metodo,
         caminho,
         params=None,
-        json=None
+        json=None,
+        headers_extra=None,
     ):
         url = (
             self.API_BASE_URL.rstrip("/")
@@ -602,11 +603,18 @@ class MagaluMarketplace(MarketplaceBase):
             + caminho.lstrip("/")
         )
 
+        headers = self._headers()
+
+        if headers_extra:
+            headers.update(
+                headers_extra
+            )
+
         try:
             resposta = requests.request(
                 method=metodo,
                 url=url,
-                headers=self._headers(),
+                headers=headers,
                 params=params,
                 json=json,
                 timeout=self.timeout
@@ -665,6 +673,36 @@ class MagaluMarketplace(MarketplaceBase):
             caminho="/seller/v1/orders",
             params=params
         )
+
+    def listar_entregas(
+        self,
+        channel_id,
+        **filtros,
+    ):
+        channel_id = str(
+            channel_id or ""
+        ).strip()
+
+        if not channel_id:
+            raise ValueError(
+                "Informe o X-Channel-Id do Magalu."
+            )
+
+        params = {
+            chave: valor
+            for chave, valor in filtros.items()
+            if valor is not None
+        }
+
+        return self._request(
+            metodo="GET",
+            caminho="/seller/v1/deliveries",
+            params=params,
+            headers_extra={
+                "X-Channel-Id": channel_id,
+            },
+        )
+
 
     def buscar_pedido(self, pedido_externo):
         pedido_externo = str(
