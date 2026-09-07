@@ -1346,6 +1346,133 @@ def tela_marketplaces():
                     st.divider()
 
                     # --------------------------------------------
+                    # CONSULTAR ENTREGAS MAGALU
+                    # --------------------------------------------
+
+                    st.markdown(
+                        "### 📦 Consultar entregas Magalu"
+                    )
+
+                    st.caption(
+                        "Consulta entregas pelo código do pedido "
+                        "usando o header X-Channel-Id."
+                    )
+
+                    codigo_entrega_magalu = st.text_input(
+                        "Código do pedido para consultar entregas",
+                        value="LU-1531770107905712",
+                        key="codigo_entrega_magalu_consulta",
+                    )
+
+                    channel_id_manual = st.text_input(
+                        "X-Channel-Id",
+                        value=(
+                            "9fe0d853-732b-4e4a-"
+                            "a0b0-cff988ed043d"
+                        ),
+                        help=(
+                            "Channel ID oficial do canal "
+                            "Magazine Luiza."
+                        ),
+                        key="channel_id_magalu_consulta",
+                    )
+
+                    if st.button(
+                        "Consultar entregas do pedido",
+                        key="consultar_entregas_magalu",
+                    ):
+                        try:
+                            conector_entregas = (
+                                MagaluMarketplace()
+                            )
+
+                            credenciais_ok = (
+                                conector_entregas
+                                .carregar_credenciais_banco()
+                            )
+
+                            if not credenciais_ok:
+                                st.warning(
+                                    "Nenhuma credencial válida "
+                                    "do Magalu foi encontrada."
+                                )
+
+                            else:
+                                codigo_consulta = str(
+                                    codigo_entrega_magalu or ""
+                                ).strip()
+
+                                channel_id_consulta = str(
+                                    channel_id_manual or ""
+                                ).strip()
+
+                                if not codigo_consulta:
+                                    st.warning(
+                                        "Informe o código do pedido "
+                                        "para consultar as entregas."
+                                    )
+
+                                elif not channel_id_consulta:
+                                    st.warning(
+                                        "Informe o X-Channel-Id "
+                                        "do Magazine Luiza."
+                                    )
+
+                                else:
+                                    st.info(
+                                        "X-Channel-Id usado no teste: "
+                                        f"{channel_id_consulta}"
+                                    )
+
+                                    with st.spinner(
+                                        "Consultando entregas no Magalu..."
+                                    ):
+                                        resposta_entregas = (
+                                            conector_entregas
+                                            .listar_entregas(
+                                                channel_id=(
+                                                    channel_id_consulta
+                                                ),
+                                                code=codigo_consulta,
+                                            )
+                                        )
+
+                                    st.session_state[
+                                        "magalu_entregas_consultadas"
+                                    ] = resposta_entregas
+
+                                    st.success(
+                                        "Consulta de entregas concluída."
+                                    )
+
+                        except Exception as erro:
+                            st.error(
+                                "Não foi possível consultar "
+                                "as entregas do Magalu."
+                            )
+
+                            st.exception(
+                                erro
+                            )
+
+                    entregas_consultadas = (
+                        st.session_state.get(
+                            "magalu_entregas_consultadas"
+                        )
+                    )
+
+                    if entregas_consultadas:
+                        st.markdown(
+                            "#### 🚚 Resultado da consulta de entregas"
+                        )
+
+                        st.json(
+                            entregas_consultadas
+                        )
+
+                    st.divider()
+
+                    # --------------------------------------------
                     # CONSULTAR PEDIDO ESPECIFICO MAGALU
                     # --------------------------------------------
 
