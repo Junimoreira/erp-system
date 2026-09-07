@@ -1346,207 +1346,35 @@ def tela_marketplaces():
                     st.divider()
 
                     # --------------------------------------------
-                    # CONSULTAR ENTREGAS MAGALU
+                    # LOCALIZAR PEDIDO E ENTREGA MAGALU
                     # --------------------------------------------
 
                     st.markdown(
-                        "### 📦 Consultar entregas Magalu"
+                        "### 🔎 Localizar pedido e entrega Magalu"
                     )
 
                     st.caption(
-                        "Diagnóstico por período de compra. "
-                        "O filtro por código retornou vazio; agora "
-                        "vamos localizar as entregas pela data."
-                    )
-
-                    channel_id_manual = st.text_input(
-                        "X-Channel-Id",
-                        value=(
-                            "9fe0d853-732b-4e4a-"
-                            "a0b0-cff988ed043d"
-                        ),
-                        help=(
-                            "Channel ID oficial do canal "
-                            "Magazine Luiza."
-                        ),
-                        key="channel_id_magalu_consulta",
-                    )
-
-                    data_inicial_entregas = st.text_input(
-                        "Data/hora inicial UTC",
-                        value="2026-04-27T00:00:00Z",
-                        key="magalu_entregas_data_inicial",
-                    )
-
-                    data_final_entregas = st.text_input(
-                        "Data/hora final UTC",
-                        value="2026-04-28T00:00:00Z",
-                        key="magalu_entregas_data_final",
-                    )
-
-                    if st.button(
-                        "Consultar entregas por período",
-                        key="consultar_entregas_magalu",
-                    ):
-                        try:
-                            conector_entregas = MagaluMarketplace()
-
-                            credenciais_ok = (
-                                conector_entregas
-                                .carregar_credenciais_banco()
-                            )
-
-                            if not credenciais_ok:
-                                st.warning(
-                                    "Nenhuma credencial válida "
-                                    "do Magalu foi encontrada."
-                                )
-
-                            else:
-                                channel_id_consulta = str(
-                                    channel_id_manual or ""
-                                ).strip()
-
-                                data_inicial_consulta = str(
-                                    data_inicial_entregas or ""
-                                ).strip()
-
-                                data_final_consulta = str(
-                                    data_final_entregas or ""
-                                ).strip()
-
-                                if not channel_id_consulta:
-                                    st.warning(
-                                        "Informe o X-Channel-Id "
-                                        "do Magazine Luiza."
-                                    )
-
-                                elif not data_inicial_consulta:
-                                    st.warning(
-                                        "Informe a data/hora inicial."
-                                    )
-
-                                elif not data_final_consulta:
-                                    st.warning(
-                                        "Informe a data/hora final."
-                                    )
-
-                                else:
-                                    st.info(
-                                        "X-Channel-Id usado no teste: "
-                                        f"{channel_id_consulta}"
-                                    )
-
-                                    st.info(
-                                        "Período consultado: "
-                                        f"{data_inicial_consulta} até "
-                                        f"{data_final_consulta}"
-                                    )
-
-                                    with st.spinner(
-                                        "Consultando entregas no Magalu..."
-                                    ):
-                                        resposta_entregas = (
-                                            conector_entregas
-                                            .listar_entregas(
-                                                channel_id=(
-                                                    channel_id_consulta
-                                                ),
-                                                purchased_at__gte=(
-                                                    data_inicial_consulta
-                                                ),
-                                                purchased_at__lte=(
-                                                    data_final_consulta
-                                                ),
-                                                _limit=50,
-                                            )
-                                        )
-
-                                    st.session_state[
-                                        "magalu_entregas_consultadas"
-                                    ] = resposta_entregas
-
-                                    resultados_entregas = (
-                                        resposta_entregas.get(
-                                            "results",
-                                            [],
-                                        )
-                                        if isinstance(
-                                            resposta_entregas,
-                                            dict,
-                                        )
-                                        else []
-                                    )
-
-                                    if resultados_entregas:
-                                        st.success(
-                                            f"{len(resultados_entregas)} "
-                                            "entrega(s) encontrada(s) "
-                                            "no período."
-                                        )
-                                    else:
-                                        st.warning(
-                                            "A consulta foi concluída, "
-                                            "mas nenhuma entrega foi "
-                                            "encontrada nesse período."
-                                        )
-
-                        except Exception as erro:
-                            st.error(
-                                "Não foi possível consultar "
-                                "as entregas do Magalu."
-                            )
-
-                            st.exception(
-                                erro
-                            )
-
-                    entregas_consultadas = (
-                        st.session_state.get(
-                            "magalu_entregas_consultadas"
-                        )
-                    )
-
-                    if entregas_consultadas:
-                        st.markdown(
-                            "#### 🚚 Resultado da consulta de entregas"
-                        )
-
-                        st.json(
-                            entregas_consultadas
-                        )
-
-                    st.divider()
-
-                    # --------------------------------------------
-                    # CONSULTAR PEDIDO ESPECIFICO MAGALU
-                    # --------------------------------------------
-
-                    st.markdown(
-                        "### 🔎 Consultar pedido Magalu"
-                    )
-
-                    st.caption(
-                        "Consulta um pedido específico pelo código "
-                        "informado no Magalu Seller."
+                        "Localiza o pedido na listagem retornada pela API "
+                        "e extrai automaticamente o ID da entrega. "
+                        "Não usa X-Channel-Id nesta etapa."
                     )
 
                     codigo_pedido_magalu = st.text_input(
                         "Código do pedido Magalu",
-                        placeholder="Ex.: LU-1531770107905712",
+                        value="LU-1531770107905712",
                         key="codigo_pedido_magalu_consulta",
                     )
 
                     if st.button(
-                        "Consultar pedido",
-                        key="consultar_pedido_magalu",
+                        "Localizar pedido e entrega",
+                        key="localizar_pedido_entrega_magalu",
                     ):
                         try:
-                            codigo_pedido_magalu = str(
+                            codigo_consulta = str(
                                 codigo_pedido_magalu or ""
                             ).strip()
 
-                            if not codigo_pedido_magalu:
+                            if not codigo_consulta:
                                 st.warning(
                                     "Informe o código do pedido Magalu."
                                 )
@@ -1567,27 +1395,179 @@ def tela_marketplaces():
 
                                 else:
                                     with st.spinner(
-                                        "Consultando pedido no Magalu..."
+                                        "Localizando pedido no Magalu..."
                                     ):
-                                        pedido_magalu = (
+                                        resposta_pedidos = (
                                             conector_pedido
-                                            .listar_pedidos(
-                                                code=codigo_pedido_magalu
-                                            )
+                                            .listar_pedidos()
                                         )
 
-                                    st.session_state[
-                                        "pedido_magalu_consultado"
-                                    ] = pedido_magalu
+                                    resultados = []
 
-                                    st.success(
-                                        "Pedido consultado com sucesso."
-                                    )
+                                    if isinstance(
+                                        resposta_pedidos,
+                                        dict,
+                                    ):
+                                        resultados = (
+                                            resposta_pedidos.get(
+                                                "results",
+                                                [],
+                                            )
+                                            or []
+                                        )
+
+                                    pedido_encontrado = None
+
+                                    for pedido_api in resultados:
+                                        if not isinstance(
+                                            pedido_api,
+                                            dict,
+                                        ):
+                                            continue
+
+                                        codigo_api = str(
+                                            pedido_api.get("code")
+                                            or ""
+                                        ).strip()
+
+                                        if codigo_api == codigo_consulta:
+                                            pedido_encontrado = pedido_api
+                                            break
+
+                                    if pedido_encontrado is None:
+                                        st.session_state.pop(
+                                            "pedido_magalu_consultado",
+                                            None,
+                                        )
+                                        st.session_state.pop(
+                                            "magalu_entrega_id",
+                                            None,
+                                        )
+
+                                        codigos_disponiveis = [
+                                            str(
+                                                pedido_api.get("code")
+                                                or ""
+                                            ).strip()
+                                            for pedido_api in resultados
+                                            if isinstance(
+                                                pedido_api,
+                                                dict,
+                                            )
+                                            and str(
+                                                pedido_api.get("code")
+                                                or ""
+                                            ).strip()
+                                        ]
+
+                                        st.warning(
+                                            "O pedido informado não foi "
+                                            "encontrado na página de pedidos "
+                                            "retornada pela API."
+                                        )
+
+                                        if codigos_disponiveis:
+                                            st.info(
+                                                "Pedidos retornados nesta "
+                                                "consulta: "
+                                                + ", ".join(
+                                                    codigos_disponiveis
+                                                )
+                                            )
+
+                                    else:
+                                        st.session_state[
+                                            "pedido_magalu_consultado"
+                                        ] = pedido_encontrado
+
+                                        entregas = (
+                                            pedido_encontrado.get(
+                                                "deliveries",
+                                                [],
+                                            )
+                                            or []
+                                        )
+
+                                        ids_entregas = []
+
+                                        for entrega in entregas:
+                                            if not isinstance(
+                                                entrega,
+                                                dict,
+                                            ):
+                                                continue
+
+                                            entrega_id = str(
+                                                entrega.get("id")
+                                                or ""
+                                            ).strip()
+
+                                            if (
+                                                entrega_id
+                                                and entrega_id
+                                                not in ids_entregas
+                                            ):
+                                                ids_entregas.append(
+                                                    entrega_id
+                                                )
+
+                                        st.success(
+                                            "Pedido localizado com sucesso."
+                                        )
+
+                                        st.write(
+                                            "**Código do pedido:** "
+                                            f"{codigo_consulta}"
+                                        )
+
+                                        pedido_id = str(
+                                            pedido_encontrado.get("id")
+                                            or ""
+                                        ).strip()
+
+                                        if pedido_id:
+                                            st.write(
+                                                "**ID interno do pedido "
+                                                "Magalu:** "
+                                                f"{pedido_id}"
+                                            )
+
+                                        if ids_entregas:
+                                            st.session_state[
+                                                "magalu_entrega_id"
+                                            ] = ids_entregas[0]
+
+                                            st.success(
+                                                "ID da entrega localizado: "
+                                                f"{ids_entregas[0]}"
+                                            )
+
+                                            if len(ids_entregas) > 1:
+                                                st.info(
+                                                    "Este pedido possui "
+                                                    f"{len(ids_entregas)} "
+                                                    "entregas. Os IDs são: "
+                                                    + ", ".join(
+                                                        ids_entregas
+                                                    )
+                                                )
+
+                                        else:
+                                            st.session_state.pop(
+                                                "magalu_entrega_id",
+                                                None,
+                                            )
+
+                                            st.warning(
+                                                "O pedido foi localizado, "
+                                                "mas a resposta não trouxe "
+                                                "nenhuma entrega vinculada."
+                                            )
 
                         except Exception as erro:
                             st.error(
-                                "Não foi possível consultar "
-                                "o pedido do Magalu."
+                                "Não foi possível localizar o pedido "
+                                "e a entrega no Magalu."
                             )
 
                             st.exception(
@@ -1602,7 +1582,7 @@ def tela_marketplaces():
 
                     if pedido_magalu_consultado:
                         st.markdown(
-                            "#### 📦 Dados do pedido consultado"
+                            "#### 📦 Dados do pedido localizado"
                         )
 
                         st.json(
