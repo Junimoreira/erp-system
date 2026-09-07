@@ -1132,6 +1132,125 @@ def tela_marketplaces():
                                 erro
                             )
 
+                    # --------------------------------------------
+                    # DIAGNOSTICO DO CHANNEL ID
+                    # --------------------------------------------
+
+                    if st.button(
+                        "Diagnosticar Channel ID do Magalu",
+                        key="diagnosticar_channel_id_magalu",
+                    ):
+                        try:
+                            conector_diagnostico = (
+                                MagaluMarketplace()
+                            )
+
+                            credenciais_ok = (
+                                conector_diagnostico
+                                .carregar_credenciais_banco()
+                            )
+
+                            if not credenciais_ok:
+                                st.warning(
+                                    "Nenhuma credencial válida "
+                                    "do Magalu foi encontrada."
+                                )
+
+                            else:
+                                with st.spinner(
+                                    "Procurando identificadores "
+                                    "de canal na API..."
+                                ):
+                                    resposta_diagnostico = (
+                                        conector_diagnostico
+                                        .listar_pedidos()
+                                    )
+
+                                campos_channel = []
+
+                                def procurar_channel(
+                                    valor,
+                                    caminho="raiz",
+                                ):
+                                    if isinstance(
+                                        valor,
+                                        dict,
+                                    ):
+                                        for chave, conteudo in (
+                                            valor.items()
+                                        ):
+                                            novo_caminho = (
+                                                f"{caminho}.{chave}"
+                                            )
+
+                                            if (
+                                                "channel"
+                                                in str(
+                                                    chave
+                                                ).lower()
+                                            ):
+                                                campos_channel.append(
+                                                    {
+                                                        "campo": (
+                                                            novo_caminho
+                                                        ),
+                                                        "valor": (
+                                                            conteudo
+                                                        ),
+                                                    }
+                                                )
+
+                                            procurar_channel(
+                                                conteudo,
+                                                novo_caminho,
+                                            )
+
+                                    elif isinstance(
+                                        valor,
+                                        list,
+                                    ):
+                                        for indice, item in enumerate(
+                                            valor
+                                        ):
+                                            procurar_channel(
+                                                item,
+                                                (
+                                                    f"{caminho}"
+                                                    f"[{indice}]"
+                                                ),
+                                            )
+
+                                procurar_channel(
+                                    resposta_diagnostico
+                                )
+
+                                if campos_channel:
+                                    st.success(
+                                        "Identificadores relacionados "
+                                        "a channel encontrados."
+                                    )
+
+                                    st.json(
+                                        campos_channel
+                                    )
+
+                                else:
+                                    st.warning(
+                                        "Nenhum campo relacionado "
+                                        "a channel foi encontrado "
+                                        "na resposta dos pedidos."
+                                    )
+
+                        except Exception as erro:
+                            st.error(
+                                "Não foi possível executar "
+                                "o diagnóstico de Channel ID."
+                            )
+
+                            st.exception(
+                                erro
+                            )
+
                     st.divider()
 
                     # --------------------------------------------
