@@ -704,7 +704,8 @@ class MagaluMarketplace(MarketplaceBase):
         )
 
 
-    def buscar_pedido(self, pedido_externo):
+    @staticmethod
+    def normalizar_codigo_pedido(pedido_externo):
         pedido_externo = str(
             pedido_externo or ""
         ).strip()
@@ -714,12 +715,100 @@ class MagaluMarketplace(MarketplaceBase):
                 "Informe o código do pedido Magalu."
             )
 
+        if pedido_externo.upper().startswith("LU-"):
+            pedido_externo = pedido_externo[3:]
+
+        pedido_externo = pedido_externo.strip()
+
+        if not pedido_externo:
+            raise ValueError(
+                "Código do pedido Magalu inválido."
+            )
+
+        return pedido_externo
+
+    def buscar_pedido(self, pedido_externo):
+        codigo_pedido = (
+            self.normalizar_codigo_pedido(
+                pedido_externo
+            )
+        )
+
         return self._request(
             metodo="GET",
             caminho=(
                 "/seller/v1/orders/"
-                + pedido_externo
+                + codigo_pedido
             )
+        )
+
+    def buscar_entrega(
+        self,
+        entrega_id,
+        channel_id=None,
+    ):
+        entrega_id = str(
+            entrega_id or ""
+        ).strip()
+
+        if not entrega_id:
+            raise ValueError(
+                "Informe o ID da entrega Magalu."
+            )
+
+        headers_extra = None
+
+        channel_id = str(
+            channel_id or ""
+        ).strip()
+
+        if channel_id:
+            headers_extra = {
+                "X-Channel-Id": channel_id,
+            }
+
+        return self._request(
+            metodo="GET",
+            caminho=(
+                "/seller/v1/deliveries/"
+                + entrega_id
+            ),
+            headers_extra=headers_extra,
+        )
+
+    def listar_notas_entrega(
+        self,
+        entrega_id,
+        channel_id=None,
+    ):
+        entrega_id = str(
+            entrega_id or ""
+        ).strip()
+
+        if not entrega_id:
+            raise ValueError(
+                "Informe o ID da entrega Magalu."
+            )
+
+        headers_extra = None
+
+        channel_id = str(
+            channel_id or ""
+        ).strip()
+
+        if channel_id:
+            headers_extra = {
+                "X-Channel-Id": channel_id,
+            }
+
+        return self._request(
+            metodo="GET",
+            caminho=(
+                "/seller/v1/deliveries/"
+                + entrega_id
+                + "/invoices"
+            ),
+            headers_extra=headers_extra,
         )
 
     def normalizar_pedido(self, dados):
