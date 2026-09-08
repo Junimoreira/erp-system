@@ -1346,17 +1346,18 @@ def tela_marketplaces():
                     st.divider()
 
                     # --------------------------------------------
-                    # LOCALIZAR PEDIDO E ENTREGA MAGALU
+                    # LOCALIZAR PEDIDO, ENTREGA E NOTAS MAGALU
                     # --------------------------------------------
 
                     st.markdown(
-                        "### 🔎 Localizar pedido e entrega Magalu"
+                        "### 🔎 Localizar pedido, entrega e NF-e Magalu"
                     )
 
                     st.caption(
-                        "Localiza o pedido na listagem retornada pela API "
-                        "e extrai automaticamente o ID da entrega. "
-                        "Não usa X-Channel-Id nesta etapa."
+                        "Consulta o pedido diretamente pelo código, "
+                        "localiza o ID da entrega e consulta as NF-es "
+                        "já registradas no Magalu. Esta etapa é somente "
+                        "de leitura e não envia nenhuma nota fiscal."
                     )
 
                     codigo_pedido_magalu = st.text_input(
@@ -1365,13 +1366,26 @@ def tela_marketplaces():
                         key="codigo_pedido_magalu_consulta",
                     )
 
+                    channel_id_consulta_magalu = st.text_input(
+                        "X-Channel-Id (opcional nesta consulta)",
+                        placeholder=(
+                            "Deixe vazio primeiro. Informe apenas "
+                            "se a API exigir o canal."
+                        ),
+                        key="channel_id_pedido_magalu_consulta",
+                    )
+
                     if st.button(
-                        "Localizar pedido e entrega",
+                        "Localizar pedido, entrega e NF-e",
                         key="localizar_pedido_entrega_magalu",
                     ):
                         try:
                             codigo_consulta = str(
                                 codigo_pedido_magalu or ""
+                            ).strip()
+
+                            channel_id_consulta = str(
+                                channel_id_consulta_magalu or ""
                             ).strip()
 
                             if not codigo_consulta:
@@ -1395,179 +1409,183 @@ def tela_marketplaces():
 
                                 else:
                                     with st.spinner(
-                                        "Localizando pedido no Magalu..."
+                                        "Consultando o pedido diretamente "
+                                        "no Magalu..."
                                     ):
-                                        resposta_pedidos = (
-                                            conector_pedido
-                                            .listar_pedidos()
+                                        pedido_encontrado = (
+                                            conector_pedido.buscar_pedido(
+                                                codigo_consulta
+                                            )
                                         )
 
-                                    resultados = []
-
-                                    if isinstance(
-                                        resposta_pedidos,
+                                    if not isinstance(
+                                        pedido_encontrado,
                                         dict,
                                     ):
-                                        resultados = (
-                                            resposta_pedidos.get(
-                                                "results",
-                                                [],
-                                            )
-                                            or []
+                                        raise RuntimeError(
+                                            "A API retornou um formato "
+                                            "inesperado para o pedido."
                                         )
 
-                                    pedido_encontrado = None
+                                    st.session_state[
+                                        "pedido_magalu_consultado"
+                                    ] = pedido_encontrado
 
-                                    for pedido_api in resultados:
+                                    entregas = (
+                                        pedido_encontrado.get(
+                                            "deliveries",
+                                            [],
+                                        )
+                                        or []
+                                    )
+
+                                    ids_entregas = []
+
+                                    for entrega in entregas:
                                         if not isinstance(
-                                            pedido_api,
+                                            entrega,
                                             dict,
                                         ):
                                             continue
 
-                                        codigo_api = str(
-                                            pedido_api.get("code")
+                                        entrega_id = str(
+                                            entrega.get("id")
                                             or ""
                                         ).strip()
 
-                                        if codigo_api == codigo_consulta:
-                                            pedido_encontrado = pedido_api
-                                            break
+                                        if (
+                                            entrega_id
+                                            and entrega_id
+                                            not in ids_entregas
+                                        ):
+                                            ids_entregas.append(
+                                                entrega_id
+                                            )
 
-                                    if pedido_encontrado is None:
-                                        st.session_state.pop(
-                                            "pedido_magalu_consultado",
-                                            None,
+                                    st.session_state[
+                                        "magalu_entregas_ids"
+                                    ] = ids_entregas
+
+                                    st.success(
+                                        "Pedido localizado com sucesso."
+                                    )
+
+                                    codigo_retornado = str(
+                                        pedido_encontrado.get("code")
+                                        or codigo_consulta
+                                    ).strip()
+
+                                    st.write(
+                                        "**Código do pedido:** "
+                                        f"{codigo_retornado}"
+                                    )
+
+                                    pedido_id = str(
+                                        pedido_encontrado.get("id")
+                                        or ""
+                                    ).strip()
+
+                                    if pedido_id:
+                                        st.write(
+                                            "**ID interno do pedido "
+                                            "Magalu:** "
+                                            f"{pedido_id}"
                                         )
+
+                                    if not ids_entregas:
                                         st.session_state.pop(
                                             "magalu_entrega_id",
                                             None,
                                         )
-
-                                        codigos_disponiveis = [
-                                            str(
-                                                pedido_api.get("code")
-                                                or ""
-                                            ).strip()
-                                            for pedido_api in resultados
-                                            if isinstance(
-                                                pedido_api,
-                                                dict,
-                                            )
-                                            and str(
-                                                pedido_api.get("code")
-                                                or ""
-                                            ).strip()
-                                        ]
-
-                                        st.warning(
-                                            "O pedido informado não foi "
-                                            "encontrado na página de pedidos "
-                                            "retornada pela API."
+                                        st.session_state.pop(
+                                            "magalu_notas_entregas",
+                                            None,
                                         )
 
-                                        if codigos_disponiveis:
-                                            st.info(
-                                                "Pedidos retornados nesta "
-                                                "consulta: "
-                                                + ", ".join(
-                                                    codigos_disponiveis
-                                                )
-                                            )
+                                        st.warning(
+                                            "O pedido foi localizado, "
+                                            "mas a resposta não trouxe "
+                                            "nenhuma entrega vinculada."
+                                        )
 
                                     else:
                                         st.session_state[
-                                            "pedido_magalu_consultado"
-                                        ] = pedido_encontrado
-
-                                        entregas = (
-                                            pedido_encontrado.get(
-                                                "deliveries",
-                                                [],
-                                            )
-                                            or []
-                                        )
-
-                                        ids_entregas = []
-
-                                        for entrega in entregas:
-                                            if not isinstance(
-                                                entrega,
-                                                dict,
-                                            ):
-                                                continue
-
-                                            entrega_id = str(
-                                                entrega.get("id")
-                                                or ""
-                                            ).strip()
-
-                                            if (
-                                                entrega_id
-                                                and entrega_id
-                                                not in ids_entregas
-                                            ):
-                                                ids_entregas.append(
-                                                    entrega_id
-                                                )
+                                            "magalu_entrega_id"
+                                        ] = ids_entregas[0]
 
                                         st.success(
-                                            "Pedido localizado com sucesso."
+                                            f"{len(ids_entregas)} "
+                                            "entrega(s) localizada(s)."
                                         )
 
-                                        st.write(
-                                            "**Código do pedido:** "
-                                            f"{codigo_consulta}"
-                                        )
+                                        notas_por_entrega = {}
 
-                                        pedido_id = str(
-                                            pedido_encontrado.get("id")
-                                            or ""
-                                        ).strip()
-
-                                        if pedido_id:
+                                        for entrega_id in ids_entregas:
                                             st.write(
-                                                "**ID interno do pedido "
-                                                "Magalu:** "
-                                                f"{pedido_id}"
+                                                "**ID da entrega:** "
+                                                f"{entrega_id}"
                                             )
 
-                                        if ids_entregas:
-                                            st.session_state[
-                                                "magalu_entrega_id"
-                                            ] = ids_entregas[0]
-
-                                            st.success(
-                                                "ID da entrega localizado: "
-                                                f"{ids_entregas[0]}"
-                                            )
-
-                                            if len(ids_entregas) > 1:
-                                                st.info(
-                                                    "Este pedido possui "
-                                                    f"{len(ids_entregas)} "
-                                                    "entregas. Os IDs são: "
-                                                    + ", ".join(
-                                                        ids_entregas
+                                            try:
+                                                with st.spinner(
+                                                    "Consultando NF-es da "
+                                                    f"entrega {entrega_id}..."
+                                                ):
+                                                    resposta_notas = (
+                                                        conector_pedido
+                                                        .listar_notas_entrega(
+                                                            entrega_id=(
+                                                                entrega_id
+                                                            ),
+                                                            channel_id=(
+                                                                channel_id_consulta
+                                                                or None
+                                                            ),
+                                                        )
                                                     )
-                                                )
 
-                                        else:
-                                            st.session_state.pop(
-                                                "magalu_entrega_id",
-                                                None,
-                                            )
+                                                notas_por_entrega[
+                                                    entrega_id
+                                                ] = {
+                                                    "sucesso": True,
+                                                    "resposta": resposta_notas,
+                                                }
 
-                                            st.warning(
-                                                "O pedido foi localizado, "
-                                                "mas a resposta não trouxe "
-                                                "nenhuma entrega vinculada."
-                                            )
+                                            except Exception as erro_nota:
+                                                notas_por_entrega[
+                                                    entrega_id
+                                                ] = {
+                                                    "sucesso": False,
+                                                    "erro": str(
+                                                        erro_nota
+                                                    ),
+                                                }
+
+                                        st.session_state[
+                                            "magalu_notas_entregas"
+                                        ] = notas_por_entrega
 
                         except Exception as erro:
+                            st.session_state.pop(
+                                "pedido_magalu_consultado",
+                                None,
+                            )
+                            st.session_state.pop(
+                                "magalu_entrega_id",
+                                None,
+                            )
+                            st.session_state.pop(
+                                "magalu_entregas_ids",
+                                None,
+                            )
+                            st.session_state.pop(
+                                "magalu_notas_entregas",
+                                None,
+                            )
+
                             st.error(
-                                "Não foi possível localizar o pedido "
-                                "e a entrega no Magalu."
+                                "Não foi possível localizar o pedido, "
+                                "a entrega ou as NF-es no Magalu."
                             )
 
                             st.exception(
@@ -1588,6 +1606,49 @@ def tela_marketplaces():
                         st.json(
                             pedido_magalu_consultado
                         )
+
+                    notas_entregas_magalu = (
+                        st.session_state.get(
+                            "magalu_notas_entregas",
+                            {},
+                        )
+                        or {}
+                    )
+
+                    if notas_entregas_magalu:
+                        st.markdown(
+                            "#### 🧾 NF-es registradas nas entregas"
+                        )
+
+                        for (
+                            entrega_id,
+                            resultado_notas,
+                        ) in notas_entregas_magalu.items():
+                            st.write(
+                                "**Entrega:** "
+                                f"{entrega_id}"
+                            )
+
+                            if resultado_notas.get(
+                                "sucesso"
+                            ):
+                                st.json(
+                                    resultado_notas.get(
+                                        "resposta"
+                                    )
+                                )
+
+                            else:
+                                st.warning(
+                                    "Não foi possível consultar as "
+                                    "NF-es desta entrega: "
+                                    + str(
+                                        resultado_notas.get(
+                                            "erro"
+                                        )
+                                        or "erro não informado"
+                                    )
+                                )
 
                     st.divider()
 
