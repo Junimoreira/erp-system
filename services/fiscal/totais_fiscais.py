@@ -149,6 +149,12 @@ def montar_totais_fiscais(
         )
     )
 
+    frete = _decimal(
+        venda.get(
+            "frete"
+        )
+    )
+
     valor_final = _decimal(
         venda.get(
             "valor_final"
@@ -164,6 +170,16 @@ def montar_totais_fiscais(
     if desconto is None:
 
         desconto = Decimal("0.00")
+
+    if frete is None:
+
+        frete = Decimal("0.00")
+
+    if frete < 0:
+
+        erros.append(
+            "Frete nao pode ser negativo."
+        )
 
     if desconto < 0:
 
@@ -204,6 +220,8 @@ def montar_totais_fiscais(
 
         valor_calculado = (
             valor_total
+            +
+            frete
             -
             desconto
         ).quantize(
@@ -219,7 +237,7 @@ def montar_totais_fiscais(
             erros.append(
                 (
                     "Valor final da venda não confere "
-                    "com total menos desconto. "
+                    "com total mais frete menos desconto. "
                     f"Calculado: {valor_calculado} | "
                     f"Venda: {valor_final}"
                 )
@@ -288,6 +306,9 @@ def montar_totais_fiscais(
 
             "desconto":
                 desconto,
+
+            "frete":
+                frete,
 
             "valor_calculado":
                 valor_calculado,

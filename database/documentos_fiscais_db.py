@@ -1516,3 +1516,185 @@ def listar_itens_documento(
     finally:
 
         conn.close()
+
+# ============================================================
+# REGISTRAR CANCELAMENTO DE DOCUMENTO FISCAL
+#
+# IMPORTANTE:
+# - atualiza somente documentos_fiscais;
+# - NAO cancela venda;
+# - NAO devolve estoque;
+# - NAO altera financeiro;
+# - preserva o protocolo original de autorizacao.
+# ============================================================
+def registrar_cancelamento_documento_fiscal(
+    chave_acesso,
+    cstat="101",
+    xmotivo="Cancelamento de NF-e homologado"
+):
+
+    conn = conectar()
+
+    if conn is None:
+
+        return {
+            "sucesso": False,
+            "documento_id": None,
+            "mensagem": (
+                "Nao foi possivel conectar ao banco."
+            )
+        }
+
+    cursor = conn.cursor()
+
+    try:
+
+        chave_acesso = "".join(
+            caractere
+            for caractere in str(
+                chave_acesso or ""
+            )
+            if caractere.isdigit()
+        )
+
+        if len(chave_acesso) != 44:
+
+            raise ValueError(
+                "Chave de acesso deve possuir 44 digitos."
+            )
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                modelo,
+                serie,
+                numero,
+                status,
+                protocolo,
+                cstat,
+                xmotivo,
+                venda_id
+            FROM documentos_fiscais
+            WHERE chave_acesso = %s
+            LIMIT 1
+            """,
+            (
+                chave_acesso,
+            )
+        )
+
+        documento = cursor.fetchone()
+
+        if not documento:
+
+            raise ValueError(
+                "Documento fiscal nao encontrado."
+            )
+
+        (
+            documento_id,
+            modelo,
+            serie,
+            numero,
+            status_atual,
+            protocolo_autorizacao,
+            cstat_atual,
+            xmotivo_atual,
+            venda_id,
+        ) = documento
+
+        if str(
+            status_atual or ""
+        ).strip().upper() == "CANCELADO":
+
+            conn.rollback()
+
+            return {
+                "sucesso": True,
+                "ja_cancelado": True,
+                "documento_id": documento_id,
+                "modelo": modelo,
+                "serie": serie,
+                "numero": numero,
+                "venda_id": venda_id,
+                "protocolo_autorizacao":
+                    protocolo_autorizacao,
+                "cstat": cstat_atual,
+                "xmotivo": xmotivo_atual,
+                "mensagem": (
+                    "Documento ja estava registrado "
+                    "como CANCELADO."
+                )
+            }
+
+        if str(
+            status_atual or ""
+        ).strip().upper() != "AUTORIZADO":
+
+            raise ValueError(
+                (
+                    "Documento nao esta com status AUTORIZADO. "
+                    f"Status atual: {status_atual}"
+                )
+            )
+
+        cursor.execute(
+            """
+            UPDATE documentos_fiscais
+            SET
+                status = 'CANCELADO',
+                cstat = %s,
+                xmotivo = %s,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (
+                str(cstat),
+                str(xmotivo),
+                documento_id,
+            )
+        )
+
+        if cursor.rowcount != 1:
+
+            raise ValueError(
+                "Quantidade inesperada de registros atualizados."
+            )
+
+        conn.commit()
+
+        return {
+            "sucesso": True,
+            "ja_cancelado": False,
+            "documento_id": documento_id,
+            "modelo": modelo,
+            "serie": serie,
+            "numero": numero,
+            "venda_id": venda_id,
+            "protocolo_autorizacao":
+                protocolo_autorizacao,
+            "cstat": str(cstat),
+            "xmotivo": str(xmotivo),
+            "mensagem": (
+                "Cancelamento fiscal registrado no ERP."
+            )
+        }
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        return {
+            "sucesso": False,
+            "documento_id": None,
+            "mensagem": str(
+                erro
+            )
+        }
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
