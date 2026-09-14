@@ -977,3 +977,338 @@ def avancar_numero_fiscal_autorizado(
 
         if conexao_propria:
             conn.close()
+
+# ============================================================
+# SINCRONIZAR NUMERACAO FISCAL
+#
+# Uso excepcional:
+# - documento emitido fora do ERP;
+# - sincronizacao comprovada da sequencia fiscal;
+# - registra historico na mesma transacao.
+# ============================================================
+
+def sincronizar_numero_fiscal(
+    modelo,
+    serie,
+    numero_anterior,
+    numero_novo,
+    motivo,
+    ambiente_esperado=None,
+    chave_referencia=None,
+    protocolo_referencia=None,
+    origem="SINCRONIZACAO_MANUAL",
+    conn=None,
+):
+
+    modelo = _normalizar_modelo(
+        modelo
+    )
+
+    serie = _normalizar_inteiro_positivo(
+        serie
+    )
+
+    numero_anterior = (
+        _normalizar_inteiro_positivo(
+            numero_anterior
+        )
+    )
+
+    numero_novo = (
+        _normalizar_inteiro_positivo(
+            numero_novo
+        )
+    )
+
+    motivo = str(
+        motivo or ""
+    ).strip()
+
+    origem = str(
+        origem or ""
+    ).strip()
+
+    if modelo is None:
+        return {
+            "sucesso": False,
+            "mensagem": "Modelo fiscal invalido.",
+        }
+
+    if serie is None:
+        return {
+            "sucesso": False,
+            "mensagem": "Serie fiscal invalida.",
+        }
+
+    if (
+        numero_anterior is None
+        or numero_novo is None
+    ):
+        return {
+            "sucesso": False,
+            "mensagem": "Numeracao fiscal invalida.",
+        }
+
+    if numero_novo <= numero_anterior:
+        return {
+            "sucesso": False,
+            "mensagem": (
+                "O novo numero deve ser maior "
+                "que o numero anterior."
+            ),
+        }
+
+    if not motivo:
+        return {
+            "sucesso": False,
+            "mensagem": (
+                "O motivo da sincronizacao "
+                "e obrigatorio."
+            ),
+        }
+
+    if not origem:
+        origem = "SINCRONIZACAO_MANUAL"
+
+    if ambiente_esperado is not None:
+        try:
+            ambiente_esperado = int(
+                ambiente_esperado
+            )
+        except (TypeError, ValueError):
+            return {
+                "sucesso": False,
+                "mensagem": (
+                    "Ambiente esperado invalido."
+                ),
+            }
+
+        if ambiente_esperado not in (1, 2):
+            return {
+                "sucesso": False,
+                "mensagem": (
+                    "Ambiente esperado deve ser 1 ou 2."
+                ),
+            }
+
+    conexao_propria = (
+        conn is None
+    )
+
+    if conexao_propria:
+        conn = conectar()
+
+        if conn is None:
+            return {
+                "sucesso": False,
+                "mensagem": (
+                    "Nao foi possivel conectar "
+                    "ao banco de dados."
+                ),
+            }
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                ambiente,
+                serie_nfe,
+                proximo_numero_nfe,
+                serie_nfce,
+                proximo_numero_nfce
+            FROM configuracoes_fiscais
+            WHERE ativo = TRUE
+            ORDER BY id
+            LIMIT 1
+            FOR UPDATE
+            """
+        )
+
+        registro = cursor.fetchone()
+
+        if registro is None:
+            raise ValueError(
+                "Configuracao fiscal ativa "
+                "nao encontrada."
+            )
+
+        (
+            configuracao_id,
+            ambiente,
+            serie_nfe,
+            proximo_numero_nfe,
+            serie_nfce,
+            proximo_numero_nfce,
+        ) = registro
+
+        ambiente = int(
+            ambiente
+        )
+
+        if (
+            ambiente_esperado is not None
+            and ambiente != ambiente_esperado
+        ):
+            raise ValueError(
+                "Ambiente fiscal diferente "
+                "do ambiente esperado. "
+                f"ERP={ambiente}; "
+                f"esperado={ambiente_esperado}."
+            )
+
+        if modelo == 55:
+            serie_configurada = int(
+                serie_nfe
+            )
+
+            numero_atual = int(
+                proximo_numero_nfe
+            )
+
+            campo_numero = (
+                "proximo_numero_nfe"
+            )
+
+        else:
+            serie_configurada = int(
+                serie_nfce
+            )
+
+            numero_atual = int(
+                proximo_numero_nfce
+            )
+
+            campo_numero = (
+                "proximo_numero_nfce"
+            )
+
+        if serie_configurada != serie:
+            raise ValueError(
+                "Serie fiscal diferente "
+                "da configuracao do ERP. "
+                f"ERP={serie_configurada}; "
+                f"informada={serie}."
+            )
+
+        if numero_atual != numero_anterior:
+            raise ValueError(
+                "A numeracao atual mudou. "
+                "Nenhuma sincronizacao foi realizada. "
+                f"ERP={numero_atual}; "
+                f"esperado={numero_anterior}."
+            )
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM documentos_fiscais
+            WHERE modelo = %s
+              AND serie = %s
+              AND numero = %s
+            LIMIT 1
+            """,
+            (
+                modelo,
+                serie,
+                numero_novo,
+            )
+        )
+
+        if cursor.fetchone():
+            raise ValueError(
+                "O novo numero informado ja existe "
+                "em documentos_fiscais."
+            )
+
+        cursor.execute(
+            f"""
+            UPDATE configuracoes_fiscais
+            SET
+                {campo_numero} = %s,
+                atualizado_em =
+                    CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (
+                numero_novo,
+                configuracao_id,
+            )
+        )
+
+        cursor.execute(
+            """
+            INSERT INTO historico_numeracao_fiscal (
+                configuracao_fiscal_id,
+                ambiente,
+                modelo,
+                serie,
+                numero_anterior,
+                numero_novo,
+                motivo,
+                chave_referencia,
+                protocolo_referencia,
+                origem
+            )
+            VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s
+            )
+            RETURNING id
+            """,
+            (
+                configuracao_id,
+                ambiente,
+                modelo,
+                serie,
+                numero_anterior,
+                numero_novo,
+                motivo,
+                chave_referencia,
+                protocolo_referencia,
+                origem,
+            )
+        )
+
+        historico_id = (
+            cursor.fetchone()[0]
+        )
+
+        if conexao_propria:
+            conn.commit()
+
+        return {
+            "sucesso": True,
+            "ambiente": ambiente,
+            "modelo": modelo,
+            "serie": serie,
+            "numero_anterior":
+                numero_anterior,
+            "numero_novo":
+                numero_novo,
+            "historico_id":
+                historico_id,
+            "mensagem": (
+                "Numeracao fiscal sincronizada "
+                "com sucesso."
+            ),
+        }
+
+    except Exception as erro:
+
+        if conexao_propria:
+            conn.rollback()
+
+        return {
+            "sucesso": False,
+            "mensagem": str(
+                erro
+            ),
+        }
+
+    finally:
+
+        if conexao_propria:
+            conn.close()

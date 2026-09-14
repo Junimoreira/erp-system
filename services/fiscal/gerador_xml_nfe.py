@@ -291,25 +291,18 @@ def _resolver_data_emissao(
     rascunho
 ):
 
+    # A data da venda representa o momento comercial.
+    # A data de emissao da NF-e deve representar o momento
+    # efetivo em que o documento fiscal esta sendo emitido.
+    #
+    # Se uma data_emissao explicita for fornecida pelo
+    # rascunho, ela sera respeitada.
+    # Caso contrario, _normalizar_data_emissao(None)
+    # utiliza a data/hora atual no fuso da empresa.
+
     valor = rascunho.get(
         "data_emissao"
     )
-
-    if valor is None:
-
-        venda = rascunho.get(
-            "venda",
-            {}
-        )
-
-        if isinstance(
-            venda,
-            dict
-        ):
-
-            valor = venda.get(
-                "data_venda"
-            )
 
     return _normalizar_data_emissao(
         valor
@@ -779,10 +772,44 @@ def _montar_identificacao(
         "1"
     )
 
+    uf_emitente = str(
+        emitente.get(
+            "uf"
+        )
+        or
+        ""
+    ).strip().upper()
+
+    uf_destino = str(
+        rascunho.get(
+            "uf_destino"
+        )
+        or
+        ""
+    ).strip().upper()
+
+    if uf_destino == "EX":
+
+        id_dest = "3"
+
+    elif (
+        uf_emitente
+        and
+        uf_destino
+        and
+        uf_emitente != uf_destino
+    ):
+
+        id_dest = "2"
+
+    else:
+
+        id_dest = "1"
+
     _tag(
         ide,
         "idDest",
-        "1"
+        id_dest
     )
 
     _tag(
@@ -1295,7 +1322,7 @@ def _montar_pis(
         "PIS"
     )
 
-    if cst == "99":
+    if cst in ("49", "99"):
 
         pis_outr = SubElement(
             pis,
@@ -1402,7 +1429,7 @@ def _montar_cofins(
         "COFINS"
     )
 
-    if cst == "99":
+    if cst in ("49", "99"):
 
         cofins_outr = SubElement(
             cofins,
@@ -1662,6 +1689,126 @@ def _distribuir_desconto_itens(
     return itens
 
 # ============================================================
+# DISTRIBUIR FRETE ENTRE OS ITENS
+# ============================================================
+def _distribuir_frete_itens(
+    itens,
+    frete_total
+):
+
+    itens = [
+        dict(item)
+        for item in (itens or [])
+    ]
+
+    if not itens:
+        return itens
+
+    frete_total = _decimal(
+        frete_total,
+        Decimal("0.00")
+    ).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP
+    )
+
+    if frete_total < Decimal("0.00"):
+        raise ValueError(
+            "Frete total nao pode ser negativo."
+        )
+
+    if frete_total == Decimal("0.00"):
+
+        for item in itens:
+            item["frete_item"] = Decimal("0.00")
+
+        return itens
+
+    subtotais = []
+
+    for item in itens:
+
+        subtotal = _decimal(
+            item.get("subtotal"),
+            Decimal("0.00")
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP
+        )
+
+        if subtotal < Decimal("0.00"):
+            raise ValueError(
+                "Subtotal de item nao pode ser negativo."
+            )
+
+        subtotais.append(subtotal)
+
+    soma_subtotais = sum(
+        subtotais,
+        Decimal("0.00")
+    ).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP
+    )
+
+    if soma_subtotais <= Decimal("0.00"):
+        raise ValueError(
+            "Nao e possivel distribuir frete "
+            "quando o total dos itens e zero."
+        )
+
+    frete_acumulado = Decimal("0.00")
+
+    for indice, item in enumerate(itens):
+
+        ultimo_item = indice == len(itens) - 1
+
+        if ultimo_item:
+            frete_item = (
+                frete_total
+                -
+                frete_acumulado
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
+        else:
+            frete_item = (
+                frete_total
+                *
+                subtotais[indice]
+                /
+                soma_subtotais
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
+
+            frete_acumulado += frete_item
+
+        item["frete_item"] = frete_item
+
+    soma_frete = sum(
+        (
+            item.get("frete_item", Decimal("0.00"))
+            for item in itens
+        ),
+        Decimal("0.00")
+    ).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP
+    )
+
+    if soma_frete != frete_total:
+        raise ValueError(
+            "Falha na distribuicao do frete. "
+            f"Esperado={frete_total}; itens={soma_frete}."
+        )
+
+    return itens
+
+
+# ============================================================
 # MONTAR IBS / CBS DO ITEM
 # Grupo criado somente quando ibs_cbs_calcular=True.
 # ============================================================
@@ -1858,6 +2005,29 @@ def _montar_item(
             )
         )
     )
+
+    # --------------------------------------------------------
+    # FRETE DO ITEM
+    # --------------------------------------------------------
+    frete_item = _decimal(
+        item.get(
+            "frete_item"
+        ),
+        Decimal("0.00")
+    ).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP
+    )
+
+    if frete_item > Decimal("0.00"):
+
+        _tag(
+            prod,
+            "vFrete",
+            _formatar_valor(
+                frete_item
+            )
+        )
 
     # --------------------------------------------------------
     # DESCONTO DO ITEM
@@ -2114,7 +2284,9 @@ def _montar_totais(
     _tag(
         icms_tot,
         "vFrete",
-        "0.00"
+        dados.get(
+            "frete"
+        )
     )
 
     _tag(
@@ -2419,12 +2591,21 @@ def gerar_xml_nfe(
             )
         )
 
+        itens_fiscais = (
+            _distribuir_frete_itens(
+                itens=itens_com_desconto,
+                frete_total=dados_totais.get(
+                    "frete"
+                )
+            )
+        )
+
         # ====================================================
         # MONTAR ITENS
         # ====================================================
         resultados_itens = []
 
-        for item in itens_com_desconto:
+        for item in itens_fiscais:
 
             resultado_item = _montar_item(
                 inf_nfe,

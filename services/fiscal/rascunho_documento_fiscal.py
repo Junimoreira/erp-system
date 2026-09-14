@@ -6,6 +6,10 @@ from database.configuracoes_fiscais_db import (
     buscar_configuracao_fiscal
 )
 
+from database.marketplaces_db import (
+    buscar_pedido_marketplace_por_venda
+)
+
 from services.fiscal.validador_venda_fiscal import (
     validar_venda_fiscal
 )
@@ -114,6 +118,88 @@ def montar_rascunho_documento_fiscal(
     # --------------------------------------------------------
     # DESTINATÁRIO
     # --------------------------------------------------------
+    # --------------------------------------------------------
+    # AJUSTE FISCAL PARA MARKETPLACE
+    #
+    # Nao altera venda, financeiro ou pedido no banco.
+    # Apenas cria a representacao usada na emissao fiscal.
+    # --------------------------------------------------------
+    venda_fiscal = dict(venda)
+
+    resultado_marketplace = (
+        buscar_pedido_marketplace_por_venda(
+            venda_id
+        )
+    )
+
+    pedido_marketplace = None
+
+    if (
+        resultado_marketplace.get("sucesso")
+        and
+        resultado_marketplace.get("encontrado")
+    ):
+        pedido_marketplace = (
+            resultado_marketplace.get("pedido")
+        )
+
+    if pedido_marketplace:
+
+        valor_produtos = (
+            pedido_marketplace.get(
+                "valor_produtos"
+            )
+            or 0
+        )
+
+        valor_frete = (
+            pedido_marketplace.get(
+                "valor_frete_cliente"
+            )
+            or 0
+        )
+
+        valor_desconto = (
+            pedido_marketplace.get(
+                "valor_desconto"
+            )
+            or 0
+        )
+
+        venda_fiscal["valor_total"] = (
+            valor_produtos
+        )
+
+        venda_fiscal["frete"] = (
+            valor_frete
+        )
+
+        venda_fiscal["desconto"] = (
+            valor_desconto
+        )
+
+        venda_fiscal["valor_final"] = (
+            valor_produtos
+            +
+            valor_frete
+            -
+            valor_desconto
+        )
+
+    modalidade_frete = "9"
+
+    if pedido_marketplace:
+
+        canal_codigo = str(
+            pedido_marketplace.get(
+                "canal_codigo"
+            )
+            or ""
+        ).strip().upper()
+
+        if canal_codigo == "MAGALU":
+            modalidade_frete = "2"
+
     resultado_destinatario = (
         montar_destinatario_fiscal(
             cliente_id=venda.get(
@@ -145,13 +231,13 @@ def montar_rascunho_documento_fiscal(
     # --------------------------------------------------------
     resultado_pagamento = (
         montar_pagamento_fiscal(
-            forma_pagamento=venda.get(
+            forma_pagamento=venda_fiscal.get(
                 "forma_pagamento"
             ),
-            valor_pago=venda.get(
+            valor_pago=venda_fiscal.get(
                 "valor_final"
             ),
-            autorizacao_cartao=venda.get(
+            autorizacao_cartao=venda_fiscal.get(
                 "autorizacao_cartao"
             )
         )
@@ -181,7 +267,7 @@ def montar_rascunho_documento_fiscal(
     # --------------------------------------------------------
     resultado_totais = (
         montar_totais_fiscais(
-            venda=venda,
+            venda=venda_fiscal,
             resultado_pagamento=
                 resultado_pagamento
         )
@@ -212,7 +298,7 @@ def montar_rascunho_documento_fiscal(
     # VALIDAR FISCALMENTE A VENDA
     # --------------------------------------------------------
     validacao = validar_venda_fiscal(
-        venda=venda,
+        venda=venda_fiscal,
         uf_destino=uf_destino,
         modelo=modelo
     )
@@ -543,6 +629,9 @@ def montar_rascunho_documento_fiscal(
                 "ambiente"
             ),
 
+        "mod_frete":
+            modalidade_frete,
+
         # ----------------------------------------------------
         # EMITENTE
         # ----------------------------------------------------
@@ -689,37 +778,37 @@ def montar_rascunho_documento_fiscal(
         # ----------------------------------------------------
         "venda": {
             "id":
-                venda.get(
+                venda_fiscal.get(
                     "id"
                 ),
 
             "cliente_id":
-                venda.get(
+                venda_fiscal.get(
                     "cliente_id"
                 ),
 
             "data_venda":
-                venda.get(
+                venda_fiscal.get(
                     "data_venda"
                 ),
 
             "valor_total":
-                venda.get(
+                venda_fiscal.get(
                     "valor_total"
                 ),
 
             "desconto":
-                venda.get(
+                venda_fiscal.get(
                     "desconto"
                 ),
 
             "valor_final":
-                venda.get(
+                venda_fiscal.get(
                     "valor_final"
                 ),
 
             "forma_pagamento":
-                venda.get(
+                venda_fiscal.get(
                     "forma_pagamento"
                 )
         },

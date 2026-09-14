@@ -969,6 +969,11 @@ def tela_emissao_nfe():
     if not sucesso:
         _mostrar_erros_destinatario(destinatario_resultado)
 
+        validacao_resultado = (
+            rascunho.get("validacao") or {}
+        )
+        _mostrar_validacao_fiscal(validacao_resultado)
+
         for erro in rascunho.get("erros") or []:
             st.error(str(erro))
 

@@ -1,4 +1,4 @@
-﻿# database/marketplaces_db.py
+# database/marketplaces_db.py
 
 import hashlib
 from datetime import datetime, timedelta
@@ -1877,4 +1877,316 @@ def listar_vinculos_produtos_marketplace(
 
     finally:
 
+        conn.close()
+
+# ============================================================
+# INTEGRACAO FISCAL DOS PEDIDOS MARKETPLACE
+# ============================================================
+def buscar_pedido_marketplace_por_venda(venda_id):
+
+    if venda_id is None:
+
+        return {
+            "sucesso": False,
+            "encontrado": False,
+            "pedido": None,
+            "mensagem": "Venda nao informada."
+        }
+
+    conn = conectar()
+
+    if conn is None:
+
+        return {
+            "sucesso": False,
+            "encontrado": False,
+            "pedido": None,
+            "mensagem": (
+                "Nao foi possivel conectar ao banco para "
+                "consultar o pedido marketplace."
+            )
+        }
+
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                mp.id,
+                mp.canal_id,
+                mc.codigo AS canal_codigo,
+                mc.nome AS canal_nome,
+                mp.pedido_externo,
+                mp.venda_id,
+                mp.valor_produtos,
+                mp.valor_frete_cliente,
+                mp.valor_desconto,
+                mp.valor_total_cliente,
+                mp.valor_comissao,
+                mp.valor_tarifa_fixa,
+                mp.valor_taxas_outros,
+                mp.valor_repasse_previsto,
+                mp.status_pedido,
+                mp.status_fiscal
+            FROM marketplace_pedidos mp
+
+            INNER JOIN marketplace_canais mc
+                ON mc.id = mp.canal_id
+
+            WHERE mp.venda_id = %s
+
+            ORDER BY mp.id DESC
+            LIMIT 1
+            """,
+            (
+                int(venda_id),
+            )
+        )
+
+        registro = cursor.fetchone()
+
+        if registro is None:
+
+            return {
+                "sucesso": True,
+                "encontrado": False,
+                "pedido": None,
+                "mensagem": (
+                    "Venda sem pedido marketplace vinculado."
+                )
+            }
+
+        colunas = [
+            descricao[0]
+            for descricao in cursor.description
+        ]
+
+        return {
+            "sucesso": True,
+            "encontrado": True,
+            "pedido": dict(
+                zip(
+                    colunas,
+                    registro
+                )
+            ),
+            "mensagem": (
+                "Pedido marketplace localizado."
+            )
+        }
+
+    except Exception as erro:
+
+        return {
+            "sucesso": False,
+            "encontrado": False,
+            "pedido": None,
+            "mensagem": (
+                "Erro ao consultar pedido marketplace: "
+                + str(erro)
+            )
+        }
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+# ============================================================
+# VINCULAR NF-e AUTORIZADA AO PEDIDO MARKETPLACE
+#
+# IMPORTANTE:
+# - NAO altera venda;
+# - NAO altera estoque;
+# - NAO altera financeiro;
+# - NAO transmite NF-e;
+# - apenas registra no pedido marketplace uma NF-e
+#   que ja foi autorizada pela SEFAZ.
+# ============================================================
+def vincular_nfe_pedido_marketplace(
+    venda_id,
+    numero_nfe,
+    serie_nfe,
+    chave_nfe,
+    protocolo_nfe
+):
+
+    conn = conectar()
+
+    if conn is None:
+
+        return {
+            "sucesso": False,
+            "mensagem": (
+                "Nao foi possivel conectar ao banco."
+            )
+        }
+
+    cursor = conn.cursor()
+
+    try:
+
+        chave_nfe = "".join(
+            caractere
+            for caractere in str(
+                chave_nfe or ""
+            )
+            if caractere.isdigit()
+        )
+
+        if len(chave_nfe) != 44:
+
+            raise ValueError(
+                "Chave da NF-e deve possuir 44 digitos."
+            )
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                pedido_externo,
+                venda_id,
+                status_fiscal,
+                numero_nfe,
+                serie_nfe,
+                chave_nfe,
+                protocolo_nfe
+            FROM marketplace_pedidos
+            WHERE venda_id = %s
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                int(venda_id),
+            )
+        )
+
+        pedido = cursor.fetchone()
+
+        if not pedido:
+
+            raise ValueError(
+                "Pedido marketplace nao encontrado."
+            )
+
+        (
+            pedido_id,
+            pedido_externo,
+            venda_id_banco,
+            status_fiscal_atual,
+            numero_atual,
+            serie_atual,
+            chave_atual,
+            protocolo_atual,
+        ) = pedido
+
+        # Se ja houver uma NF-e diferente vinculada,
+        # bloqueia para evitar substituicao silenciosa.
+        if (
+            chave_atual
+            and
+            str(chave_atual).strip() != chave_nfe
+        ):
+
+            raise ValueError(
+                (
+                    "Pedido ja possui outra NF-e vinculada: "
+                    f"{chave_atual}"
+                )
+            )
+
+        # Idempotencia: a mesma NF-e ja esta registrada.
+        if (
+            str(chave_atual or "").strip() == chave_nfe
+            and
+            str(numero_atual or "") == str(numero_nfe)
+            and
+            str(serie_atual or "") == str(serie_nfe)
+            and
+            str(protocolo_atual or "").strip()
+                == str(protocolo_nfe).strip()
+            and
+            str(status_fiscal_atual or "").strip().upper()
+                == "AUTORIZADO"
+        ):
+
+            conn.rollback()
+
+            return {
+                "sucesso": True,
+                "ja_vinculada": True,
+                "pedido_id": pedido_id,
+                "pedido_externo": pedido_externo,
+                "venda_id": venda_id_banco,
+                "status_fiscal": status_fiscal_atual,
+                "numero_nfe": numero_atual,
+                "serie_nfe": serie_atual,
+                "chave_nfe": chave_atual,
+                "protocolo_nfe": protocolo_atual,
+                "mensagem": (
+                    "NF-e ja estava vinculada ao pedido."
+                )
+            }
+
+        cursor.execute(
+            """
+            UPDATE marketplace_pedidos
+            SET
+                status_fiscal = 'AUTORIZADO',
+                numero_nfe = %s,
+                serie_nfe = %s,
+                chave_nfe = %s,
+                protocolo_nfe = %s,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (
+                int(numero_nfe),
+                int(serie_nfe),
+                chave_nfe,
+                str(protocolo_nfe),
+                pedido_id,
+            )
+        )
+
+        if cursor.rowcount != 1:
+
+            raise ValueError(
+                "Quantidade inesperada de pedidos atualizados."
+            )
+
+        conn.commit()
+
+        return {
+            "sucesso": True,
+            "ja_vinculada": False,
+            "pedido_id": pedido_id,
+            "pedido_externo": pedido_externo,
+            "venda_id": venda_id_banco,
+            "status_fiscal": "AUTORIZADO",
+            "numero_nfe": int(numero_nfe),
+            "serie_nfe": int(serie_nfe),
+            "chave_nfe": chave_nfe,
+            "protocolo_nfe": str(protocolo_nfe),
+            "mensagem": (
+                "NF-e vinculada ao pedido marketplace."
+            )
+        }
+
+    except Exception as erro:
+
+        conn.rollback()
+
+        return {
+            "sucesso": False,
+            "mensagem": str(
+                erro
+            )
+        }
+
+    finally:
+
+        cursor.close()
         conn.close()
