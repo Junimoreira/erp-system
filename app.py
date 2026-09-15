@@ -51,7 +51,7 @@ from telas.contas_receber import tela_contas_receber
 from telas.configuracoes import tela_configuracoes
 from telas.fechamento_caixa import tela_fechamento_caixa
 from telas.painel_admin_permissoes import tela_painel_permissoes
-from telas.relatorios_novo.relatorios import tela_relatorios
+from telas.relatorios.financeiro_diario import tela_relatorios
 from telas.marketing import tela_marketing
 from telas.marketplaces import tela_marketplaces
 from telas.fluxo_caixa import tela_fluxo_caixa
