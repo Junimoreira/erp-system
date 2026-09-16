@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 
 from telas.relatorios_novo.relatorio_gerencial_vendas import (
     tela_relatorio_gerencial_vendas,
@@ -28,6 +28,10 @@ from telas.relatorios_novo.relatorio_giro_estoque import (
     tela_relatorio_giro_estoque,
 )
 
+from telas.relatorios_novo.relatorio_situacao_fiscal_produtos import (
+    tela_relatorio_situacao_fiscal_produtos,
+)
+
 
 # ============================================================
 # CENTRAL DE RELATÓRIOS
@@ -49,6 +53,7 @@ def tela_relatorios():
         [
             "Vendas",
             "Estoque",
+            "Fiscal",
         ],
         index=None,
         placeholder="Selecione...",
@@ -181,3 +186,39 @@ def tela_relatorios():
         ):
 
             tela_relatorio_giro_estoque()
+
+    # ========================================================
+    # FISCAL
+    # ========================================================
+
+    elif categoria == "Fiscal":
+
+        relatorio = st.selectbox(
+            "Relatorio",
+            [
+                "Situacao Fiscal dos Produtos",
+            ],
+            index=None,
+            placeholder="Selecione...",
+            key=(
+                "central_relatorios_"
+                "fiscal_tipo"
+            ),
+        )
+
+        if relatorio is None:
+
+            st.info(
+                "Selecione um relatorio."
+            )
+
+            return
+
+        if (
+            relatorio
+            ==
+            "Situacao Fiscal dos Produtos"
+        ):
+
+            tela_relatorio_situacao_fiscal_produtos()
+

@@ -735,30 +735,77 @@ def criar_tabela_relatorio(
     linhas,
     larguras=None,
     alinhamentos=None,
+    quebrar_texto=False,
 ):
 
-    dados = [
-        [
-            str(
-                coluna
-            )
-            for coluna
-            in colunas
-        ]
-    ]
+    if quebrar_texto:
 
-    for linha in linhas:
-
-        dados.append(
-            [
-                (
-                    ""
-                    if valor is None
-                    else str(valor)
-                )
-                for valor in linha
-            ]
+        estilo_cabecalho = ParagraphStyle(
+            "TabelaCabecalho",
+            fontName="Helvetica-Bold",
+            fontSize=8.5,
+            leading=10,
+            textColor=colors.white,
         )
+
+        estilo_celula = ParagraphStyle(
+            "TabelaCelula",
+            fontName="Helvetica",
+            fontSize=8.5,
+            leading=10,
+            textColor=colors.black,
+        )
+
+        dados = [
+            [
+                Paragraph(
+                    escape(str(coluna)),
+                    estilo_cabecalho,
+                )
+                for coluna in colunas
+            ]
+        ]
+
+        for linha in linhas:
+
+            dados.append(
+                [
+                    Paragraph(
+                        escape(
+                            ""
+                            if valor is None
+                            else str(valor)
+                        ),
+                        estilo_celula,
+                    )
+                    for valor in linha
+                ]
+            )
+
+    else:
+
+        dados = [
+            [
+                str(
+                    coluna
+                )
+                for coluna
+                in colunas
+            ]
+        ]
+
+        for linha in linhas:
+
+            dados.append(
+                [
+                    (
+                        ""
+                        if valor is None
+                        else str(valor)
+                    )
+                    for valor in linha
+                ]
+            )
 
     tabela = Table(
         dados,
