@@ -979,7 +979,7 @@ def tela_emissao_nfe():
     elif ambiente == 1:
         st.error("🚨 ATENÇÃO: o emissor está configurado em PRODUÇÃO.")
         st.warning(
-            "A transmissão pela interface está bloqueada enquanto este módulo estiver em fase de homologação."
+            "Transmissão em PRODUÇÃO habilitada. Os documentos autorizados terão validade fiscal."
         )
 
     st.divider()
@@ -1031,7 +1031,7 @@ def tela_emissao_nfe():
 
     if venda_id is None:
         _limpar_estado_emissao()
-        st.info("Selecione uma venda para iniciar a preparação da NF-e.")
+        st.info(f"Selecione uma venda para iniciar a preparação da {nome_documento}.")
         return
 
     # ========================================================
