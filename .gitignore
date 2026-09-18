@@ -65,3 +65,10 @@ DANFE*_teste.pdf
 services/fiscal/*_QUEBRADO.py
 services/fiscal/*_teste_*.py
 
+# ============================================================
+# Documentos fiscais gerados localmente
+# Nunca versionar XML/DANFE fiscal ou arquivos de teste
+# ============================================================
+documentos_fiscais/
+temp_testes_nfce/
+

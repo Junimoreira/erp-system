@@ -103,8 +103,30 @@ def _cliente_generico(
 # ============================================================
 def montar_destinatario_fiscal(
     cliente_id,
-    modelo
+    modelo,
+    identificar_consumidor=True
 ):
+
+    # --------------------------------------------------------
+    # NFC-e - CONSUMIDOR NAO IDENTIFICADO POR OPCAO
+    # --------------------------------------------------------
+    if (
+        modelo == 65
+        and identificar_consumidor is False
+    ):
+        return {
+            "sucesso": True,
+            "identificado": False,
+            "tipo": "CONSUMIDOR_NAO_IDENTIFICADO",
+            "destinatario": None,
+            "erros": [],
+            "avisos": [
+                (
+                    "NFC-e preparada sem identificacao "
+                    "do consumidor por opcao da emissao."
+                )
+            ]
+        }
 
     # --------------------------------------------------------
     # SEM CLIENTE

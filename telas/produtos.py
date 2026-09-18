@@ -181,6 +181,75 @@ def carregar_produto_para_edicao(produto):
         produto.get("cfop_padrao")
     )
 
+    # ------------------------------------------------------
+    # CONFIGURACAO FISCAL
+    # ------------------------------------------------------
+    st.session_state["edit_origem_mercadoria"] = tratar_texto(
+        produto.get("origem_mercadoria")
+    )
+
+    st.session_state["edit_perfil_icms"] = tratar_texto(
+        produto.get("perfil_icms")
+    )
+
+    st.session_state["edit_cfop_saida_interna"] = tratar_texto(
+        produto.get("cfop_saida_interna")
+    )
+
+    st.session_state["edit_csosn_saida_interna"] = tratar_texto(
+        produto.get("csosn_saida_interna")
+    )
+
+    st.session_state["edit_cfop_saida_interestadual"] = tratar_texto(
+        produto.get("cfop_saida_interestadual")
+    )
+
+    st.session_state["edit_csosn_saida_interestadual"] = tratar_texto(
+        produto.get("csosn_saida_interestadual")
+    )
+
+    st.session_state["edit_cst_pis_saida"] = tratar_texto(
+        produto.get("cst_pis_saida")
+    )
+
+    st.session_state["edit_aliquota_pis_saida"] = float(
+        produto.get("aliquota_pis_saida") or 0
+    )
+
+    st.session_state["edit_cst_cofins_saida"] = tratar_texto(
+        produto.get("cst_cofins_saida")
+    )
+
+    st.session_state["edit_aliquota_cofins_saida"] = float(
+        produto.get("aliquota_cofins_saida") or 0
+    )
+
+    st.session_state["edit_cst_ibs_cbs_saida"] = tratar_texto(
+        produto.get("cst_ibs_cbs_saida")
+    )
+
+    st.session_state[
+        "edit_classificacao_tributaria_saida"
+    ] = tratar_texto(
+        produto.get("classificacao_tributaria_saida")
+    )
+
+    st.session_state["edit_fiscal_revisado"] = bool(
+        produto.get("fiscal_revisado")
+    )
+
+    st.session_state["edit_fiscal_fonte"] = tratar_texto(
+        produto.get("fiscal_fonte")
+    )
+
+    st.session_state["edit_fiscal_confianca"] = tratar_texto(
+        produto.get("fiscal_confianca")
+    )
+
+    st.session_state["edit_fiscal_observacao"] = tratar_texto(
+        produto.get("fiscal_observacao")
+    )
+
     st.session_state["edit_custo"] = float(
         produto.get("custo") or 0
     )
@@ -232,6 +301,23 @@ def limpar_estado_edicao():
         "edit_ncm",
         "edit_cest",
         "edit_cfop",
+        "edit_origem_mercadoria",
+        "edit_perfil_icms",
+        "edit_cfop_saida_interna",
+        "edit_csosn_saida_interna",
+        "edit_cfop_saida_interestadual",
+        "edit_csosn_saida_interestadual",
+        "edit_cst_pis_saida",
+        "edit_aliquota_pis_saida",
+        "edit_cst_cofins_saida",
+        "edit_aliquota_cofins_saida",
+        "edit_cst_ibs_cbs_saida",
+        "edit_classificacao_tributaria_saida",
+        "edit_fiscal_revisado",
+        "edit_fiscal_fonte",
+        "edit_fiscal_confianca",
+        "edit_fiscal_confianca_select",
+        "edit_fiscal_observacao",
         "edit_custo",
         "edit_preco",
         "edit_estoque",
@@ -1144,9 +1230,183 @@ def tela_produtos():
                         )
 
                         cfop_edit = st.text_input(
-                            "CFOP",
-                            key="edit_cfop"
+                            "CFOP padrão (legado)",
+                            key="edit_cfop",
+                            help=(
+                                "Campo mantido por compatibilidade. "
+                                "A emissão fiscal utiliza os CFOPs "
+                                "configurados na seção abaixo."
+                            )
                         )
+
+                    st.divider()
+
+                    # =================================================
+                    # CONFIGURACAO FISCAL
+                    # =================================================
+                    st.markdown("### 🧾 Configuração Fiscal")
+
+                    st.caption(
+                        "Parâmetros utilizados pelo módulo fiscal "
+                        "na emissão de NF-e e NFC-e."
+                    )
+
+                    fiscal_col1, fiscal_col2 = st.columns(2)
+
+                    with fiscal_col1:
+
+                        origem_mercadoria_edit = st.text_input(
+                            "Origem da mercadoria",
+                            key="edit_origem_mercadoria",
+                            placeholder="Ex.: 0"
+                        )
+
+                        perfil_icms_edit = st.text_input(
+                            "Perfil ICMS",
+                            key="edit_perfil_icms",
+                            placeholder="Ex.: NORMAL"
+                        )
+
+                        cfop_saida_interna_edit = st.text_input(
+                            "CFOP saída interna",
+                            key="edit_cfop_saida_interna",
+                            placeholder="Ex.: 5102"
+                        )
+
+                        csosn_saida_interna_edit = st.text_input(
+                            "CSOSN saída interna",
+                            key="edit_csosn_saida_interna",
+                            placeholder="Ex.: 102"
+                        )
+
+                        cst_pis_saida_edit = st.text_input(
+                            "CST PIS saída",
+                            key="edit_cst_pis_saida",
+                            placeholder="Ex.: 49"
+                        )
+
+                        aliquota_pis_saida_edit = st.number_input(
+                            "Alíquota PIS (%)",
+                            min_value=0.0,
+                            step=0.01,
+                            format="%.2f",
+                            key="edit_aliquota_pis_saida"
+                        )
+
+                    with fiscal_col2:
+
+                        cfop_saida_interestadual_edit = st.text_input(
+                            "CFOP saída interestadual",
+                            key="edit_cfop_saida_interestadual",
+                            placeholder="Ex.: 6102"
+                        )
+
+                        csosn_saida_interestadual_edit = st.text_input(
+                            "CSOSN saída interestadual",
+                            key="edit_csosn_saida_interestadual",
+                            placeholder="Ex.: 102"
+                        )
+
+                        cst_cofins_saida_edit = st.text_input(
+                            "CST COFINS saída",
+                            key="edit_cst_cofins_saida",
+                            placeholder="Ex.: 49"
+                        )
+
+                        aliquota_cofins_saida_edit = st.number_input(
+                            "Alíquota COFINS (%)",
+                            min_value=0.0,
+                            step=0.01,
+                            format="%.2f",
+                            key="edit_aliquota_cofins_saida"
+                        )
+
+                        cst_ibs_cbs_saida_edit = st.text_input(
+                            "CST IBS/CBS saída",
+                            key="edit_cst_ibs_cbs_saida"
+                        )
+
+                        classificacao_tributaria_saida_edit = (
+                            st.text_input(
+                                "Classificação tributária IBS/CBS",
+                                key=(
+                                    "edit_classificacao_tributaria_saida"
+                                )
+                            )
+                        )
+
+                    st.markdown(
+                        "#### Revisão da configuração fiscal"
+                    )
+
+                    st.caption(
+                        "Registra que os parâmetros fiscais foram "
+                        "conferidos com uma fonte identificada. "
+                        "Não representa certificação tributária "
+                        "automática pelo ERP."
+                    )
+
+                    revisao_col1, revisao_col2 = st.columns(2)
+
+                    with revisao_col1:
+
+                        fiscal_revisado_edit = st.checkbox(
+                            "Configuração fiscal revisada",
+                            key="edit_fiscal_revisado"
+                        )
+
+                        fiscal_fonte_edit = st.text_input(
+                            "Fonte da revisão fiscal",
+                            key="edit_fiscal_fonte",
+                            placeholder=(
+                                "Ex.: NF-e de compra do fornecedor"
+                            )
+                        )
+
+                    with revisao_col2:
+
+                        opcoes_confianca = [
+                            "",
+                            "BAIXA",
+                            "MEDIA",
+                            "ALTA"
+                        ]
+
+                        confianca_atual = (
+                            st.session_state.get(
+                                "edit_fiscal_confianca",
+                                ""
+                            )
+                            or ""
+                        ).strip().upper()
+
+                        if confianca_atual not in opcoes_confianca:
+                            opcoes_confianca.append(
+                                confianca_atual
+                            )
+
+                        fiscal_confianca_edit = st.selectbox(
+                            "Confiança da revisão",
+                            options=opcoes_confianca,
+                            index=opcoes_confianca.index(
+                                confianca_atual
+                            ),
+                            format_func=lambda valor: (
+                                "Selecione..."
+                                if not valor
+                                else valor
+                            ),
+                            key="edit_fiscal_confianca_select"
+                        )
+
+                    fiscal_observacao_edit = st.text_area(
+                        "Observação fiscal",
+                        key="edit_fiscal_observacao",
+                        placeholder=(
+                            "Registre a origem da informação e "
+                            "eventuais ressalvas."
+                        )
+                    )
 
                     st.divider()
 
@@ -1307,6 +1567,56 @@ def tela_produtos():
                                 ),
                                 normalizar_campo(
                                     tamanho_edit
+                                ),
+                                origem_mercadoria=normalizar_campo(
+                                    origem_mercadoria_edit
+                                ),
+                                perfil_icms=normalizar_campo(
+                                    perfil_icms_edit
+                                ),
+                                cfop_saida_interna=normalizar_campo(
+                                    cfop_saida_interna_edit
+                                ),
+                                csosn_saida_interna=normalizar_campo(
+                                    csosn_saida_interna_edit
+                                ),
+                                cfop_saida_interestadual=normalizar_campo(
+                                    cfop_saida_interestadual_edit
+                                ),
+                                csosn_saida_interestadual=normalizar_campo(
+                                    csosn_saida_interestadual_edit
+                                ),
+                                cst_pis_saida=normalizar_campo(
+                                    cst_pis_saida_edit
+                                ),
+                                aliquota_pis_saida=float(
+                                    aliquota_pis_saida_edit
+                                ),
+                                cst_cofins_saida=normalizar_campo(
+                                    cst_cofins_saida_edit
+                                ),
+                                aliquota_cofins_saida=float(
+                                    aliquota_cofins_saida_edit
+                                ),
+                                cst_ibs_cbs_saida=normalizar_campo(
+                                    cst_ibs_cbs_saida_edit
+                                ),
+                                classificacao_tributaria_saida=(
+                                    normalizar_campo(
+                                        classificacao_tributaria_saida_edit
+                                    )
+                                ),
+                                fiscal_revisado=bool(
+                                    fiscal_revisado_edit
+                                ),
+                                fiscal_fonte=normalizar_campo(
+                                    fiscal_fonte_edit
+                                ),
+                                fiscal_confianca=normalizar_campo(
+                                    fiscal_confianca_edit
+                                ),
+                                fiscal_observacao=normalizar_campo(
+                                    fiscal_observacao_edit
                                 )
                             )
 

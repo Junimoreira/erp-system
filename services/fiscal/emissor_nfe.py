@@ -9,6 +9,10 @@ from services.fiscal.gerador_xml_nfe import (
     gerar_xml_nfe
 )
 
+from services.fiscal.arquivamento_fiscal import (
+    arquivar_xml_processado,
+)
+
 from services.fiscal.assinador_xml_nfe import (
     assinar_xml_nfe
 )
@@ -435,7 +439,8 @@ def _recuperar_autorizacao_por_recibo(
     caminho_certificado,
     senha_certificado,
     ambiente,
-    timeout
+    timeout,
+    modelo=55
 ):
 
     cstats = (
@@ -494,7 +499,9 @@ def _recuperar_autorizacao_por_recibo(
             ambiente=
                 ambiente,
             timeout=
-                timeout
+                timeout,
+            modelo=
+                modelo
         )
     )
 
@@ -605,17 +612,43 @@ def _recuperar_autorizacao_por_recibo(
 #   quando houver cStat 204/539 e nRec disponÃ­vel
 # - nÃ£o retransmite automaticamente apÃ³s retorno ambÃ­guo
 # ============================================================
-def emitir_nfe(
+def _emitir_documento_fiscal(
     venda_id,
     uf_destino,
     caminho_certificado,
     senha_certificado,
+    modelo,
     diretorio_saida=None,
     timeout=60,
-    permitir_producao=False
+    permitir_producao=False,
+    identificar_consumidor=True
 ):
 
-    modelo = 55
+    try:
+        modelo = int(modelo)
+    except (TypeError, ValueError):
+        return {
+            "sucesso": False,
+            "etapa": "MODELO",
+            "mensagem": (
+                "Modelo fiscal invalido. "
+                "Use 55 para NF-e ou 65 para NFC-e."
+            ),
+            "modelo": modelo,
+            "nao_retransmitir": True
+        }
+
+    if modelo not in (55, 65):
+        return {
+            "sucesso": False,
+            "etapa": "MODELO",
+            "mensagem": (
+                "Modelo fiscal invalido. "
+                "Use 55 para NF-e ou 65 para NFC-e."
+            ),
+            "modelo": modelo,
+            "nao_retransmitir": True
+        }
 
     if diretorio_saida is None:
 
@@ -738,7 +771,8 @@ def emitir_nfe(
         montar_rascunho_documento_fiscal(
             venda_id=venda_id,
             modelo=modelo,
-            uf_destino=uf_destino
+            uf_destino=uf_destino,
+            identificar_consumidor=identificar_consumidor
         )
     )
 
@@ -844,8 +878,14 @@ def emitir_nfe(
     # ========================================================
     # NOMES DOS ARQUIVOS
     # ========================================================
+    tipo_documento = (
+        "nfce"
+        if modelo == 65
+        else "nfe"
+    )
+
     prefixo = (
-        f"nfe_55_serie_{serie}_numero_{numero}"
+        f"{tipo_documento}_{modelo}_serie_{serie}_numero_{numero}"
     )
 
     caminho_estrutural = (
@@ -1092,7 +1132,9 @@ def emitir_nfe(
             ambiente=
                 ambiente,
             timeout=
-                timeout
+                timeout,
+            modelo=
+                modelo
         )
     )
 
@@ -1205,7 +1247,9 @@ def emitir_nfe(
                 ambiente=
                     ambiente,
                 timeout=
-                    timeout
+                    timeout,
+                modelo=
+                    modelo
             )
         )
 
@@ -1484,6 +1528,33 @@ def emitir_nfe(
         }
 
     # ========================================================
+    # 9 - ARQUIVAMENTO FISCAL AUXILIAR
+    #
+    # Executado somente DEPOIS da autorizacao SEFAZ e da
+    # finalizacao transacional no banco.
+    #
+    # Uma falha aqui NAO invalida o documento autorizado e
+    # jamais deve provocar retransmissao.
+    # ========================================================
+    resultado_arquivamento = None
+    aviso_arquivamento = None
+
+    try:
+        resultado_arquivamento = (
+            arquivar_xml_processado(
+                xml_processado=
+                    caminho_processado
+            )
+        )
+    except Exception as erro:
+        aviso_arquivamento = (
+            "Documento fiscal autorizado e finalizado, "
+            "mas a copia auxiliar no arquivo mensal nao "
+            "pode ser criada. Nao retransmitir o documento. "
+            f"Detalhe: {erro}"
+        )
+
+    # ========================================================
     # RESULTADO FINAL
     # ========================================================
     return {
@@ -1513,6 +1584,10 @@ def emitir_nfe(
             recuperacao_recibo,
         "finalizacao":
             resultado_finalizacao,
+        "arquivamento":
+            resultado_arquivamento,
+        "aviso_arquivamento":
+            aviso_arquivamento,
         "arquivos": {
             "estrutural":
                 str(
@@ -1537,11 +1612,55 @@ def emitir_nfe(
         }
     }
 
+
+def emitir_nfe(
+    venda_id,
+    uf_destino,
+    caminho_certificado,
+    senha_certificado,
+    diretorio_saida=None,
+    timeout=60,
+    permitir_producao=False
+):
+    return _emitir_documento_fiscal(
+        venda_id=venda_id,
+        uf_destino=uf_destino,
+        caminho_certificado=caminho_certificado,
+        senha_certificado=senha_certificado,
+        modelo=55,
+        diretorio_saida=diretorio_saida,
+        timeout=timeout,
+        permitir_producao=permitir_producao
+    )
+
 # ============================================================
 # COMPATIBILIDADE COM TELAS/CHAMADAS ATUAIS
 #
 # Nunca libera producao.
 # ============================================================
+
+def emitir_nfce(
+    venda_id,
+    uf_destino,
+    caminho_certificado,
+    senha_certificado,
+    diretorio_saida=None,
+    timeout=60,
+    permitir_producao=False,
+    identificar_consumidor=True
+):
+    return _emitir_documento_fiscal(
+        venda_id=venda_id,
+        uf_destino=uf_destino,
+        caminho_certificado=caminho_certificado,
+        senha_certificado=senha_certificado,
+        modelo=65,
+        diretorio_saida=diretorio_saida,
+        timeout=timeout,
+        permitir_producao=permitir_producao,
+        identificar_consumidor=identificar_consumidor
+    )
+
 def emitir_nfe_homologacao(
     venda_id,
     uf_destino,

@@ -46,7 +46,8 @@ from services.fiscal.calculo_ibs_cbs import (
 def montar_rascunho_documento_fiscal(
     venda_id,
     modelo,
-    uf_destino
+    uf_destino,
+    identificar_consumidor=True
 ):
 
     # --------------------------------------------------------
@@ -205,7 +206,8 @@ def montar_rascunho_documento_fiscal(
             cliente_id=venda.get(
                 "cliente_id"
             ),
-            modelo=modelo
+            modelo=modelo,
+            identificar_consumidor=identificar_consumidor
         )
     )
 

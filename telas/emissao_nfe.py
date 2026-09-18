@@ -13,7 +13,7 @@ from database.configuracoes_fiscais_db import (
 )
 from database.documentos_fiscais_db import buscar_documento_autorizado_por_venda
 from services.fiscal.rascunho_documento_fiscal import montar_rascunho_documento_fiscal
-from services.fiscal.emissor_nfe import emitir_nfe
+from services.fiscal.emissor_nfe import emitir_nfe, emitir_nfce
 
 # Trava adicional da interface.
 # Por padrao, producao permanece BLOQUEADA.
@@ -35,6 +35,7 @@ PRODUCAO_INTERFACE_LIBERADA = (
     }
 )
 from services.fiscal.danfe_nfe import gerar_danfe_nfe
+from services.fiscal.danfe_nfce import gerar_danfe_nfce
 
 
 # ============================================================
@@ -124,6 +125,8 @@ def _limpar_estado_emissao():
         "emissao_nfe_rascunho",
         "emissao_nfe_rascunho_venda",
         "emissao_nfe_rascunho_uf",
+        "emissao_nfe_rascunho_modelo",
+        "emissao_nfe_rascunho_identificar_consumidor",
         "emissao_nfe_resultado",
         "emissao_nfe_resultado_venda",
         "emissao_nfe_confirmacao",
@@ -178,49 +181,96 @@ def _mostrar_documentos_nfe_autorizada(documento):
 
     xml_processado = documento.get("xml_processado")
 
+    try:
+        modelo = int(documento.get("modelo") or 55)
+    except (TypeError, ValueError):
+        modelo = 55
+
+    if modelo not in (55, 65):
+        st.error(
+            "Modelo fiscal do documento autorizado "
+            "nao reconhecido."
+        )
+        return
+
+    nome_documento = (
+        "NFC-e"
+        if modelo == 65
+        else "NF-e"
+    )
+
     if not xml_processado:
         st.warning(
-            "A NF-e est? autorizada, mas o XML processado n?o est? "
-            "armazenado no banco de dados."
+            f"A {nome_documento} esta autorizada, mas o "
+            "XML processado nao esta armazenado no banco "
+            "de dados."
         )
         return
 
     serie = documento.get("serie") or "sem_serie"
     numero = documento.get("numero") or "sem_numero"
+    documento_id = documento.get("id")
 
-    st.markdown("### \U0001F4C4 Documentos da NF-e")
+    st.markdown(
+        f"### Documentos da {nome_documento}"
+    )
 
     col_danfe, col_xml = st.columns(2)
 
-    # --------------------------------------------------------
-    # XML PROCESSADO
-    # --------------------------------------------------------
     dados_xml = xml_processado.encode("utf-8")
+
+    prefixo_xml = (
+        "NFCe"
+        if modelo == 65
+        else "NFe"
+    )
 
     with col_xml:
         st.download_button(
-            "\U0001F4E5 Baixar XML Processado",
+            "Baixar XML Processado",
             data=dados_xml,
-            file_name=f"NFe_{serie}_{numero}_processada.xml",
+            file_name=(
+                f"{prefixo_xml}_{serie}_{numero}"
+                "_processada.xml"
+            ),
             mime="application/xml",
             use_container_width=True,
-            key=f"download_xml_autorizada_{documento.get('id')}",
+            key=(
+                f"download_xml_autorizada_"
+                f"{documento_id}_{modelo}"
+            ),
         )
 
-    # --------------------------------------------------------
-    # DANFE
-    # --------------------------------------------------------
     pasta_temporaria = Path("temp") / "danfes"
-    pasta_temporaria.mkdir(parents=True, exist_ok=True)
+
+    pasta_temporaria.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    tipo_arquivo = (
+        "nfce"
+        if modelo == 65
+        else "nfe"
+    )
 
     caminho_xml = (
         pasta_temporaria
-        / f"nfe_{serie}_{numero}_processada.xml"
+        / (
+            f"{tipo_arquivo}_{serie}_{numero}"
+            "_processada.xml"
+        )
+    )
+
+    prefixo_pdf = (
+        "DANFE_NFCe"
+        if modelo == 65
+        else "DANFE_NFe"
     )
 
     caminho_pdf = (
         pasta_temporaria
-        / f"DANFE_NFe_{serie}_{numero}.pdf"
+        / f"{prefixo_pdf}_{serie}_{numero}.pdf"
     )
 
     try:
@@ -229,10 +279,16 @@ def _mostrar_documentos_nfe_autorizada(documento):
             encoding="utf-8",
         )
 
-        resultado_danfe = gerar_danfe_nfe(
-            caminho_xml=caminho_xml,
-            caminho_pdf=caminho_pdf,
-        )
+        if modelo == 65:
+            resultado_danfe = gerar_danfe_nfce(
+                caminho_xml=caminho_xml,
+                caminho_pdf=caminho_pdf,
+            )
+        else:
+            resultado_danfe = gerar_danfe_nfe(
+                caminho_xml=caminho_xml,
+                caminho_pdf=caminho_pdf,
+            )
 
         danfe_pronto = (
             resultado_danfe
@@ -252,28 +308,52 @@ def _mostrar_documentos_nfe_autorizada(documento):
         if danfe_pronto:
             dados_pdf = caminho_pdf.read_bytes()
 
+            texto_botao = (
+                "Baixar Cupom NFC-e"
+                if modelo == 65
+                else "Baixar DANFE"
+            )
+
             st.download_button(
-                "\U0001F4C4 Baixar DANFE",
+                texto_botao,
                 data=dados_pdf,
-                file_name=f"DANFE_NFe_{serie}_{numero}.pdf",
+                file_name=(
+                    f"{prefixo_pdf}_{serie}_{numero}.pdf"
+                ),
                 mime="application/pdf",
                 use_container_width=True,
-                key=f"download_danfe_autorizada_{documento.get('id')}",
+                key=(
+                    f"download_danfe_autorizada_"
+                    f"{documento_id}_{modelo}"
+                ),
             )
-        else:
-            st.error("N?o foi poss?vel gerar o DANFE.")
 
-            for erro in resultado_danfe.get("erros") or []:
+        else:
+            mensagem_erro = (
+                "Nao foi possivel gerar o cupom NFC-e."
+                if modelo == 65
+                else "Nao foi possivel gerar o DANFE."
+            )
+
+            st.error(mensagem_erro)
+
+            for erro in (
+                resultado_danfe.get("erros")
+                or []
+            ):
                 st.caption(str(erro))
 
-    if resultado_danfe and resultado_danfe.get("sucesso"):
-        for aviso in resultado_danfe.get("avisos") or []:
+    if (
+        resultado_danfe
+        and resultado_danfe.get("sucesso")
+    ):
+        for aviso in (
+            resultado_danfe.get("avisos")
+            or []
+        ):
             st.warning(str(aviso))
 
 
-# ============================================================
-# MOSTRAR ERROS DO DESTINATÁRIO
-# ============================================================
 def _mostrar_erros_destinatario(destinatario_resultado):
     if not destinatario_resultado:
         return
@@ -484,7 +564,7 @@ def _mostrar_validacao_fiscal(validacao):
 # ============================================================
 # MOSTRAR RESULTADO DA EMISSÃO
 # ============================================================
-def _mostrar_resultado_emissao(resultado):
+def _mostrar_resultado_emissao(resultado, modelo=55):
     st.divider()
     st.markdown("## 📡 Resultado da emissão")
 
@@ -652,6 +732,109 @@ def _mostrar_resultado_emissao(resultado):
     serie = resultado.get("serie") or "sem_serie"
     numero = resultado.get("numero") or "sem_numero"
 
+    if modelo == 65:
+        pasta_danfe_nfce = (
+            xml_processado.parent / "danfes_nfce"
+        )
+        pasta_danfe_nfce.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        caminho_danfe_nfce = (
+            pasta_danfe_nfce
+            / f"danfe_nfce_serie_{serie}_numero_{numero}.pdf"
+        )
+
+        try:
+            resultado_danfe_nfce = gerar_danfe_nfce(
+                caminho_xml=xml_processado,
+                caminho_pdf=caminho_danfe_nfce,
+            )
+        except Exception as erro:
+            resultado_danfe_nfce = {
+                "sucesso": False,
+                "erros": [str(erro)],
+                "avisos": [],
+            }
+
+        col_cupom, col_xml_nfce = st.columns(2)
+
+        with col_cupom:
+            if (
+                resultado_danfe_nfce.get("sucesso")
+                and caminho_danfe_nfce.is_file()
+            ):
+                try:
+                    dados_pdf_nfce = (
+                        caminho_danfe_nfce.read_bytes()
+                    )
+
+                    st.download_button(
+                        "Baixar Cupom NFC-e",
+                        data=dados_pdf_nfce,
+                        file_name=(
+                            f"DANFE_NFCe_{serie}_{numero}.pdf"
+                        ),
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key=(
+                            f"download_danfe_nfce_"
+                            f"{serie}_{numero}"
+                        ),
+                    )
+                except Exception as erro:
+                    st.error(
+                        "Nao foi possivel preparar o "
+                        "cupom NFC-e para download."
+                    )
+                    st.caption(str(erro))
+            else:
+                st.warning(
+                    "O XML da NFC-e foi autorizado, mas "
+                    "o cupom nao pode ser gerado."
+                )
+
+                for erro in resultado_danfe_nfce.get(
+                    "erros",
+                    [],
+                ):
+                    st.caption(str(erro))
+
+        with col_xml_nfce:
+            try:
+                dados_xml_nfce = (
+                    xml_processado.read_bytes()
+                )
+
+                st.download_button(
+                    "Baixar XML Processado da NFC-e",
+                    data=dados_xml_nfce,
+                    file_name=(
+                        f"NFCe_{serie}_{numero}_processada.xml"
+                    ),
+                    mime="application/xml",
+                    use_container_width=True,
+                    key=(
+                        f"download_xml_nfce_"
+                        f"{serie}_{numero}"
+                    ),
+                )
+            except Exception as erro:
+                st.error(
+                    "Nao foi possivel preparar o XML "
+                    "da NFC-e para download."
+                )
+                st.caption(str(erro))
+
+        for aviso in resultado_danfe_nfce.get(
+            "avisos",
+            [],
+        ):
+            st.caption(str(aviso))
+
+        return
+
     pasta_danfe = xml_processado.parent / "danfes"
     pasta_danfe.mkdir(parents=True, exist_ok=True)
 
@@ -732,8 +915,37 @@ def _mostrar_resultado_emissao(resultado):
 def tela_emissao_nfe():
     _limpar_senha_pendente()
 
-    st.title("🧾 Emissão de NF-e")
-    st.caption("Emissão de Nota Fiscal Eletrônica modelo 55.")
+    modelo_opcao = st.selectbox(
+        "Modelo do documento fiscal",
+        options=[55, 65],
+        index=None,
+        placeholder="Selecione NF-e ou NFC-e...",
+        format_func=lambda valor: (
+            "NF-e - modelo 55"
+            if valor == 55
+            else "NFC-e - modelo 65"
+        ),
+        key="emissao_nfe_modelo",
+    )
+
+    if modelo_opcao is None:
+        _limpar_estado_emissao()
+        st.info(
+            "Selecione NF-e modelo 55 ou NFC-e modelo 65 "
+            "para continuar."
+        )
+        return
+
+    modelo = int(modelo_opcao)
+
+    nome_documento = (
+        "NF-e"
+        if modelo == 55
+        else "NFC-e"
+    )
+
+    st.title(f"\U0001f9fe Emiss\u00e3o de {nome_documento}")
+    st.caption("Emiss\u00e3o de Nota Fiscal Eletr\u00f4nica modelo 55." if modelo == 55 else "Emiss\u00e3o de Nota Fiscal de Consumidor Eletr\u00f4nica modelo 65.")
 
     # ========================================================
     # CONFIGURAÇÃO FISCAL
@@ -745,17 +957,22 @@ def tela_emissao_nfe():
         return
 
     ambiente = configuracao.get("ambiente")
-    serie = configuracao.get("serie_nfe")
-    proximo_numero = configuracao.get("proximo_numero_nfe")
+
+    if modelo == 55:
+        serie = configuracao.get("serie_nfe")
+        proximo_numero = configuracao.get("proximo_numero_nfe")
+    else:
+        serie = configuracao.get("serie_nfce")
+        proximo_numero = configuracao.get("proximo_numero_nfce")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.metric("Ambiente", _descricao_ambiente(ambiente))
     with col2:
-        st.metric("Série NF-e", serie if serie is not None else "-")
+        st.metric(f"S\u00e9rie {nome_documento}", serie if serie is not None else "-")
     with col3:
-        st.metric("Próxima NF-e", proximo_numero if proximo_numero is not None else "-")
+        st.metric(f"Pr\u00f3xima {nome_documento}", proximo_numero if proximo_numero is not None else "-")
 
     if ambiente == 2:
         st.info("🧪 O emissor está configurado em HOMOLOGAÇÃO.")
@@ -906,6 +1123,26 @@ def tela_emissao_nfe():
     # ========================================================
     st.markdown("### 🧾 Preparação fiscal")
 
+    if modelo == 65:
+        tipo_consumidor = st.radio(
+            "Consumidor da NFC-e",
+            options=["NAO_IDENTIFICADO", "IDENTIFICADO"],
+            index=0,
+            format_func=lambda valor: (
+                "Consumidor nao identificado"
+                if valor == "NAO_IDENTIFICADO"
+                else "Consumidor identificado"
+            ),
+            horizontal=True,
+            key="emissao_nfce_tipo_consumidor",
+        )
+
+        identificar_consumidor = (
+            tipo_consumidor == "IDENTIFICADO"
+        )
+    else:
+        identificar_consumidor = True
+
     uf_destino = st.selectbox(
         "UF de destino",
         options=["MG", "SP", "RJ", "ES", "PR", "SC", "RS", "GO", "DF", "BA"],
@@ -927,13 +1164,18 @@ def tela_emissao_nfe():
         with st.spinner("Preparando dados fiscais..."):
             rascunho = montar_rascunho_documento_fiscal(
                 venda_id=venda_id,
-                modelo=55,
+                modelo=modelo,
                 uf_destino=uf_destino,
+                identificar_consumidor=identificar_consumidor,
             )
 
         st.session_state["emissao_nfe_rascunho"] = rascunho
         st.session_state["emissao_nfe_rascunho_venda"] = venda_id
         st.session_state["emissao_nfe_rascunho_uf"] = uf_destino
+        st.session_state["emissao_nfe_rascunho_modelo"] = modelo
+        st.session_state[
+            "emissao_nfe_rascunho_identificar_consumidor"
+        ] = identificar_consumidor
         st.session_state.pop("emissao_nfe_resultado", None)
         st.session_state.pop("emissao_nfe_resultado_venda", None)
 
@@ -943,6 +1185,13 @@ def tela_emissao_nfe():
         not rascunho
         or st.session_state.get("emissao_nfe_rascunho_venda") != venda_id
         or st.session_state.get("emissao_nfe_rascunho_uf") != uf_destino
+        or st.session_state.get("emissao_nfe_rascunho_modelo") != modelo
+        or (
+            st.session_state.get(
+                "emissao_nfe_rascunho_identificar_consumidor"
+            )
+            != identificar_consumidor
+        )
     ):
         return
 
@@ -1049,7 +1298,10 @@ def tela_emissao_nfe():
     totais_dados = ((rascunho.get("totais") or {}).get("dados") or {})
 
     st.write("**Venda:**", venda_id)
-    st.write("**Modelo:** 55")
+    st.write(
+        "**Modelo:**",
+        f"{rascunho.get('modelo') or '-'} - {nome_documento}"
+    )
     st.write("**Série:**", rascunho.get("serie") or "-")
     st.write("**Número previsto:**", rascunho.get("numero_sugerido") or "-")
     st.write("**Ambiente:**", _descricao_ambiente(rascunho.get("ambiente")))
@@ -1144,8 +1396,13 @@ def tela_emissao_nfe():
         return
 
     ambiente_atual = configuracao_atual.get("ambiente")
-    serie_atual = configuracao_atual.get("serie_nfe")
-    numero_atual = configuracao_atual.get("proximo_numero_nfe")
+
+    if modelo == 55:
+        serie_atual = configuracao_atual.get("serie_nfe")
+        numero_atual = configuracao_atual.get("proximo_numero_nfe")
+    else:
+        serie_atual = configuracao_atual.get("serie_nfce")
+        numero_atual = configuracao_atual.get("proximo_numero_nfce")
 
     try:
         ambiente_atual = int(ambiente_atual)
@@ -1303,13 +1560,23 @@ def tela_emissao_nfe():
             f"em {nome_ambiente.lower()}..."
         ):
             try:
-                resultado_emissao = emitir_nfe(
-                    venda_id=venda_id,
-                    uf_destino=uf_destino,
-                    caminho_certificado=caminho_certificado,
-                    senha_certificado=senha_certificado,
-                    permitir_producao=ambiente_producao,
-                )
+                if modelo == 55:
+                    resultado_emissao = emitir_nfe(
+                        venda_id=venda_id,
+                        uf_destino=uf_destino,
+                        caminho_certificado=caminho_certificado,
+                        senha_certificado=senha_certificado,
+                        permitir_producao=ambiente_producao,
+                    )
+                else:
+                    resultado_emissao = emitir_nfce(
+                        venda_id=venda_id,
+                        uf_destino=uf_destino,
+                        caminho_certificado=caminho_certificado,
+                        senha_certificado=senha_certificado,
+                        permitir_producao=ambiente_producao,
+                        identificar_consumidor=identificar_consumidor,
+                    )
             except Exception as erro:
                 resultado_emissao = {
                     "sucesso": False,
@@ -1334,4 +1601,4 @@ def tela_emissao_nfe():
     resultado_venda_id = st.session_state.get("emissao_nfe_resultado_venda")
 
     if resultado_emissao and resultado_venda_id == venda_id:
-        _mostrar_resultado_emissao(resultado_emissao)
+        _mostrar_resultado_emissao(resultado_emissao, modelo=modelo)

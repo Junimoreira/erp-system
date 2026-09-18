@@ -66,6 +66,27 @@ URL_RET_AUTORIZACAO_HOMOLOGACAO_MG = (
     "nfe2/services/NFeRetAutorizacao4"
 )
 
+# NFC-e - Modelo 65 - Minas Gerais
+URL_NFCE_PRODUCAO_MG = (
+    "https://nfce.fazenda.mg.gov.br/"
+    "nfce/services/NFeAutorizacao4"
+)
+
+URL_NFCE_HOMOLOGACAO_MG = (
+    "https://hnfce.fazenda.mg.gov.br/"
+    "nfce/services/NFeAutorizacao4"
+)
+
+URL_RET_NFCE_PRODUCAO_MG = (
+    "https://nfce.fazenda.mg.gov.br/"
+    "nfce/services/NFeRetAutorizacao4"
+)
+
+URL_RET_NFCE_HOMOLOGACAO_MG = (
+    "https://hnfce.fazenda.mg.gov.br/"
+    "nfce/services/NFeRetAutorizacao4"
+)
+
 
 def _normalizar_ambiente(
     ambiente
@@ -87,11 +108,26 @@ def _normalizar_ambiente(
 
 
 def _url_autorizacao_por_ambiente(
-    ambiente
+    ambiente,
+    modelo=55
 ):
     ambiente = _normalizar_ambiente(
         ambiente
     )
+
+    modelo = int(modelo)
+
+    if modelo not in (55, 65):
+        raise ValueError(
+            "Modelo fiscal invalido. "
+            "Esperado 55 (NF-e) ou 65 (NFC-e)."
+        )
+
+    if modelo == 65:
+        if ambiente == "1":
+            return URL_NFCE_PRODUCAO_MG
+
+        return URL_NFCE_HOMOLOGACAO_MG
 
     if ambiente == "1":
         return URL_PRODUCAO_MG
@@ -100,11 +136,26 @@ def _url_autorizacao_por_ambiente(
 
 
 def _url_ret_autorizacao_por_ambiente(
-    ambiente
+    ambiente,
+    modelo=55
 ):
     ambiente = _normalizar_ambiente(
         ambiente
     )
+
+    modelo = int(modelo)
+
+    if modelo not in (55, 65):
+        raise ValueError(
+            "Modelo fiscal invalido. "
+            "Esperado 55 (NF-e) ou 65 (NFC-e)."
+        )
+
+    if modelo == 65:
+        if ambiente == "1":
+            return URL_RET_NFCE_PRODUCAO_MG
+
+        return URL_RET_NFCE_HOMOLOGACAO_MG
 
     if ambiente == "1":
         return URL_RET_AUTORIZACAO_PRODUCAO_MG
@@ -787,7 +838,8 @@ def autorizar_nfe_mg(
     caminho_certificado,
     senha,
     ambiente,
-    timeout=60
+    timeout=60,
+    modelo=55
 ):
 
     try:
@@ -798,7 +850,8 @@ def autorizar_nfe_mg(
 
         url_autorizacao = (
             _url_autorizacao_por_ambiente(
-                ambiente
+                ambiente,
+                modelo=modelo
             )
         )
 
@@ -1358,7 +1411,8 @@ def consultar_recibo_autorizacao_mg(
     caminho_certificado,
     senha,
     ambiente=2,
-    timeout=60
+    timeout=60,
+    modelo=55
 ):
 
     try:
@@ -1369,7 +1423,8 @@ def consultar_recibo_autorizacao_mg(
 
         url_ret_autorizacao = (
             _url_ret_autorizacao_por_ambiente(
-                ambiente
+                ambiente,
+                modelo=modelo
             )
         )
 

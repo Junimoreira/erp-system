@@ -5,6 +5,10 @@ from services.fiscal.chave_acesso_nfe import (
     gerar_chave_acesso_nfe
 )
 
+from services.fiscal.nfce_suplementar import (
+    montar_infnfe_supl_nfce
+)
+
 from xml.etree.ElementTree import (
     Element,
     SubElement,
@@ -38,6 +42,11 @@ VERSAO_NFE = "4.00"
 
 XNOME_DESTINATARIO_HOMOLOGACAO = (
     "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+)
+
+
+XPROD_NFCE_HOMOLOGACAO = (
+    "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 )
 
 
@@ -627,14 +636,19 @@ def validar_rascunho_para_xml(
             )
         )
 
-    if rascunho.get(
+    modelo = rascunho.get(
         "modelo"
-    ) != 55:
+    )
+
+    if modelo not in (
+        55,
+        65
+    ):
 
         erros.append(
             (
-                "Este gerador aceita somente "
-                "NF-e modelo 55."
+                "Modelo fiscal n?o suportado pelo gerador. "
+                "Utilize NF-e 55 ou NFC-e 65."
             )
         )
 
@@ -736,10 +750,18 @@ def _montar_identificacao(
         "VENDA"
     )
 
+    modelo = int(
+        rascunho.get(
+            "modelo"
+        )
+    )
+
     _tag(
         ide,
         "mod",
-        "55"
+        str(
+            modelo
+        )
     )
 
     _tag(
@@ -820,10 +842,18 @@ def _montar_identificacao(
         )
     )
 
+    # NF-e 55: DANFE retrato.
+    # NFC-e 65: DANFE NFC-e.
+    tp_imp = (
+        "4"
+        if modelo == 65
+        else "1"
+    )
+
     _tag(
         ide,
         "tpImp",
-        "1"
+        tp_imp
     )
 
     _tag(
@@ -2471,6 +2501,25 @@ def _montar_pagamento(
         )
     )
 
+    if pagamento.get(
+        "tipo_interno"
+    ) in (
+        "CARTAO_CREDITO",
+        "CARTAO_DEBITO"
+    ):
+        card = SubElement(
+            det_pag,
+            "card"
+        )
+
+        _tag(
+            card,
+            "tpIntegra",
+            pagamento.get(
+                "tpIntegra"
+            )
+        )
+
     return pag
 
 
@@ -2607,9 +2656,40 @@ def gerar_xml_nfe(
 
         for item in itens_fiscais:
 
+            item_xml = item
+
+            if (
+                int(
+                    rascunho.get(
+                        "modelo"
+                    )
+                ) == 65
+                and
+                str(
+                    rascunho.get(
+                        "ambiente"
+                    )
+                ).strip() == "2"
+                and
+                int(
+                    item.get(
+                        "numero_item"
+                    )
+                ) == 1
+            ):
+                item_xml = dict(
+                    item
+                )
+
+                item_xml[
+                    "descricao"
+                ] = (
+                    XPROD_NFCE_HOMOLOGACAO
+                )
+
             resultado_item = _montar_item(
                 inf_nfe,
-                item
+                item_xml
             )
 
             resultados_itens.append(
@@ -2666,6 +2746,53 @@ def gerar_xml_nfe(
             ],
             "avisos": []
         }
+
+    # ========================================================
+    # INFORMACOES SUPLEMENTARES NFC-e
+    # ========================================================
+    modelo = int(
+        rascunho.get(
+            "modelo"
+        )
+    )
+
+    if modelo == 65:
+
+        try:
+
+            montar_infnfe_supl_nfce(
+                nfe=nfe,
+                chave_acesso=chave_acesso,
+                tp_amb=rascunho.get(
+                    "ambiente"
+                ),
+                tp_emis=dados_chave.get(
+                    "tipo_emissao"
+                )
+            )
+
+        except Exception as erro:
+
+            return {
+                "sucesso": False,
+                "xml": None,
+                "chave_acesso":
+                    chave_acesso,
+                "id_infnfe":
+                    (
+                        "NFe"
+                        +
+                        chave_acesso
+                    ),
+                "erros": [
+                    (
+                        "Falha ao montar informacoes "
+                        "suplementares da NFC-e: "
+                        f"{type(erro).__name__}: {erro}"
+                    )
+                ],
+                "avisos": []
+            }
 
     xml_bytes = tostring(
         nfe,

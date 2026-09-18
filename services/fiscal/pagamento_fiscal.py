@@ -272,15 +272,9 @@ def montar_pagamento_fiscal(
             "CARTAO_DEBITO"
         ):
 
-            if not autorizacao_cartao:
-
-                avisos.append(
-                    (
-                        "Pagamento com cartão identificado. "
-                        "Dados da transação/adquirente deverão "
-                        "ser tratados antes da transmissão."
-                    )
-                )
+            # POS/maquininha separado do ERP.
+            # Pagamento nao integrado ao sistema.
+            pass
 
         elif meio == "PIX":
 
@@ -316,7 +310,17 @@ def montar_pagamento_fiscal(
             exige_dados_transacao,
 
         "autorizacao_cartao":
-            autorizacao_cartao
+            autorizacao_cartao,
+
+        "tpIntegra":
+            (
+                "2"
+                if meio in (
+                    "CARTAO_CREDITO",
+                    "CARTAO_DEBITO"
+                )
+                else None
+            )
     }
 
     return {

@@ -280,7 +280,23 @@ def buscar_produto_por_id(produto_id):
                 localizacao,
                 ativo,
                 observacoes,
-                data_cadastro
+                data_cadastro,
+                origem_mercadoria,
+                perfil_icms,
+                cfop_saida_interna,
+                csosn_saida_interna,
+                cfop_saida_interestadual,
+                csosn_saida_interestadual,
+                cst_pis_saida,
+                aliquota_pis_saida,
+                cst_cofins_saida,
+                aliquota_cofins_saida,
+                cst_ibs_cbs_saida,
+                classificacao_tributaria_saida,
+                fiscal_revisado,
+                fiscal_fonte,
+                fiscal_confianca,
+                fiscal_observacao
             FROM produtos
             WHERE id = %s
             LIMIT 1
@@ -516,7 +532,23 @@ def atualizar_produto(
     localizacao,
     ativo,
     observacoes,
-    tamanho=None
+    tamanho=None,
+    origem_mercadoria=None,
+    perfil_icms=None,
+    cfop_saida_interna=None,
+    csosn_saida_interna=None,
+    cfop_saida_interestadual=None,
+    csosn_saida_interestadual=None,
+    cst_pis_saida=None,
+    aliquota_pis_saida=None,
+    cst_cofins_saida=None,
+    aliquota_cofins_saida=None,
+    cst_ibs_cbs_saida=None,
+    classificacao_tributaria_saida=None,
+    fiscal_revisado=False,
+    fiscal_fonte=None,
+    fiscal_confianca=None,
+    fiscal_observacao=None
 ):
 
     conn = conectar()
@@ -583,7 +615,23 @@ def atualizar_produto(
                 estoque_minimo = %s,
                 localizacao = %s,
                 ativo = %s,
-                observacoes = %s
+                observacoes = %s,
+                origem_mercadoria = %s,
+                perfil_icms = %s,
+                cfop_saida_interna = %s,
+                csosn_saida_interna = %s,
+                cfop_saida_interestadual = %s,
+                csosn_saida_interestadual = %s,
+                cst_pis_saida = %s,
+                aliquota_pis_saida = %s,
+                cst_cofins_saida = %s,
+                aliquota_cofins_saida = %s,
+                cst_ibs_cbs_saida = %s,
+                classificacao_tributaria_saida = %s,
+                fiscal_revisado = %s,
+                fiscal_fonte = %s,
+                fiscal_confianca = %s,
+                fiscal_observacao = %s
             WHERE id = %s
             """,
             (
@@ -606,6 +654,22 @@ def atualizar_produto(
                 localizacao,
                 ativo,
                 observacoes,
+                origem_mercadoria,
+                perfil_icms,
+                cfop_saida_interna,
+                csosn_saida_interna,
+                cfop_saida_interestadual,
+                csosn_saida_interestadual,
+                cst_pis_saida,
+                aliquota_pis_saida,
+                cst_cofins_saida,
+                aliquota_cofins_saida,
+                cst_ibs_cbs_saida,
+                classificacao_tributaria_saida,
+                fiscal_revisado,
+                fiscal_fonte,
+                fiscal_confianca,
+                fiscal_observacao,
                 id_produto
             )
         )
