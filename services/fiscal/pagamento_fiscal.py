@@ -317,7 +317,8 @@ def montar_pagamento_fiscal(
                 "2"
                 if meio in (
                     "CARTAO_CREDITO",
-                    "CARTAO_DEBITO"
+                    "CARTAO_DEBITO",
+                    "PIX"
                 )
                 else None
             )

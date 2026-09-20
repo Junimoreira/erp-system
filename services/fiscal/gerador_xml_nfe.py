@@ -2505,7 +2505,8 @@ def _montar_pagamento(
         "tipo_interno"
     ) in (
         "CARTAO_CREDITO",
-        "CARTAO_DEBITO"
+        "CARTAO_DEBITO",
+        "PIX"
     ):
         card = SubElement(
             det_pag,
