@@ -1451,152 +1451,141 @@ def tela_emissao_nfe():
             "para a SEFAZ-MG em HOMOLOGAÇÃO."
         )
 
-    confirmacao = st.checkbox(
-        (
-            "Confirmo que revisei os dados acima e desejo "
-            f"transmitir esta NF-e em {nome_ambiente}."
-        ),
-        value=False,
-        key="emissao_nfe_confirmacao",
-    )
-
-    confirmacao_producao = True
-
-    if ambiente_producao:
-        frase_esperada = "EMITIR NF-E EM PRODUCAO"
-
-        frase_digitada = st.text_input(
-            "Confirmação adicional de produção",
-            value="",
-            key="emissao_nfe_confirmacao_producao",
-            help=(
-                "Digite exatamente: "
-                "EMITIR NF-E EM PRODUCAO"
-            ),
-        )
-
-        confirmacao_producao = (
-            frase_digitada.strip().upper()
-            ==
-            frase_esperada
-        )
-
-        if not confirmacao_producao:
-            st.info(
-                "Para produção, digite exatamente: "
-                "EMITIR NF-E EM PRODUCAO"
-            )
-
-    senha_certificado = st.text_input(
-        "Senha do Certificado Digital A1",
-        type="password",
-        value="",
-        key="emissao_nfe_senha_certificado",
-        help=(
-            "A senha é utilizada apenas durante esta emissão "
-            "e não é armazenada pelo ERP."
-        ),
-    )
-
-    senha_preenchida = bool(
-        senha_certificado
-        and
-        senha_certificado.strip()
-    )
-
-    pronto_para_emitir = (
-        confirmacao
-        and
-        confirmacao_producao
-        and
-        senha_preenchida
-    )
-
-    if not confirmacao:
-        st.info(
-            "Marque a confirmação para liberar o botão de emissão."
-        )
-    elif not senha_preenchida:
-        st.info(
-            "Informe a senha do certificado para liberar a emissão."
-        )
-
-    # --------------------------------------------------------
-    # BOTAO DE EMISSAO
-    # --------------------------------------------------------
     texto_botao = (
         "📡 Emitir NF-e em Produção"
         if ambiente_producao
         else "📡 Emitir NF-e em Homologação"
     )
 
-    chave_botao = (
-        "btn_emitir_nfe_producao"
-        if ambiente_producao
-        else "btn_emitir_nfe_homologacao"
-    )
-
-    if st.button(
-        texto_botao,
-        type="primary",
-        use_container_width=True,
-        disabled=not pronto_para_emitir,
-        key=chave_botao,
+    with st.form(
+        key="form_confirmacao_emissao_fiscal",
+        clear_on_submit=False,
     ):
-        documento_existente = (
-            _buscar_documento_autorizado_venda(
-                venda_id
-            )
+        confirmacao = st.checkbox(
+            (
+                "Confirmo que revisei os dados acima e desejo "
+                f"transmitir esta NF-e em {nome_ambiente}."
+            ),
+            value=False,
+            key="emissao_nfe_confirmacao",
         )
 
-        if documento_existente:
-            st.error(
-                "A emissão foi cancelada porque esta venda "
-                "já possui documento fiscal autorizado."
+        frase_digitada = ""
+
+        if ambiente_producao:
+            frase_digitada = st.text_input(
+                "Confirmação adicional de produção",
+                value="",
+                key="emissao_nfe_confirmacao_producao",
+                help=(
+                    "Digite exatamente: "
+                    "EMITIR NF-E EM PRODUCAO"
+                ),
             )
-            return
 
-        with st.spinner(
-            "Transmitindo NF-e para a SEFAZ-MG "
-            f"em {nome_ambiente.lower()}..."
-        ):
-            try:
-                if modelo == 55:
-                    resultado_emissao = emitir_nfe(
-                        venda_id=venda_id,
-                        uf_destino=uf_destino,
-                        caminho_certificado=caminho_certificado,
-                        senha_certificado=senha_certificado,
-                        permitir_producao=ambiente_producao,
-                    )
-                else:
-                    resultado_emissao = emitir_nfce(
-                        venda_id=venda_id,
-                        uf_destino=uf_destino,
-                        caminho_certificado=caminho_certificado,
-                        senha_certificado=senha_certificado,
-                        permitir_producao=ambiente_producao,
-                        identificar_consumidor=identificar_consumidor,
-                    )
-            except Exception as erro:
-                resultado_emissao = {
-                    "sucesso": False,
-                    "etapa": "EXCECAO_INTERFACE",
-                    "mensagem": str(erro),
-                }
+        senha_certificado = st.text_input(
+            "Senha do Certificado Digital A1",
+            type="password",
+            value="",
+            key="emissao_nfe_senha_certificado",
+            help=(
+                "A senha é utilizada apenas durante esta emissão "
+                "e não é armazenada pelo ERP."
+            ),
+        )
 
-        # A senha sera limpa no proximo rerun.
-        st.session_state[
-            "emissao_nfe_limpar_senha"
-        ] = True
+        enviar_emissao = st.form_submit_button(
+            texto_botao,
+            type="primary",
+            use_container_width=True,
+        )
 
-        st.session_state[
-            "emissao_nfe_resultado"
-        ] = resultado_emissao
+    if enviar_emissao:
+        confirmacao_producao = True
 
-        st.session_state[
-            "emissao_nfe_resultado_venda"
-        ] = venda_id
+        if ambiente_producao:
+            frase_esperada = "EMITIR NF-E EM PRODUCAO"
+
+            confirmacao_producao = (
+                frase_digitada.strip().upper()
+                ==
+                frase_esperada
+            )
+
+        senha_preenchida = bool(
+            senha_certificado
+            and
+            senha_certificado.strip()
+        )
+
+        if not confirmacao:
+            st.error(
+                "Marque a confirmação antes de emitir."
+            )
+        elif not confirmacao_producao:
+            st.error(
+                "Para produção, digite exatamente: "
+                "EMITIR NF-E EM PRODUCAO"
+            )
+        elif not senha_preenchida:
+            st.error(
+                "Informe a senha do certificado antes de emitir."
+            )
+        else:
+            documento_existente = (
+                _buscar_documento_autorizado_venda(
+                    venda_id
+                )
+            )
+
+            if documento_existente:
+                st.error(
+                    "A emissão foi cancelada porque esta venda "
+                    "já possui documento fiscal autorizado."
+                )
+                return
+
+            with st.spinner(
+                "Transmitindo NF-e para a SEFAZ-MG "
+                f"em {nome_ambiente.lower()}..."
+            ):
+                try:
+                    if modelo == 55:
+                        resultado_emissao = emitir_nfe(
+                            venda_id=venda_id,
+                            uf_destino=uf_destino,
+                            caminho_certificado=caminho_certificado,
+                            senha_certificado=senha_certificado,
+                            permitir_producao=ambiente_producao,
+                        )
+                    else:
+                        resultado_emissao = emitir_nfce(
+                            venda_id=venda_id,
+                            uf_destino=uf_destino,
+                            caminho_certificado=caminho_certificado,
+                            senha_certificado=senha_certificado,
+                            permitir_producao=ambiente_producao,
+                            identificar_consumidor=identificar_consumidor,
+                        )
+                except Exception as erro:
+                    resultado_emissao = {
+                        "sucesso": False,
+                        "etapa": "EXCECAO_INTERFACE",
+                        "mensagem": str(erro),
+                    }
+
+            # A senha sera limpa no proximo rerun.
+            st.session_state[
+                "emissao_nfe_limpar_senha"
+            ] = True
+
+            st.session_state[
+                "emissao_nfe_resultado"
+            ] = resultado_emissao
+
+            st.session_state[
+                "emissao_nfe_resultado_venda"
+            ] = venda_id
 
     resultado_emissao = st.session_state.get("emissao_nfe_resultado")
     resultado_venda_id = st.session_state.get("emissao_nfe_resultado_venda")
