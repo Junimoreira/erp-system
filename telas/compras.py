@@ -673,6 +673,10 @@ def tela_compras():
                 # LER XML
                 # ==========================================
 
+                xml_original = (
+                    arquivo_xml.getvalue()
+                )
+
                 dados_xml = ler_xml_nfe(
                     arquivo_xml
                 )
@@ -1341,6 +1345,9 @@ def tela_compras():
                             importar_nfe_xml(
                                 dados_xml=
                                     dados_xml,
+
+                                xml_original=
+                                    xml_original,
 
                                 usuario=
                                     st.session_state.get(

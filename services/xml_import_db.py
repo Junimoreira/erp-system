@@ -1,4 +1,7 @@
 from database.connection import conectar
+from database.documentos_fiscais_db import (
+    importar_xml_fiscal
+)
 
 from services.xml_conversao_service import (
     detectar_conversao_por_descricao,
@@ -1100,6 +1103,7 @@ def buscar_conversao_confirmada(
 
 def importar_nfe_xml(
     dados_xml,
+    xml_original=None,
     usuario="Sistema",
     conversoes_confirmadas=None
 ):
@@ -1627,6 +1631,34 @@ def importar_nfe_xml(
         # ==================================================
         # CONFIRMAR TRANSAÇÃO
         # ==================================================
+
+        # ==================================================
+        # REGISTRAR DOCUMENTO NO REPOSITORIO FISCAL
+        # ==================================================
+
+        if not xml_original:
+            raise ValueError(
+                "XML original nao informado para "
+                "registro no repositorio fiscal."
+            )
+
+        resultado_fiscal = importar_xml_fiscal(
+            origem_xml=xml_original,
+            origem_documento="COMPRA_XML",
+            conn=conn
+        )
+
+        if not resultado_fiscal.get("sucesso"):
+            raise ValueError(
+                "Falha ao registrar documento fiscal: "
+                f"{resultado_fiscal.get('mensagem') or 'erro desconhecido'}"
+            )
+
+        if resultado_fiscal.get("tipo_movimento") != "ENTRADA":
+            raise ValueError(
+                "O XML informado nao foi identificado "
+                "como uma NF-e de entrada da empresa."
+            )
 
         conn.commit()
 

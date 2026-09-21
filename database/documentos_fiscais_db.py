@@ -1184,20 +1184,30 @@ def finalizar_documento_fiscal_autorizado(
 # ============================================================
 def importar_xml_fiscal(
     origem_xml,
-    origem_documento="IMPORTACAO"
+    origem_documento="IMPORTACAO",
+    conn=None
 ):
 
-    conn = conectar()
+    conexao_externa = (
+        conn is not None
+    )
 
-    if conn is None:
+    cursor = None
 
-        return {
-            "sucesso": False,
-            "mensagem": (
-                "Não foi possível conectar "
-                "ao banco de dados."
-            )
-        }
+    if not conexao_externa:
+
+        conn = conectar()
+
+        if conn is None:
+
+            return {
+                "sucesso": False,
+                "mensagem": (
+                    "Não foi possível conectar "
+                    "ao banco de dados."
+                )
+            }
+
 
     try:
 
@@ -1357,7 +1367,8 @@ def importar_xml_fiscal(
             )
         )
 
-        conn.commit()
+        if not conexao_externa:
+            conn.commit()
 
         return {
             "sucesso": True,
@@ -1379,7 +1390,8 @@ def importar_xml_fiscal(
 
     except Exception as erro:
 
-        conn.rollback()
+        if not conexao_externa:
+            conn.rollback()
 
         print(
             "Erro ao importar XML fiscal:",
@@ -1395,7 +1407,15 @@ def importar_xml_fiscal(
 
     finally:
 
-        conn.close()
+        if cursor is not None:
+            cursor.close()
+
+        if (
+            not conexao_externa
+            and
+            conn is not None
+        ):
+            conn.close()
 
 
 # ============================================================
