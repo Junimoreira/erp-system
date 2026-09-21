@@ -683,6 +683,17 @@ def gerar_danfe_nfce(
         )
         y -= 12
 
+        if str(dados.get("ambiente")) == "1":
+            _texto_centralizado_nfce(
+                c,
+                y,
+                "NFC-e AUTORIZADA",
+                largura,
+                tamanho=8,
+                negrito=True,
+            )
+            y -= 10
+
         if str(dados.get("ambiente")) == "2":
             _texto_centralizado_nfce(
                 c,
