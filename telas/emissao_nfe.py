@@ -145,8 +145,9 @@ def _limpar_senha_pendente():
     limpar = st.session_state.pop("emissao_nfe_limpar_senha", False)
 
     if limpar:
-        st.session_state.pop("emissao_nfe_senha_certificado", None)
-        st.session_state.pop("emissao_nfe_confirmacao", None)
+        st.session_state["emissao_nfe_senha_certificado"] = ""
+        st.session_state["emissao_nfe_confirmacao"] = False
+        st.session_state["emissao_nfe_confirmacao_producao"] = ""
 
 
 # ============================================================
