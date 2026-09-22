@@ -64,32 +64,36 @@ def buscar_colunas_cfop(
 ):
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT
-            column_name,
-            data_type,
-            is_nullable,
-            character_maximum_length
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'itens_compra'
-          AND column_name IN (
-              'cfop_fornecedor',
-              'cfop_entrada'
-          )
-        ORDER BY column_name
-        """
-    )
+    try:
+        cursor.execute(
+            """
+            SELECT
+                column_name,
+                data_type,
+                is_nullable,
+                character_maximum_length
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'itens_compra'
+              AND column_name IN (
+                  'cfop_fornecedor',
+                  'cfop_entrada'
+              )
+            ORDER BY column_name
+            """
+        )
 
-    return {
-        linha[0]: {
-            "data_type": linha[1],
-            "is_nullable": linha[2],
-            "maximum_length": linha[3],
+        return {
+            linha[0]: {
+                "data_type": linha[1],
+                "is_nullable": linha[2],
+                "maximum_length": linha[3],
+            }
+            for linha in cursor.fetchall()
         }
-        for linha in cursor.fetchall()
-    }
+
+    finally:
+        cursor.close()
 
 
 def validar_colunas(
