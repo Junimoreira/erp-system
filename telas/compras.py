@@ -34,6 +34,10 @@ from database.configuracoes_fiscais_db import (
     buscar_configuracao_fiscal
 )
 
+from database.regras_fiscais_db import (
+    carregar_regras_fiscais_ativas
+)
+
 from services.fiscal.regras_fiscais import (
     analisar_item_entrada,
     FINALIDADE_REVENDA
@@ -82,6 +86,11 @@ def gerar_previa_fiscal_entrada(
         or ""
     ).strip().upper()
 
+    regras_fiscais = (
+        carregar_regras_fiscais_ativas()
+        or []
+    )
+
     linhas = []
 
     for indice_item, item in enumerate(
@@ -96,7 +105,8 @@ def gerar_previa_fiscal_entrada(
                 item=item,
                 uf_fornecedor=uf_fornecedor,
                 uf_empresa=uf_empresa,
-                finalidade=FINALIDADE_REVENDA
+                finalidade=FINALIDADE_REVENDA,
+                regras=regras_fiscais
             )
         )
 
