@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from database.connection import conectar
 from database.documentos_fiscais_db import (
     importar_xml_fiscal
@@ -1105,8 +1106,99 @@ def importar_nfe_xml(
     dados_xml,
     xml_original=None,
     usuario="Sistema",
-    conversoes_confirmadas=None
+    conversoes_confirmadas=None,
+    data_entrada=None
 ):
+
+    # ==================================================
+    # VALIDAR DATA DE ENTRADA / RECEBIMENTO
+    # ==================================================
+
+    if data_entrada is None:
+
+        return {
+            "sucesso": False,
+            "duplicada": False,
+            "mensagem": (
+                "Informe a data de entrada/recebimento "
+                "da mercadoria."
+            )
+        }
+
+    if isinstance(
+        data_entrada,
+        datetime
+    ):
+        data_entrada = data_entrada.date()
+
+    elif not isinstance(
+        data_entrada,
+        date
+    ):
+        try:
+            data_entrada = date.fromisoformat(
+                str(data_entrada)
+            )
+        except (TypeError, ValueError):
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Data de entrada/recebimento invalida."
+                )
+            }
+
+    data_emissao_xml = (
+        dados_xml.get(
+            "data_emissao",
+            ""
+        )
+        or ""
+    )
+
+    if not data_emissao_xml:
+
+        return {
+            "sucesso": False,
+            "duplicada": False,
+            "mensagem": (
+                "A NF-e nao possui data de emissao."
+            )
+        }
+
+    try:
+
+        data_emissao = (
+            datetime.fromisoformat(
+                str(
+                    data_emissao_xml
+                ).replace(
+                    "Z",
+                    "+00:00"
+                )
+            ).date()
+        )
+
+    except (TypeError, ValueError):
+
+        return {
+            "sucesso": False,
+            "duplicada": False,
+            "mensagem": (
+                "Data de emissao da NF-e invalida."
+            )
+        }
+
+    if data_entrada < data_emissao:
+
+        return {
+            "sucesso": False,
+            "duplicada": False,
+            "mensagem": (
+                "A data de entrada/recebimento nao pode "
+                "ser anterior a data de emissao da NF-e."
+            )
+        }
 
     conn = conectar()
 
@@ -1216,6 +1308,7 @@ def importar_nfe_xml(
             INSERT INTO compras (
                 fornecedor_id,
                 data_compra,
+                data_entrada,
                 valor_total,
                 observacoes,
                 usuario,
@@ -1230,6 +1323,7 @@ def importar_nfe_xml(
                 %s,
                 %s,
                 %s,
+                %s,
                 'finalizada',
                 %s,
                 %s,
@@ -1238,6 +1332,7 @@ def importar_nfe_xml(
             RETURNING id
         """, (
             fornecedor_id,
+            data_entrada,
             valor_total,
             observacoes,
             usuario,

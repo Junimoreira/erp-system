@@ -1,3 +1,4 @@
+from datetime import date, datetime
 import streamlit as st
 import pandas as pd
 
@@ -737,6 +738,89 @@ def tela_compras():
                     )
 
                 # ==========================================
+                # DATAS FISCAIS / RECEBIMENTO
+                # ==========================================
+
+                data_emissao_xml = (
+                    dados_xml.get(
+                        "data_emissao",
+                        ""
+                    )
+                    or ""
+                )
+
+                data_emissao = None
+
+                if data_emissao_xml:
+
+                    try:
+
+                        data_emissao = (
+                            datetime.fromisoformat(
+                                data_emissao_xml
+                                .replace(
+                                    "Z",
+                                    "+00:00"
+                                )
+                            ).date()
+                        )
+
+                    except ValueError:
+
+                        st.error(
+                            "Nao foi possivel interpretar "
+                            "a data de emissao da NF-e."
+                        )
+
+                        pode_importar_data = False
+
+                    else:
+
+                        pode_importar_data = True
+
+                else:
+
+                    st.error(
+                        "A NF-e nao possui data de emissao."
+                    )
+
+                    pode_importar_data = False
+
+                st.markdown(
+                    "### Recebimento da mercadoria"
+                )
+
+                if data_emissao is not None:
+
+                    st.info(
+                        "Data de emissao da NF-e: "
+                        f"{data_emissao.strftime('%d/%m/%Y')}"
+                    )
+
+                data_entrada = st.date_input(
+                    "Data de entrada/recebimento",
+                    value=date.today(),
+                    format="DD/MM/YYYY",
+                    key=(
+                        "data_entrada_xml_"
+                        f"{dados_xml.get('chave_nfe', '')}"
+                    )
+                )
+
+                if (
+                    data_emissao is not None
+                    and data_entrada < data_emissao
+                ):
+
+                    st.error(
+                        "A data de entrada/recebimento "
+                        "nao pode ser anterior a data "
+                        "de emissao da NF-e."
+                    )
+
+                    pode_importar_data = False
+
+                # ==========================================
                 # FORNECEDOR
                 # ==========================================
 
@@ -1333,6 +1417,7 @@ def tela_compras():
                     disabled=(
                         not confirmar_importacao
                         or not pode_importar
+                        or not pode_importar_data
                     )
                 ):
 
@@ -1356,7 +1441,10 @@ def tela_compras():
                                     ),
 
                                 conversoes_confirmadas=
-                                    conversoes_confirmadas
+                                    conversoes_confirmadas,
+
+                                data_entrada=
+                                    data_entrada
                             )
                         )
 
