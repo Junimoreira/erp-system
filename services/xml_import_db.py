@@ -1099,6 +1099,62 @@ def buscar_conversao_confirmada(
 
 
 # ==========================================================
+# BUSCAR CFOP DE ENTRADA CONFIRMADO
+# ==========================================================
+
+def buscar_cfop_confirmado(
+    cfops_confirmados,
+    indice_item
+):
+
+    if not cfops_confirmados:
+        return None
+
+    for confirmacao in cfops_confirmados:
+
+        try:
+            indice = int(
+                confirmacao.get(
+                    "indice_item",
+                    -1
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+            continue
+
+        if indice != indice_item:
+            continue
+
+        cfop_fornecedor = str(
+            confirmacao.get(
+                "cfop_fornecedor",
+                ""
+            ) or ""
+        ).strip()
+
+        cfop_entrada = str(
+            confirmacao.get(
+                "cfop_entrada",
+                ""
+            ) or ""
+        ).strip()
+
+        return {
+            "cfop_fornecedor":
+                cfop_fornecedor,
+
+            "cfop_entrada":
+                cfop_entrada
+        }
+
+    return None
+
+
+# ==========================================================
 # IMPORTAR NF-E
 # ==========================================================
 
@@ -1107,7 +1163,8 @@ def importar_nfe_xml(
     xml_original=None,
     usuario="Sistema",
     conversoes_confirmadas=None,
-    data_entrada=None
+    data_entrada=None,
+    cfops_confirmados=None
 ):
 
     # ==================================================
@@ -1198,6 +1255,120 @@ def importar_nfe_xml(
                 "A data de entrada/recebimento nao pode "
                 "ser anterior a data de emissao da NF-e."
             )
+        }
+
+    # ==================================================
+    # VALIDAR CFOPS CONFIRMADOS
+    #
+    # A validacao ocorre antes da conexao ao banco.
+    # O CFOP do fornecedor deve corresponder ao XML.
+    # Todo item deve possuir CFOP de entrada confirmado.
+    # ==================================================
+
+    produtos_xml_validacao = (
+        dados_xml.get(
+            "produtos",
+            []
+        )
+        or []
+    )
+
+    cfops_validados = {}
+
+    for indice_item, item in enumerate(
+        produtos_xml_validacao
+    ):
+
+        confirmacao_cfop = (
+            buscar_cfop_confirmado(
+                cfops_confirmados,
+                indice_item
+            )
+        )
+
+        if confirmacao_cfop is None:
+
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Confirme o CFOP de entrada de todos "
+                    "os itens antes de importar a NF-e. "
+                    f"Item pendente: {indice_item + 1}."
+                )
+            }
+
+        cfop_fornecedor_xml = str(
+            item.get(
+                "cfop",
+                ""
+            ) or ""
+        ).strip()
+
+        cfop_fornecedor_confirmado = (
+            confirmacao_cfop[
+                "cfop_fornecedor"
+            ]
+        )
+
+        cfop_entrada = (
+            confirmacao_cfop[
+                "cfop_entrada"
+            ]
+        )
+
+        if (
+            len(cfop_fornecedor_xml) != 4
+            or not cfop_fornecedor_xml.isdigit()
+        ):
+
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "CFOP do fornecedor invalido no XML. "
+                    f"Item: {indice_item + 1}."
+                )
+            }
+
+        if (
+            cfop_fornecedor_confirmado
+            != cfop_fornecedor_xml
+        ):
+
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "O CFOP do fornecedor confirmado nao "
+                    "corresponde ao XML. "
+                    f"Item: {indice_item + 1}."
+                )
+            }
+
+        if (
+            len(cfop_entrada) != 4
+            or not cfop_entrada.isdigit()
+        ):
+
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Informe um CFOP de entrada valido "
+                    "com 4 digitos. "
+                    f"Item: {indice_item + 1}."
+                )
+            }
+
+        cfops_validados[
+            indice_item
+        ] = {
+            "cfop_fornecedor":
+                cfop_fornecedor_xml,
+
+            "cfop_entrada":
+                cfop_entrada
         }
 
     conn = conectar()
@@ -1542,9 +1713,13 @@ def importar_nfe_xml(
                     codigo_fornecedor,
                     codigo_barras,
                     ncm,
-                    unidade
+                    unidade,
+                    cfop_fornecedor,
+                    cfop_entrada
                 )
                 VALUES (
+                    %s,
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -1576,6 +1751,18 @@ def importar_nfe_xml(
 
                 dados_conversao[
                     "unidade_estoque"
+                ],
+
+                cfops_validados[
+                    indice_item
+                ][
+                    "cfop_fornecedor"
+                ],
+
+                cfops_validados[
+                    indice_item
+                ][
+                    "cfop_entrada"
                 ]
             ))
 

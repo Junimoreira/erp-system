@@ -30,10 +30,175 @@ from database.produto_db import (
     listar_produtos
 )
 
+from database.configuracoes_fiscais_db import (
+    buscar_configuracao_fiscal
+)
+
+from services.fiscal.regras_fiscais import (
+    analisar_item_entrada,
+    FINALIDADE_REVENDA
+)
+
 from utils.formatacao import (
     formatar_dataframe_brasil,
     formatar_moeda
 )
+
+
+# ==========================================================
+# GERAR PREVIA FISCAL DA ENTRADA
+# ==========================================================
+
+def gerar_previa_fiscal_entrada(
+    dados_xml
+):
+
+    fornecedor = (
+        dados_xml.get(
+            "fornecedor",
+            {}
+        )
+        or {}
+    )
+
+    uf_fornecedor = str(
+        fornecedor.get(
+            "estado",
+            ""
+        )
+        or ""
+    ).strip().upper()
+
+    configuracao = (
+        buscar_configuracao_fiscal()
+        or {}
+    )
+
+    uf_empresa = str(
+        configuracao.get(
+            "uf",
+            ""
+        )
+        or ""
+    ).strip().upper()
+
+    linhas = []
+
+    for indice_item, item in enumerate(
+        dados_xml.get(
+            "produtos",
+            []
+        )
+    ):
+
+        analise = (
+            analisar_item_entrada(
+                item=item,
+                uf_fornecedor=uf_fornecedor,
+                uf_empresa=uf_empresa,
+                finalidade=FINALIDADE_REVENDA
+            )
+        )
+
+        cfop_fornecedor = str(
+            item.get(
+                "cfop",
+                ""
+            )
+            or ""
+        ).strip()
+
+        cfop_sugerido = str(
+            analise.get(
+                "cfop_entrada_sugerido",
+                ""
+            )
+            or ""
+        ).strip()
+
+        produto = str(
+            item.get(
+                "nome",
+                ""
+            )
+            or ""
+        ).strip()
+
+        if not produto:
+
+            produto = str(
+                item.get(
+                    "descricao",
+                    ""
+                )
+                or ""
+            ).strip()
+
+        regra_aplicada = str(
+            analise.get(
+                "regra_aplicada",
+                ""
+            )
+            or ""
+        ).strip()
+
+        origem_regra = str(
+            analise.get(
+                "origem_regra",
+                ""
+            )
+            or ""
+        ).strip()
+
+        if cfop_sugerido:
+
+            situacao = (
+                "Sugestao disponivel - "
+                "confira antes de importar"
+            )
+
+        else:
+
+            situacao = (
+                "Sem regra - informe o CFOP "
+                "de entrada"
+            )
+
+        linhas.append({
+            "Indice Item":
+                indice_item,
+
+            "Produto":
+                produto,
+
+            "CFOP fornecedor":
+                cfop_fornecedor,
+
+            "CFOP entrada sugerido":
+                cfop_sugerido,
+
+            "CFOP entrada confirmado":
+                cfop_sugerido,
+
+            "Situacao":
+                situacao,
+
+            "Regra":
+                regra_aplicada,
+
+            "Origem regra":
+                origem_regra,
+
+            "UF fornecedor":
+                uf_fornecedor,
+
+            "UF empresa":
+                uf_empresa,
+        })
+
+    return pd.DataFrame(
+        linhas
+    )
 
 
 # ==========================================================
@@ -1383,6 +1548,198 @@ def tela_compras():
                 # AVISO IMPORTAÇÃO
                 # ==========================================
 
+                # ==========================================
+                # CONFERENCIA FISCAL DA ENTRADA
+                # ==========================================
+
+                st.markdown(
+                    "### Conferencia Fiscal da Entrada"
+                )
+
+                st.info(
+                    "O CFOP do fornecedor vem do XML. "
+                    "O ERP pode sugerir o CFOP de entrada "
+                    "quando existir uma regra fiscal "
+                    "cadastrada. Confira e confirme o "
+                    "CFOP de entrada de todos os itens."
+                )
+
+                cfops_confirmados = []
+                pode_importar_fiscal = True
+
+                try:
+
+                    df_fiscal = (
+                        gerar_previa_fiscal_entrada(
+                            dados_xml
+                        )
+                    )
+
+                except Exception as erro:
+
+                    df_fiscal = pd.DataFrame()
+                    pode_importar_fiscal = False
+
+                    st.error(
+                        "Nao foi possivel preparar a "
+                        "conferencia fiscal da entrada: "
+                        f"{erro}"
+                    )
+
+                if df_fiscal.empty:
+
+                    st.warning(
+                        "Nao foi possivel gerar a "
+                        "conferencia fiscal dos itens."
+                    )
+
+                    pode_importar_fiscal = False
+
+                else:
+
+                    colunas_fiscais = [
+                        "Produto",
+                        "CFOP fornecedor",
+                        "CFOP entrada sugerido",
+                        "CFOP entrada confirmado",
+                        "Situacao",
+                    ]
+
+                    df_fiscal_editado = (
+                        st.data_editor(
+                            df_fiscal[
+                                colunas_fiscais
+                            ],
+                            use_container_width=True,
+                            hide_index=True,
+                            disabled=[
+                                "Produto",
+                                "CFOP fornecedor",
+                                "CFOP entrada sugerido",
+                                "Situacao",
+                            ],
+                            column_config={
+                                "Produto":
+                                    st.column_config.TextColumn(
+                                        "Produto",
+                                        width="large"
+                                    ),
+
+                                "CFOP fornecedor":
+                                    st.column_config.TextColumn(
+                                        "CFOP fornecedor"
+                                    ),
+
+                                "CFOP entrada sugerido":
+                                    st.column_config.TextColumn(
+                                        "CFOP sugerido"
+                                    ),
+
+                                "CFOP entrada confirmado":
+                                    st.column_config.TextColumn(
+                                        "CFOP entrada",
+                                        help=(
+                                            "Confirme o CFOP "
+                                            "de entrada com "
+                                            "4 digitos."
+                                        ),
+                                        max_chars=4
+                                    ),
+
+                                "Situacao":
+                                    st.column_config.TextColumn(
+                                        "Situacao",
+                                        width="large"
+                                    ),
+                            },
+                            key=(
+                                "editor_fiscal_entrada_"
+                                f"{dados_xml.get('chave_nfe', '')}"
+                            )
+                        )
+                    )
+
+                    for posicao, (_, row) in enumerate(
+                        df_fiscal.iterrows()
+                    ):
+
+                        cfop_fornecedor = str(
+                            row.get(
+                                "CFOP fornecedor",
+                                ""
+                            )
+                            or ""
+                        ).strip()
+
+                        cfop_entrada = str(
+                            df_fiscal_editado.iloc[
+                                posicao
+                            ].get(
+                                "CFOP entrada confirmado",
+                                ""
+                            )
+                            or ""
+                        ).strip()
+
+                        cfop_valido = (
+                            len(cfop_entrada) == 4
+                            and
+                            cfop_entrada.isdigit()
+                        )
+
+                        if not cfop_valido:
+                            pode_importar_fiscal = False
+
+                        cfops_confirmados.append({
+                            "indice_item":
+                                int(
+                                    row.get(
+                                        "Indice Item",
+                                        posicao
+                                    )
+                                ),
+
+                            "cfop_fornecedor":
+                                cfop_fornecedor,
+
+                            "cfop_entrada":
+                                cfop_entrada,
+                        })
+
+                    pendentes_fiscais = sum(
+                        1
+                        for item in cfops_confirmados
+                        if not (
+                            len(
+                                item.get(
+                                    "cfop_entrada",
+                                    ""
+                                )
+                            ) == 4
+                            and
+                            item.get(
+                                "cfop_entrada",
+                                ""
+                            ).isdigit()
+                        )
+                    )
+
+                    if pendentes_fiscais:
+
+                        st.warning(
+                            f"{pendentes_fiscais} item(ns) "
+                            "ainda precisam de um CFOP "
+                            "de entrada valido."
+                        )
+
+                    else:
+
+                        st.success(
+                            "Todos os itens possuem CFOP "
+                            "de entrada confirmado."
+                        )
+
+
                 st.warning(
                     "Ao confirmar, o ERP irá registrar "
                     "a compra, atualizar estoque, "
@@ -1396,10 +1753,9 @@ def tela_compras():
 
                 confirmar_importacao = (
                     st.checkbox(
-                        "Confirmo que conferi os fatores "
-                        "e as quantidades que entrarão "
-                        "no estoque e desejo importar "
-                        "esta NF-e",
+                        "Confirmo que conferi os fatores, "
+                        "as quantidades e os CFOPs de entrada "
+                        "e desejo importar esta NF-e",
                         key=(
                             "confirmar_importar_xml_"
                             f"{dados_xml.get('chave_nfe', '')}"
@@ -1418,6 +1774,7 @@ def tela_compras():
                         not confirmar_importacao
                         or not pode_importar
                         or not pode_importar_data
+                        or not pode_importar_fiscal
                     )
                 ):
 
@@ -1444,7 +1801,10 @@ def tela_compras():
                                     conversoes_confirmadas,
 
                                 data_entrada=
-                                    data_entrada
+                                    data_entrada,
+
+                                cfops_confirmados=
+                                    cfops_confirmados
                             )
                         )
 
