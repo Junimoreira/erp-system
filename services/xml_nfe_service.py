@@ -70,6 +70,7 @@ def ler_xml_nfe(arquivo_xml):
         subtotal = numero_float(texto_no(prod, "nfe:vProd", ns))
 
         produtos.append({
+            "numero_item_xml": det.attrib.get("nItem", "").strip(),
             "codigo": texto_no(prod, "nfe:cProd", ns),
             "ean": texto_no(prod, "nfe:cEAN", ns),
             "nome": texto_no(prod, "nfe:xProd", ns),

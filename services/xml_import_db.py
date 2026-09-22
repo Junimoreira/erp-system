@@ -1371,6 +1371,66 @@ def importar_nfe_xml(
                 cfop_entrada
         }
 
+    # ==================================================
+    # VALIDAR IDENTIFICADOR FISCAL DOS ITENS
+    #
+    # numero_item_xml corresponde ao nItem do <det>
+    # da NF-e. A validacao ocorre antes da conexao.
+    # ==================================================
+
+    numeros_item_xml = []
+
+    for indice_xml, item_xml in enumerate(
+        produtos_xml_validacao,
+        start=1
+    ):
+        numero_item_xml = str(
+            item_xml.get(
+                "numero_item_xml",
+                ""
+            ) or ""
+        ).strip()
+
+        if not numero_item_xml.isdigit():
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Item "
+                    f"{indice_xml}: numero_item_xml "
+                    "ausente ou invalido."
+                )
+            }
+
+        numero_item_xml = int(
+            numero_item_xml
+        )
+
+        if numero_item_xml <= 0:
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Item "
+                    f"{indice_xml}: numero_item_xml "
+                    "deve ser maior que zero."
+                )
+            }
+
+        if numero_item_xml in numeros_item_xml:
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "numero_item_xml duplicado: "
+                    f"{numero_item_xml}."
+                )
+            }
+
+        numeros_item_xml.append(
+            numero_item_xml
+        )
+
     conn = conectar()
 
     if conn is None:
@@ -1714,10 +1774,12 @@ def importar_nfe_xml(
                     codigo_barras,
                     ncm,
                     unidade,
+                    numero_item_xml,
                     cfop_fornecedor,
                     cfop_entrada
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -1752,6 +1814,15 @@ def importar_nfe_xml(
                 dados_conversao[
                     "unidade_estoque"
                 ],
+
+                int(
+                    str(
+                        item.get(
+                            "numero_item_xml",
+                            ""
+                        ) or ""
+                    ).strip()
+                ),
 
                 cfops_validados[
                     indice_item
