@@ -47,6 +47,8 @@ def _ler_grupo_icms(imposto):
         "base_icms": Decimal("0"),
         "aliquota_icms": Decimal("0"),
         "valor_icms": Decimal("0"),
+        "percentual_credito_sn": Decimal("0"),
+        "valor_credito_icms_sn": Decimal("0"),
         "base_icms_st": Decimal("0"),
         "aliquota_icms_st": Decimal("0"),
         "valor_icms_st": Decimal("0"),
@@ -107,6 +109,20 @@ def _ler_grupo_icms(imposto):
         _texto(
             grupo,
             "nfe:vICMS"
+        )
+    )
+
+    resultado["percentual_credito_sn"] = _decimal(
+        _texto(
+            grupo,
+            "nfe:pCredSN"
+        )
+    )
+
+    resultado["valor_credito_icms_sn"] = _decimal(
+        _texto(
+            grupo,
+            "nfe:vCredICMSSN"
         )
     )
 
@@ -288,6 +304,24 @@ def extrair_itens_tributarios_sintegra(
                     "nfe:vDesc"
                 )
             ),
+            "valor_frete": _decimal(
+                _texto(
+                    prod,
+                    "nfe:vFrete"
+                )
+            ),
+            "valor_seguro": _decimal(
+                _texto(
+                    prod,
+                    "nfe:vSeg"
+                )
+            ),
+            "valor_outras_despesas": _decimal(
+                _texto(
+                    prod,
+                    "nfe:vOutro"
+                )
+            ),
             **icms,
             **ipi,
         })
@@ -462,6 +496,18 @@ def ler_xml_sintegra(origem_xml):
                 _texto(
                     totais,
                     "nfe:vFrete"
+                )
+            ),
+            "valor_seguro": _decimal(
+                _texto(
+                    totais,
+                    "nfe:vSeg"
+                )
+            ),
+            "valor_outras_despesas": _decimal(
+                _texto(
+                    totais,
+                    "nfe:vOutro"
                 )
             ),
             "valor_desconto": _decimal(

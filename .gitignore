@@ -72,3 +72,4 @@ services/fiscal/*_teste_*.py
 documentos_fiscais/
 temp_testes_nfce/
 
+saida_sintegra/
