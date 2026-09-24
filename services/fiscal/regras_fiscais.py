@@ -66,7 +66,9 @@ def _regra_corresponde(
     uf_origem=None,
     uf_destino=None,
     ncm=None,
-    cest=None
+    cest=None,
+    cst_origem=None,
+    csosn_origem=None
 ):
 
     # --------------------------------------------------------
@@ -120,6 +122,58 @@ def _regra_corresponde(
         _normalizar(
             cfop_origem
         )
+    ):
+        return False
+
+    # --------------------------------------------------------
+    # CST DE ORIGEM
+    # --------------------------------------------------------
+    regra_cst_origem = (
+        _normalizar(
+            regra.get(
+                "cst_origem"
+            )
+        )
+    )
+
+    cst_origem_item = (
+        _normalizar(
+            cst_origem
+        )
+    )
+
+    if (
+        regra_cst_origem
+        and
+        regra_cst_origem
+        !=
+        cst_origem_item
+    ):
+        return False
+
+    # --------------------------------------------------------
+    # CSOSN DE ORIGEM
+    # --------------------------------------------------------
+    regra_csosn_origem = (
+        _normalizar(
+            regra.get(
+                "csosn_origem"
+            )
+        )
+    )
+
+    csosn_origem_item = (
+        _normalizar(
+            csosn_origem
+        )
+    )
+
+    if (
+        regra_csosn_origem
+        and
+        regra_csosn_origem
+        !=
+        csosn_origem_item
     ):
         return False
 
@@ -283,6 +337,13 @@ def _pontuacao_regra(
     ):
         pontos += 10
 
+    if _normalizar(
+        regra.get(
+            "csosn_origem"
+        )
+    ):
+        pontos += 10
+
     return pontos
 
 
@@ -298,7 +359,9 @@ def encontrar_regra_fiscal(
     uf_origem=None,
     uf_destino=None,
     ncm=None,
-    cest=None
+    cest=None,
+    cst_origem=None,
+    csosn_origem=None
 ):
 
     candidatas = []
@@ -314,7 +377,9 @@ def encontrar_regra_fiscal(
             uf_origem=uf_origem,
             uf_destino=uf_destino,
             ncm=ncm,
-            cest=cest
+            cest=cest,
+            cst_origem=cst_origem,
+            csosn_origem=csosn_origem
         ):
             continue
 
@@ -352,6 +417,8 @@ def sugerir_cfop_entrada(
     finalidade=FINALIDADE_REVENDA,
     ncm=None,
     cest=None,
+    cst_origem=None,
+    csosn_origem=None,
     regras=None
 ):
 
@@ -453,7 +520,9 @@ def sugerir_cfop_entrada(
         uf_origem=uf_fornecedor,
         uf_destino=uf_empresa,
         ncm=ncm,
-        cest=cest
+        cest=cest,
+        cst_origem=cst_origem,
+        csosn_origem=csosn_origem
     )
 
     # --------------------------------------------------------
@@ -542,6 +611,12 @@ def analisar_item_entrada(
             ),
             cest=item.get(
                 "cest"
+            ),
+            cst_origem=item.get(
+                "cst_icms"
+            ),
+            csosn_origem=item.get(
+                "csosn"
             ),
             regras=regras
         )

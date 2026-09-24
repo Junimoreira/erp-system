@@ -43,6 +43,15 @@ from services.fiscal.regras_fiscais import (
     FINALIDADE_REVENDA
 )
 
+from services.fiscal.sintegra import (
+    classificar_item_registro_50,
+    vincular_itens_compra_fiscal
+)
+
+from services.fiscal.sintegra_xml import (
+    ler_xml_sintegra
+)
+
 from utils.formatacao import (
     formatar_dataframe_brasil,
     formatar_moeda
@@ -54,7 +63,8 @@ from utils.formatacao import (
 # ==========================================================
 
 def gerar_previa_fiscal_entrada(
-    dados_xml
+    dados_xml,
+    xml_original,
 ):
 
     fornecedor = (
@@ -91,13 +101,39 @@ def gerar_previa_fiscal_entrada(
         or []
     )
 
+    if isinstance(
+        xml_original,
+        bytes,
+    ):
+        xml_texto = xml_original.decode(
+            "utf-8"
+        )
+    else:
+        xml_texto = str(
+            xml_original
+        )
+
+    dados_fiscais = ler_xml_sintegra(
+        xml_texto
+    )
+
+    produtos_enriquecidos = (
+        vincular_itens_compra_fiscal(
+            dados_xml.get(
+                "produtos",
+                []
+            ),
+            dados_fiscais.get(
+                "itens",
+                []
+            ),
+        )
+    )
+
     linhas = []
 
     for indice_item, item in enumerate(
-        dados_xml.get(
-            "produtos",
-            []
-        )
+        produtos_enriquecidos
     ):
 
         analise = (
@@ -107,6 +143,12 @@ def gerar_previa_fiscal_entrada(
                 uf_empresa=uf_empresa,
                 finalidade=FINALIDADE_REVENDA,
                 regras=regras_fiscais
+            )
+        )
+
+        classificacao_registro_50 = (
+            classificar_item_registro_50(
+                item
             )
         )
 
@@ -178,6 +220,13 @@ def gerar_previa_fiscal_entrada(
             "Indice Item":
                 indice_item,
 
+            "Numero Item XML":
+                int(
+                    item.get(
+                        "numero_item_xml"
+                    )
+                ),
+
             "Produto":
                 produto,
 
@@ -189,6 +238,36 @@ def gerar_previa_fiscal_entrada(
 
             "CFOP entrada confirmado":
                 cfop_sugerido,
+
+            "CST fornecedor":
+                str(
+                    item.get(
+                        "cst_icms",
+                        ""
+                    )
+                    or ""
+                ).strip(),
+
+            "CSOSN fornecedor":
+                str(
+                    item.get(
+                        "csosn",
+                        ""
+                    )
+                    or ""
+                ).strip(),
+
+            "Classificacao Registro 50":
+                classificacao_registro_50.get(
+                    "classificacao_registro_50",
+                    "PENDENTE"
+                ),
+
+            "Motivo Registro 50":
+                classificacao_registro_50.get(
+                    "motivo_classificacao",
+                    ""
+                ),
 
             "Situacao":
                 situacao,
@@ -1575,13 +1654,15 @@ def tela_compras():
                 )
 
                 cfops_confirmados = []
+                classificacoes_registro_50 = []
                 pode_importar_fiscal = True
 
                 try:
 
                     df_fiscal = (
                         gerar_previa_fiscal_entrada(
-                            dados_xml
+                            dados_xml,
+                            xml_original,
                         )
                     )
 
@@ -1608,10 +1689,15 @@ def tela_compras():
                 else:
 
                     colunas_fiscais = [
+                        "Numero Item XML",
                         "Produto",
                         "CFOP fornecedor",
                         "CFOP entrada sugerido",
                         "CFOP entrada confirmado",
+                        "CST fornecedor",
+                        "CSOSN fornecedor",
+                        "Classificacao Registro 50",
+                        "Motivo Registro 50",
                         "Situacao",
                     ]
 
@@ -1623,9 +1709,13 @@ def tela_compras():
                             use_container_width=True,
                             hide_index=True,
                             disabled=[
+                                "Numero Item XML",
                                 "Produto",
                                 "CFOP fornecedor",
                                 "CFOP entrada sugerido",
+                                "CST fornecedor",
+                                "CSOSN fornecedor",
+                                "Motivo Registro 50",
                                 "Situacao",
                             ],
                             column_config={
@@ -1654,6 +1744,30 @@ def tela_compras():
                                             "4 digitos."
                                         ),
                                         max_chars=4
+                                    ),
+
+                                "Classificacao Registro 50":
+                                    st.column_config.SelectboxColumn(
+                                        "Registro 50",
+                                        help=(
+                                            "Classifique a "
+                                            "escrituracao fiscal "
+                                            "do item para o "
+                                            "Registro 50."
+                                        ),
+                                        options=[
+                                            "PENDENTE",
+                                            "TRIBUTADA",
+                                            "ISENTA_NAO_TRIBUTADA",
+                                            "OUTRAS",
+                                        ],
+                                        required=True,
+                                    ),
+
+                                "Motivo Registro 50":
+                                    st.column_config.TextColumn(
+                                        "Motivo Registro 50",
+                                        width="large"
                                     ),
 
                                 "Situacao":
@@ -1691,6 +1805,28 @@ def tela_compras():
                             or ""
                         ).strip()
 
+                        numero_item_xml = int(
+                            row.get(
+                                "Numero Item XML"
+                            )
+                        )
+
+                        classificacao_registro_50 = str(
+                            df_fiscal_editado.iloc[
+                                posicao
+                            ].get(
+                                "Classificacao Registro 50",
+                                "PENDENTE"
+                            )
+                            or "PENDENTE"
+                        ).strip().upper()
+
+                        classificacoes_validas = {
+                            "TRIBUTADA",
+                            "ISENTA_NAO_TRIBUTADA",
+                            "OUTRAS",
+                        }
+
                         cfop_valido = (
                             len(cfop_entrada) == 4
                             and
@@ -1700,6 +1836,22 @@ def tela_compras():
                         if not cfop_valido:
                             pode_importar_fiscal = False
 
+                        classificacao_valida = (
+                            classificacao_registro_50
+                            in classificacoes_validas
+                        )
+
+                        if not classificacao_valida:
+                            pode_importar_fiscal = False
+
+                        classificacoes_registro_50.append({
+                            "numero_item_xml":
+                                numero_item_xml,
+
+                            "classificacao_registro_50":
+                                classificacao_registro_50,
+                        })
+
                         cfops_confirmados.append({
                             "indice_item":
                                 int(
@@ -1708,6 +1860,9 @@ def tela_compras():
                                         posicao
                                     )
                                 ),
+
+                            "numero_item_xml":
+                                numero_item_xml,
 
                             "cfop_fornecedor":
                                 cfop_fornecedor,
@@ -1734,6 +1889,18 @@ def tela_compras():
                         )
                     )
 
+                    pendentes_registro_50 = sum(
+                        1
+                        for item in classificacoes_registro_50
+                        if item.get(
+                            "classificacao_registro_50"
+                        ) not in {
+                            "TRIBUTADA",
+                            "ISENTA_NAO_TRIBUTADA",
+                            "OUTRAS",
+                        }
+                    )
+
                     if pendentes_fiscais:
 
                         st.warning(
@@ -1747,6 +1914,21 @@ def tela_compras():
                         st.success(
                             "Todos os itens possuem CFOP "
                             "de entrada confirmado."
+                        )
+
+                    if pendentes_registro_50:
+
+                        st.warning(
+                            f"{pendentes_registro_50} item(ns) "
+                            "ainda precisam da classificacao "
+                            "do Registro 50."
+                        )
+
+                    else:
+
+                        st.success(
+                            "Todos os itens possuem "
+                            "classificacao do Registro 50."
                         )
 
 
@@ -1814,7 +1996,10 @@ def tela_compras():
                                     data_entrada,
 
                                 cfops_confirmados=
-                                    cfops_confirmados
+                                    cfops_confirmados,
+
+                                classificacoes_registro_50=
+                                    classificacoes_registro_50
                             )
                         )
 

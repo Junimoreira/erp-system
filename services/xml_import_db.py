@@ -1155,6 +1155,48 @@ def buscar_cfop_confirmado(
 
 
 # ==========================================================
+# BUSCAR CONFIRMACAO PELO nItem OFICIAL DO XML
+# ==========================================================
+
+def buscar_confirmacao_por_numero_item_xml(
+    confirmacoes,
+    numero_item_xml
+):
+
+    if not confirmacoes:
+        return None
+
+    try:
+        numero_procurado = int(
+            numero_item_xml
+        )
+    except (
+        TypeError,
+        ValueError
+    ):
+        return None
+
+    for confirmacao in confirmacoes:
+
+        try:
+            numero_confirmado = int(
+                confirmacao.get(
+                    "numero_item_xml"
+                )
+            )
+        except (
+            TypeError,
+            ValueError
+        ):
+            continue
+
+        if numero_confirmado == numero_procurado:
+            return confirmacao
+
+    return None
+
+
+# ==========================================================
 # IMPORTAR NF-E
 # ==========================================================
 
@@ -1164,7 +1206,8 @@ def importar_nfe_xml(
     usuario="Sistema",
     conversoes_confirmadas=None,
     data_entrada=None,
-    cfops_confirmados=None
+    cfops_confirmados=None,
+    classificacoes_registro_50=None
 ):
 
     # ==================================================
@@ -1279,10 +1322,17 @@ def importar_nfe_xml(
         produtos_xml_validacao
     ):
 
+        numero_item_xml_cfop = str(
+            item.get(
+                "numero_item_xml",
+                ""
+            ) or ""
+        ).strip()
+
         confirmacao_cfop = (
-            buscar_cfop_confirmado(
+            buscar_confirmacao_por_numero_item_xml(
                 cfops_confirmados,
-                indice_item
+                numero_item_xml_cfop
             )
         )
 
@@ -1430,6 +1480,140 @@ def importar_nfe_xml(
         numeros_item_xml.append(
             numero_item_xml
         )
+
+    # ==================================================
+    # VALIDAR CLASSIFICACOES DO REGISTRO 50
+    #
+    # A validacao ocorre antes da conexao ao banco.
+    # O vinculo e feito pelo nItem oficial da NF-e.
+    # PENDENTE nunca e aceito como classificacao final.
+    # ==================================================
+
+    classificacoes_validas_registro_50 = {
+        "TRIBUTADA",
+        "ISENTA_NAO_TRIBUTADA",
+        "OUTRAS",
+    }
+
+    classificacoes_validadas_registro_50 = {}
+
+    for numero_item_xml in numeros_item_xml:
+
+        confirmacao_classificacao = (
+            buscar_confirmacao_por_numero_item_xml(
+                classificacoes_registro_50,
+                numero_item_xml
+            )
+        )
+
+        if confirmacao_classificacao is None:
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Confirme a classificacao do "
+                    "Registro 50 de todos os itens "
+                    "antes de importar a NF-e. "
+                    f"nItem pendente: {numero_item_xml}."
+                )
+            }
+
+        classificacao = str(
+            confirmacao_classificacao.get(
+                "classificacao_registro_50",
+                ""
+            )
+            or ""
+        ).strip().upper()
+
+        if (
+            classificacao
+            not in classificacoes_validas_registro_50
+        ):
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Classificacao do Registro 50 "
+                    "invalida ou pendente. "
+                    f"nItem: {numero_item_xml}."
+                )
+            }
+
+        if (
+            numero_item_xml
+            in classificacoes_validadas_registro_50
+        ):
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Classificacao duplicada para "
+                    "o Registro 50. "
+                    f"nItem: {numero_item_xml}."
+                )
+            }
+
+        classificacoes_validadas_registro_50[
+            numero_item_xml
+        ] = classificacao
+
+    numeros_confirmados_registro_50 = set()
+
+    for confirmacao in (
+        classificacoes_registro_50
+        or []
+    ):
+        try:
+            numero_confirmado = int(
+                confirmacao.get(
+                    "numero_item_xml"
+                )
+            )
+        except (
+            TypeError,
+            ValueError
+        ):
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Existe uma classificacao do "
+                    "Registro 50 sem nItem valido."
+                )
+            }
+
+        if (
+            numero_confirmado
+            in numeros_confirmados_registro_50
+        ):
+            return {
+                "sucesso": False,
+                "duplicada": False,
+                "mensagem": (
+                    "Existe classificacao duplicada "
+                    "do Registro 50 para o "
+                    f"nItem {numero_confirmado}."
+                )
+            }
+
+        numeros_confirmados_registro_50.add(
+            numero_confirmado
+        )
+
+    if (
+        numeros_confirmados_registro_50
+        != set(numeros_item_xml)
+    ):
+        return {
+            "sucesso": False,
+            "duplicada": False,
+            "mensagem": (
+                "As classificacoes do Registro 50 "
+                "nao correspondem exatamente aos "
+                "itens da NF-e."
+            )
+        }
 
     conn = conectar()
 
@@ -1776,9 +1960,11 @@ def importar_nfe_xml(
                     unidade,
                     numero_item_xml,
                     cfop_fornecedor,
-                    cfop_entrada
+                    cfop_entrada,
+                    classificacao_registro_50
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -1834,6 +2020,17 @@ def importar_nfe_xml(
                     indice_item
                 ][
                     "cfop_entrada"
+                ],
+
+                classificacoes_validadas_registro_50[
+                    int(
+                        str(
+                            item.get(
+                                "numero_item_xml",
+                                ""
+                            ) or ""
+                        ).strip()
+                    )
                 ]
             ))
 
