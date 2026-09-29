@@ -20,61 +20,131 @@ WITH proposta AS (
 
         CASE
 
-            -- CASOS INDIVIDUAIS
-            WHEN p.id = 23  THEN 'ARTES E PINTURA'
-            WHEN p.id = 50  THEN 'USO E CONSUMO'
-            WHEN p.id = 54  THEN 'LIVROS'
-            WHEN p.id = 79  THEN 'MEMORIA'
-            WHEN p.id = 223 THEN 'BRINQUEDO'
-
-            -- SERVICOS DE PAPELARIA
-            WHEN p.id = 264 THEN 'PAPELARIA'
-            WHEN p.id = 265 THEN 'PAPELARIA'
-
-            WHEN p.id = 8   THEN 'ARTES E PINTURA'
-            WHEN p.id = 13  THEN 'PAPELARIA'
-            WHEN p.id = 24  THEN 'BRINQUEDO'
-            WHEN p.id = 25  THEN 'BRINQUEDO'
-            WHEN p.id = 26  THEN 'BRINQUEDO'
-            WHEN p.id = 27  THEN 'ALFABETIZACAO'
-            WHEN p.id = 49  THEN 'BRINQUEDO'
-            WHEN p.id = 56  THEN 'PAPELARIA'
-            WHEN p.id = 57  THEN 'ACESSORIOS'
-            WHEN p.id = 70  THEN 'PAPELARIA'
-            WHEN p.id = 89  THEN 'EDUCATIVO'
-            WHEN p.id = 101 THEN 'EDUCATIVO'
-            WHEN p.id = 102 THEN 'RACIOCINIO LOGICO'
-            WHEN p.id = 113 THEN 'EDUCATIVO'
-            WHEN p.id = 114 THEN 'RACIOCINIO LOGICO'
-            WHEN p.id = 119 THEN 'EDUCATIVO'
-            WHEN p.id = 137 THEN 'PAPELARIA'
-            WHEN p.id = 138 THEN 'PAPELARIA'
-            WHEN p.id = 143 THEN 'PAPELARIA'
-            WHEN p.id = 152 THEN 'BRINQUEDO'
-            WHEN p.id = 155 THEN 'EDUCATIVO'
-            WHEN p.id = 156 THEN 'BRINQUEDO'
-            WHEN p.id = 339 THEN 'BRINQUEDO'
-
-            -- CASOS INDIVIDUAIS - IMPORTACAO / USO INTERNO
-            WHEN p.id = 340 THEN 'USO E CONSUMO'
-            WHEN p.id = 343 THEN 'UTILIDADES'
-
-            WHEN p.id IN (
-                344,
-                345,
-                346,
-                347,
-                348,
-                349,
-                350
-            )
-                THEN 'MOCHILAS E BOLSAS'
-
-            WHEN p.id = 351 THEN 'USO E CONSUMO'
+            -- NORMALIZACAO POR DADOS DO PRODUTO
+            -- Nao utilizar ID como regra de categorizacao.
 
             -- CATEGORIAS LEGADAS
+
+            -- Normaliza capitalizacao legada:
+            -- Papelaria -> PAPELARIA
+            WHEN UPPER(BTRIM(p.categoria)) = 'PAPELARIA'
+                THEN 'PAPELARIA'
+
+            -- Erro legado de digitacao
+            WHEN UPPER(BTRIM(p.categoria)) = 'ATERSANAL'
+             AND UPPER(p.nome) LIKE '%SLIME%'
+                THEN 'BRINQUEDO'
+
+            -- Categoria composta antiga
+            WHEN UPPER(BTRIM(p.categoria)) =
+                 'QUEBRA-CABECA/ALFABETIZACAO'
+                THEN 'QUEBRA-CABECA'
+
+            -- Raciocinio
+            WHEN UPPER(BTRIM(p.categoria)) = 'RACIOCINIO'
+             AND UPPER(p.nome) LIKE '%JUNTE QUATRO%'
+                THEN 'RACIOCINIO LOGICO'
+
+            -- Equilibrio
+            WHEN UPPER(BTRIM(p.categoria)) IN (
+                    'EDUCATIVA',
+                    'EDUCATIVO',
+                    'RACIOCINIO',
+                    'RACIOCINIO LOGICO'
+                 )
+             AND UPPER(p.nome) LIKE '%EQUILIBRIO%'
+                THEN 'EQUILIBRIO'
+
+            -- Produtos artesanais classificados como brinquedos
+            WHEN UPPER(BTRIM(p.categoria)) = 'ARTESANAL'
+             AND (
+                    UPPER(p.nome) LIKE '%FANTOCHE%'
+                    OR UPPER(p.nome) LIKE '%CASINHA DE NATAL%'
+                    OR UPPER(p.nome) LIKE '%CESTINHA DE FRUTAS%'
+                    OR UPPER(p.nome) LIKE '%BALDE DE PRAIA%'
+                    OR UPPER(p.nome) LIKE '%PESCARIA%'
+                 )
+                THEN 'BRINQUEDO'
+
+            -- Materiais de arte
+            WHEN UPPER(BTRIM(p.categoria)) = 'ARTESANAL'
+             AND (
+                    UPPER(p.nome) LIKE '%LANTEJOULA%'
+                    OR UPPER(p.nome) LIKE '%FITA DECORATIVA%'
+                    OR UPPER(p.nome) LIKE '%AREIA MAGICA%'
+                 )
+                THEN 'ARTES E PINTURA'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ACESSORIO'
+                THEN 'ACESSORIOS'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ELETRONICA'
+                THEN 'ELETRONICOS'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'UNNIFORMES'
+                THEN 'UNIFORMES'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'NUMERAL'
+             AND (
+                    UPPER(p.nome) LIKE '%CONTINHAS%'
+                    OR UPPER(p.nome) LIKE '%MATEMATICA%'
+                    OR UPPER(p.nome) LIKE '%DIVISAO%'
+                    OR UPPER(p.nome) LIKE '%MULTIPLICACAO%'
+                 )
+                THEN 'MATEMATICA'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'NUMERAL'
+             AND UPPER(p.nome) LIKE '%QUEBRA%CABE%'
+                THEN 'QUEBRA-CABECA'
+
+            WHEN UPPER(BTRIM(p.categoria)) IN (
+                    'RECIOCINIO/MEMORIA',
+                    'MEMORIA/RACIOCINIO',
+                    'MEMORIA/EDUCATIVO'
+                 )
+                THEN 'MEMORIA'
+
+            WHEN UPPER(BTRIM(p.categoria)) IN (
+                    'EDUCATIVA/ENCAIXE',
+                    'ENCAIXE/EDUCATIVA'
+                 )
+                THEN 'EDUCATIVO'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'EQUILIBRIO/RACIOCINIO'
+                THEN 'EQUILIBRIO'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'DESAFIO LOGICO'
+                THEN 'DESAFIO'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'SENSORIAL/MUSICAL'
+                THEN 'SENSORIAL'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ENTRETERIMENTO/CARTAS'
+                THEN 'BRINQUEDO'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ENTRETERIMENTO'
+             AND UPPER(p.nome) LIKE '%ALBUM DA COPA%'
+                THEN 'PAPELARIA'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ENTRETERIMENTO'
+                THEN 'BRINQUEDO'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'LUDICA'
+                THEN 'BRINQUEDO'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ARTESANAL'
+             AND UPPER(p.nome) LIKE '%PINCEL%'
+                THEN 'ARTES E PINTURA'
+
+            WHEN UPPER(BTRIM(p.categoria)) = 'ARTESANAL'
+             AND UPPER(p.nome) LIKE '%KIT PINTURA%'
+                THEN 'ARTES E PINTURA'
+
             WHEN LOWER(BTRIM(p.categoria)) = 'brinquedos'
             THEN CASE
+                WHEN UPPER(p.nome) LIKE '%FORMANDO PALAVRAS%'
+                    THEN 'ALFABETIZACAO'
+
                 WHEN UPPER(p.nome) LIKE '%QUEBRA%CABE%'
                     THEN 'QUEBRA-CABECA'
                 WHEN UPPER(p.nome) LIKE '%MEMORIA%'
@@ -132,6 +202,7 @@ WITH proposta AS (
              AND (
                 UPPER(p.nome) LIKE '%TINTA%'
                 OR UPPER(p.nome) LIKE '%MASSINHA%'
+                OR UPPER(p.nome) LIKE '%MASSA DE E.V.A%'
                 OR UPPER(p.nome) LIKE '%MARCADOR%'
                 OR UPPER(p.nome) LIKE '%GIZ%'
              )
@@ -144,7 +215,11 @@ WITH proposta AS (
             -- PRODUTOS SEM CATEGORIA
             WHEN p.categoria IS NULL
               OR BTRIM(p.categoria) = ''
+              OR LOWER(BTRIM(p.categoria)) = 'nan'
             THEN CASE
+
+                WHEN UPPER(p.nome) LIKE 'IMPRESS%'
+                    THEN 'USO E CONSUMO'
 
                 WHEN UPPER(p.nome) LIKE '%CAMISETA%'
                   OR UPPER(p.nome) LIKE '%AGASALHO%'
@@ -201,6 +276,36 @@ WITH proposta AS (
                 WHEN UPPER(p.nome) LIKE '%CONTINHAS%'
                     THEN 'MATEMATICA'
 
+                WHEN UPPER(p.nome) LIKE '%MATERIAL DOURADO%'
+                    THEN 'MATEMATICA'
+
+                WHEN UPPER(p.nome) LIKE '%DESAFIO DAS PALAVRAS%'
+                    THEN 'DESAFIO'
+
+                WHEN UPPER(p.nome) LIKE '%PACOTE FIGURINHAS%'
+                    THEN 'PAPELARIA'
+
+                WHEN UPPER(p.nome) LIKE '%COBRINHA INTELIGENTE%'
+                    THEN 'RACIOCINIO LOGICO'
+
+                WHEN (
+                        UPPER(p.nome) LIKE '%SEQU%'
+                        AND UPPER(p.nome) LIKE '%CORES%'
+                     )
+                    THEN 'EDUCATIVO'
+
+                WHEN (
+                        UPPER(p.nome) LIKE '%LOUSA%'
+                        AND UPPER(p.nome) LIKE '%STITCH%'
+                     )
+                    THEN 'BRINQUEDO'
+
+                WHEN UPPER(p.nome) LIKE '%BOX DE ATIVIDADES%'
+                    THEN 'EDUCATIVO'
+
+                WHEN UPPER(p.nome) LIKE '%BINGO DOS ANIMAIS%'
+                    THEN 'BRINQUEDO'
+
                 WHEN UPPER(p.nome) LIKE '%PEDAGOGIC%'
                     THEN 'PEDAGOGICO'
 
@@ -221,15 +326,12 @@ WITH proposta AS (
 
     WHERE
         (
-            p.id IN (264, 265)
+            UPPER(BTRIM(p.categoria)) = 'PAPELARIA'
             AND p.categoria IS DISTINCT FROM 'PAPELARIA'
-        )
-        OR (
-            p.id = 340
-            AND p.categoria IS DISTINCT FROM 'USO E CONSUMO'
         )
         OR p.categoria IS NULL
         OR BTRIM(p.categoria) = ''
+        OR LOWER(BTRIM(p.categoria)) = 'nan'
         OR NOT EXISTS (
             SELECT 1
             FROM categorias_produtos c
