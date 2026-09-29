@@ -20,6 +20,13 @@ from database.produto_db import (
     verificar_codigo_barras_disponivel
 )
 
+from database.categorias_produtos_db import (
+    catalogo_categorias_disponivel,
+    listar_grupos_ativos,
+    listar_categorias_por_grupo,
+    buscar_categoria_por_nome
+)
+
 from utils.precificacao import (
     calcular_preco_venda,
     buscar_margem_padrao
@@ -80,6 +87,16 @@ def formatar_nome_tamanho(nome, tamanho=None):
 # =========================================================
 # LIMPAR FORMULÁRIO NOVO PRODUTO
 # =========================================================
+def limpar_categoria_novo_produto():
+
+    st.session_state["novo_categoria"] = None
+
+
+def limpar_categoria_edicao_produto():
+
+    st.session_state["edit_categoria"] = None
+
+
 def limpar_formulario_novo_produto():
 
     valores_iniciais = {
@@ -89,7 +106,8 @@ def limpar_formulario_novo_produto():
         "novo_sku": "",
         "novo_referencia": "",
         "novo_marca": "",
-        "novo_categoria": "",
+        "novo_grupo": None,
+        "novo_categoria": None,
         "novo_unidade": "UN",
         "novo_ncm": "",
         "novo_cest": "",
@@ -163,9 +181,40 @@ def carregar_produto_para_edicao(produto):
         produto.get("marca")
     )
 
-    st.session_state["edit_categoria"] = tratar_texto(
+    categoria_atual = tratar_texto(
         produto.get("categoria")
     )
+
+    st.session_state["edit_categoria_legado"] = (
+        categoria_atual
+    )
+
+    st.session_state["edit_grupo"] = None
+    st.session_state["edit_categoria"] = None
+
+    if (
+        categoria_atual
+        and catalogo_categorias_disponivel()
+    ):
+
+        categoria_catalogo = (
+            buscar_categoria_por_nome(
+                categoria_atual
+            )
+        )
+
+        if (
+            categoria_catalogo
+            and categoria_catalogo.get("ativo")
+        ):
+
+            st.session_state["edit_grupo"] = (
+                categoria_catalogo.get("grupo")
+            )
+
+            st.session_state["edit_categoria"] = (
+                categoria_catalogo.get("nome")
+            )
 
     st.session_state["edit_unidade"] = unidade
 
@@ -296,7 +345,9 @@ def limpar_estado_edicao():
         "edit_sku",
         "edit_referencia",
         "edit_marca",
+        "edit_grupo",
         "edit_categoria",
+        "edit_categoria_legado",
         "edit_unidade",
         "edit_ncm",
         "edit_cest",
@@ -625,10 +676,71 @@ def tela_produtos():
 
         with col2:
 
-            categoria = st.text_input(
-                "Categoria",
-                key="novo_categoria"
+            catalogo_disponivel = (
+                catalogo_categorias_disponivel()
             )
+
+            grupo = None
+            categoria = None
+
+            if not catalogo_disponivel:
+
+                st.warning(
+                    "O cadastro controlado de categorias "
+                    "ainda nao esta disponivel neste ambiente."
+                )
+
+            else:
+
+                grupos_disponiveis = (
+                    listar_grupos_ativos()
+                )
+
+                opcoes_grupo = [
+                    None,
+                    *grupos_disponiveis
+                ]
+
+                grupo = st.selectbox(
+                    "Grupo",
+                    options=opcoes_grupo,
+                    key="novo_grupo",
+                    on_change=limpar_categoria_novo_produto,
+                    format_func=lambda valor: (
+                        "Selecione..."
+                        if valor is None
+                        else valor
+                    )
+                )
+
+                categorias_disponiveis = []
+
+                if grupo:
+
+                    categorias_disponiveis = [
+                        item["nome"]
+                        for item
+                        in listar_categorias_por_grupo(
+                            grupo
+                        )
+                    ]
+
+                opcoes_categoria = [
+                    None,
+                    *categorias_disponiveis
+                ]
+
+                categoria = st.selectbox(
+                    "Categoria",
+                    options=opcoes_categoria,
+                    key="novo_categoria",
+                    disabled=not bool(grupo),
+                    format_func=lambda valor: (
+                        "Selecione..."
+                        if valor is None
+                        else valor
+                    )
+                )
 
             unidade = st.selectbox(
                 "Unidade",
@@ -847,6 +959,25 @@ def tela_produtos():
                     "Informe o nome do produto."
                 )
 
+            elif not catalogo_disponivel:
+
+                st.warning(
+                    "O cadastro controlado de categorias "
+                    "ainda nao esta disponivel."
+                )
+
+            elif not grupo:
+
+                st.warning(
+                    "Selecione o grupo do produto."
+                )
+
+            elif not categoria:
+
+                st.warning(
+                    "Selecione a categoria do produto."
+                )
+
             else:
 
                 sucesso = cadastrar_produto(
@@ -868,9 +999,7 @@ def tela_produtos():
                     marca=normalizar_campo(
                         marca
                     ),
-                    categoria=normalizar_campo(
-                        categoria
-                    ),
+                    categoria=categoria,
                     unidade=unidade,
                     ncm=normalizar_campo(
                         ncm
@@ -1204,12 +1333,133 @@ def tela_produtos():
 
                     with col2:
 
-                        categoria_edit = (
-                            st.text_input(
-                                "Categoria",
-                                key="edit_categoria"
+                        catalogo_edicao_disponivel = (
+                            catalogo_categorias_disponivel()
+                        )
+
+                        grupo_edit = None
+                        categoria_edit = None
+
+                        categoria_legado = tratar_texto(
+                            st.session_state.get(
+                                "edit_categoria_legado"
                             )
                         )
+
+                        if not catalogo_edicao_disponivel:
+
+                            st.warning(
+                                "O cadastro controlado de categorias "
+                                "ainda nao esta disponivel neste ambiente."
+                            )
+
+                            if categoria_legado:
+
+                                st.caption(
+                                    "Categoria atual: "
+                                    f"{categoria_legado}"
+                                )
+
+                        else:
+
+                            categoria_catalogo_atual = (
+                                buscar_categoria_por_nome(
+                                    categoria_legado
+                                )
+                                if categoria_legado
+                                else None
+                            )
+
+                            if (
+                                categoria_legado
+                                and not categoria_catalogo_atual
+                            ):
+
+                                st.warning(
+                                    "Categoria atual ainda nao "
+                                    "padronizada: "
+                                    f"{categoria_legado}"
+                                )
+
+                            grupos_edicao = (
+                                listar_grupos_ativos()
+                            )
+
+                            opcoes_grupo_edicao = [
+                                None,
+                                *grupos_edicao
+                            ]
+
+                            grupo_estado = (
+                                st.session_state.get(
+                                    "edit_grupo"
+                                )
+                            )
+
+                            if (
+                                grupo_estado
+                                not in opcoes_grupo_edicao
+                            ):
+                                st.session_state[
+                                    "edit_grupo"
+                                ] = None
+
+                            grupo_edit = st.selectbox(
+                                "Grupo",
+                                options=opcoes_grupo_edicao,
+                                key="edit_grupo",
+                                on_change=limpar_categoria_edicao_produto,
+                                format_func=lambda valor: (
+                                    "Selecione..."
+                                    if valor is None
+                                    else valor
+                                )
+                            )
+
+                            categorias_edicao = []
+
+                            if grupo_edit:
+
+                                categorias_edicao = [
+                                    item["nome"]
+                                    for item
+                                    in listar_categorias_por_grupo(
+                                        grupo_edit
+                                    )
+                                ]
+
+                            opcoes_categoria_edicao = [
+                                None,
+                                *categorias_edicao
+                            ]
+
+                            categoria_estado = (
+                                st.session_state.get(
+                                    "edit_categoria"
+                                )
+                            )
+
+                            if (
+                                categoria_estado
+                                not in opcoes_categoria_edicao
+                            ):
+                                st.session_state[
+                                    "edit_categoria"
+                                ] = None
+
+                            categoria_edit = st.selectbox(
+                                "Categoria",
+                                options=opcoes_categoria_edicao,
+                                key="edit_categoria",
+                                disabled=not bool(
+                                    grupo_edit
+                                ),
+                                format_func=lambda valor: (
+                                    "Selecione..."
+                                    if valor is None
+                                    else valor
+                                )
+                            )
 
                         unidade_edit = (
                             st.selectbox(
@@ -1516,6 +1766,25 @@ def tela_produtos():
                                 "Informe o nome do produto."
                             )
 
+                        elif not catalogo_edicao_disponivel:
+
+                            st.warning(
+                                "O cadastro controlado de categorias "
+                                "ainda nao esta disponivel."
+                            )
+
+                        elif not grupo_edit:
+
+                            st.warning(
+                                "Selecione o grupo do produto."
+                            )
+
+                        elif not categoria_edit:
+
+                            st.warning(
+                                "Selecione a categoria do produto."
+                            )
+
                         else:
 
                             sucesso = atualizar_produto(
@@ -1535,9 +1804,7 @@ def tela_produtos():
                                 normalizar_campo(
                                     marca_edit
                                 ),
-                                normalizar_campo(
-                                    categoria_edit
-                                ),
+                                categoria_edit,
                                 unidade_edit,
                                 normalizar_campo(
                                     ncm_edit
