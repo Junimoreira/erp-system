@@ -1633,67 +1633,32 @@ def _distribuir_desconto_itens(
     # --------------------------------------------------------
     # DISTRIBUIÇÃO PROPORCIONAL
     # --------------------------------------------------------
-    desconto_acumulado = Decimal("0.00")
+    # Rateio proporcional exato em centavos, por maiores restos.
+    total_centavos = int(desconto_total * 100)
+    bases = [int(subtotal * 100) for subtotal in subtotais]
+    soma_bases = sum(bases)
 
-    for indice, item in enumerate(
-        itens
-    ):
+    parcelas = [
+        divmod(total_centavos * base, soma_bases)
+        for base in bases
+    ]
+    descontos = [parcela[0] for parcela in parcelas]
+    restantes = total_centavos - sum(descontos)
 
-        ultimo_item = (
-            indice
-            ==
-            len(itens) - 1
-        )
+    ordem = sorted(
+        range(len(itens)),
+        key=lambda i: (-parcelas[i][1], i),
+    )
+    for indice in ordem[:restantes]:
+        descontos[indice] += 1
 
-        if ultimo_item:
+    for indice, item in enumerate(itens):
+        if not 0 <= descontos[indice] <= bases[indice]:
+            raise ValueError("Rateio do desconto fora dos limites do item.")
+        item["desconto_item"] = (
+            Decimal(descontos[indice]) / Decimal("100")
+        ).quantize(Decimal("0.01"))
 
-            desconto_item = (
-                desconto_total
-                -
-                desconto_acumulado
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP
-            )
-
-        else:
-
-            desconto_item = (
-                desconto_total
-                *
-                subtotais[indice]
-                /
-                soma_subtotais
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP
-            )
-
-            desconto_acumulado += (
-                desconto_item
-            )
-
-        if desconto_item < Decimal("0.00"):
-
-            raise ValueError(
-                "Distribuição do desconto gerou "
-                "valor negativo."
-            )
-
-        if desconto_item > subtotais[indice]:
-
-            raise ValueError(
-                "Desconto do item não pode ser maior "
-                "que o subtotal do próprio item."
-            )
-
-        item[
-            "desconto_item"
-        ] = desconto_item
-
-    # --------------------------------------------------------
-    # CONFERÊNCIA FINAL
-    # --------------------------------------------------------
     soma_descontos = sum(
         (
             item.get(
