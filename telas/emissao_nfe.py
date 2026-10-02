@@ -574,6 +574,14 @@ def _mostrar_resultado_emissao(resultado, modelo=55):
 
     if not resultado.get("sucesso"):
         st.error("❌ A emissão não foi concluída.")
+        # Mostrar erros detalhados do gerador XML
+        detalhe = resultado.get("resultado")
+        if isinstance(detalhe, dict):
+            erros = detalhe.get("erros") or []
+            if isinstance(erros, str):
+                erros = [erros]
+            for erro in erros:
+                st.error(str(erro))
         st.write("**Etapa:**", resultado.get("etapa") or "-")
         st.write(
             "**Mensagem:**",
