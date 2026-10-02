@@ -42,6 +42,7 @@ from telas.produtos import tela_produtos
 from telas.vendas import tela_vendas
 from telas.emissao_nfe import tela_emissao_nfe
 from telas.sintegra import tela_sintegra
+from telas.envio_contabilidade import tela_envio_contabilidade
 from telas.trocas import tela_trocas
 from telas.movimentacoes import tela_movimentacoes
 from telas.fornecedores import tela_fornecedores
@@ -735,6 +736,7 @@ if tem_permissao(
 ):
 
     menu_opcoes.extend([
+        "📦 Envio à Contabilidade",
         "🏦 Contas Bancárias",
         "📊 Fluxo de Caixa"
     ])
@@ -1039,6 +1041,11 @@ try:
         )
 
         tela_emissao_nfe()
+
+    elif menu == "📦 Envio à Contabilidade":
+
+        bloquear("pode_financeiro")
+        tela_envio_contabilidade()
 
     elif menu == "📄 SINTEGRA":
 
