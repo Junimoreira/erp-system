@@ -1422,7 +1422,7 @@ def _desenhar_pagina(
 
     y -= altura_cab
 
-    altura_item = 11*mm
+    altura_item = 5*mm
 
     for item in itens_pagina:
 
@@ -1525,7 +1525,7 @@ def _desenhar_pagina(
                     _texto_pdf(
                         c,
                         x+1*mm,
-                        y-6.0*mm,
+                        y-3.2*mm,
                         linhas_desc[0],
                         tamanho=5.7
                     )
@@ -1535,7 +1535,7 @@ def _desenhar_pagina(
                     _texto_pdf(
                         c,
                         x+1*mm,
-                        y-4.2*mm,
+                        y-2.0*mm,
                         linhas_desc[0],
                         tamanho=5.7
                     )
@@ -1543,7 +1543,7 @@ def _desenhar_pagina(
                     _texto_pdf(
                         c,
                         x+1*mm,
-                        y-7.6*mm,
+                        y-4.2*mm,
                         linhas_desc[1],
                         tamanho=5.7
                     )
@@ -1558,7 +1558,7 @@ def _desenhar_pagina(
                 _texto_pdf(
                     c,
                     x+largura-1*mm,
-                    y-6.0*mm,
+                    y-3.2*mm,
                     valor,
                     tamanho=5.5,
                     alinhar="right"
@@ -1569,7 +1569,7 @@ def _desenhar_pagina(
                 _texto_pdf(
                     c,
                     x+largura/2,
-                    y-6.0*mm,
+                    y-3.2*mm,
                     valor,
                     tamanho=5.2,
                     alinhar="center"
@@ -1778,7 +1778,7 @@ def gerar_danfe_nfe(caminho_xml, caminho_pdf):
         c = canvas.Canvas(str(caminho_pdf), pagesize=A4)
         c.setTitle(f"DANFE {dados.get('numero','')}")
         itens = dados.get("itens", [])
-        itens_por_pagina = 10
+        itens_por_pagina = 22
         paginas = [itens[i:i+itens_por_pagina] for i in range(0, len(itens), itens_por_pagina)] if itens else [[]]
         total_paginas = len(paginas)
         for indice, itens_pagina in enumerate(paginas, start=1):
