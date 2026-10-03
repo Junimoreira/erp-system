@@ -875,38 +875,33 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-    for opcao in menu_opcoes:
+    grupos_menu = {
+        "📁 Cadastros": ["👥 Clientes", "📦 Produtos", "🚚 Fornecedores"],
+        "🛒 Comercial": ["🛒 Vendas", "🔄 Trocas", "🛍️ Marketplaces", "📢 Marketing", "💰 Formação de Preço"],
+        "📦 Compras e Estoque": ["📥 Compras", "🧠 Central de Compras", "🔁 Conversão XML"],
+        "🧾 Fiscal": ["🧾 Emissão NF-e", "📄 SINTEGRA", "📦 Envio à Contabilidade"],
+        "🏦 Financeiro": ["💰 Caixa", "💰 Movimentações", "🏦 Contas Bancárias", "📊 Fluxo de Caixa", "📤 Contas a Pagar", "📥 Contas a Receber", "📊 Fechamento de Caixa"],
+        "📊 Relatórios": ["📊 Relatórios"],
+        "⚙️ Administração": ["⚙️ Configurações", "💾 Administração do Banco", "🔐 Permissões"],
+    }
 
-        if (
-            opcao
-            ==
-            st.session_state[
-                "menu_atual"
-            ]
-        ):
-
+    def desenhar_opcao_menu(opcao):
+        if opcao == st.session_state["menu_atual"]:
             st.markdown(
-                f"""
-                <div class="menu-ativo">
-                    {opcao}
-                </div>
-                """,
-                unsafe_allow_html=True
+                f'<div class="menu-ativo">{opcao}</div>',
+                unsafe_allow_html=True,
             )
+        elif st.button(opcao, key=f"menu_{opcao}", use_container_width=True):
+            st.session_state["menu_atual"] = opcao
+            st.rerun()
 
-        else:
-
-            if st.button(
-                opcao,
-                key=f"menu_{opcao}",
-                use_container_width=True
-            ):
-
-                st.session_state[
-                    "menu_atual"
-                ] = opcao
-
-                st.rerun()
+    desenhar_opcao_menu("🏠 Dashboard")
+    for grupo, opcoes in grupos_menu.items():
+        permitidas = [opcao for opcao in opcoes if opcao in menu_opcoes]
+        if permitidas:
+            with st.expander(grupo, expanded=st.session_state["menu_atual"] in permitidas):
+                for opcao in permitidas:
+                    desenhar_opcao_menu(opcao)
 
     st.divider()
 
