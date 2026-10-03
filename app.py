@@ -1176,3 +1176,29 @@ except Exception as erro:
     st.exception(
         erro
     )
+
+
+st.markdown(
+    """
+    <style>
+    /* CONTRASTE DOS SETORES DO MENU */
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary,
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary:hover,
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary:focus,
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary:active {
+        background-color: #142b49 !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
+        color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary svg {
+        fill: currentColor !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
