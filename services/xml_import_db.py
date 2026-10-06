@@ -6,7 +6,8 @@ from database.documentos_fiscais_db import (
 
 from services.xml_conversao_service import (
     detectar_conversao_por_descricao,
-    aplicar_conversao_produto
+    aplicar_conversao_produto,
+    salvar_conversao_confirmada
 )
 
 
@@ -1940,6 +1941,40 @@ def importar_nfe_xml(
                     "subtotal_convertido"
                 ]
             )
+
+            # ==================================================
+            # APRENDER CONVERSAO CONFIRMADA PELO USUARIO
+            #
+            # A decisao conferida na tela passa a ser a
+            # preferencia comercial do produto para futuras
+            # importacoes.
+            #
+            # Fator 1 tambem e uma decisao valida.
+            # ==================================================
+
+            if conversao_confirmada:
+
+                origem_confirmada = str(
+                    conversao_confirmada.get(
+                        "origem_conversao",
+                        ""
+                    ) or ""
+                ).strip()
+
+                if origem_confirmada in {
+                    "Manual",
+                    "Detectada automaticamente",
+                    "Cadastrada"
+                }:
+
+                    salvar_conversao_confirmada(
+                        cursor=cursor,
+                        produto_id=produto_id,
+                        codigo_barras=codigo_barras,
+                        codigo_fornecedor=codigo_fornecedor,
+                        conversao_confirmada=conversao_confirmada
+                    )
+
 
             # ==================================================
             # ITEM DA COMPRA

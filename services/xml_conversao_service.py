@@ -372,6 +372,18 @@ def salvar_conversao_automatica(
     codigo_fornecedor,
     conversao_detectada
 ):
+    """
+    Salva uma conversao detectada automaticamente.
+
+    Mantida por compatibilidade com fluxos que utilizem esta funcao.
+    Somente fatores maiores que 1 sao considerados automaticos.
+
+    Usa exclusivamente as colunas existentes em
+    conversao_produtos_xml.
+    """
+
+    if not produto_id:
+        return False
 
     if not conversao_detectada:
         return False
@@ -388,12 +400,19 @@ def salvar_conversao_automatica(
                 1
             ) or 1
         )
-
     except (TypeError, ValueError):
         fator = 1.0
 
     if fator <= 1:
         return False
+
+    codigo_barras = str(
+        codigo_barras or ""
+    ).strip()
+
+    codigo_fornecedor = str(
+        codigo_fornecedor or ""
+    ).strip()
 
     cursor.execute("""
         INSERT INTO conversao_produtos_xml (
@@ -404,39 +423,188 @@ def salvar_conversao_automatica(
             unidade_compra,
             unidade_estoque,
             fator_conversao,
-            ativo,
-            observacoes,
-            atualizado_em
+            ativo
         )
         VALUES (
             %s,
+            NULLIF(%s, ''),
+            NULLIF(%s, ''),
             %s,
             %s,
             %s,
             %s,
-            %s,
-            %s,
-            true,
-            %s,
-            CURRENT_TIMESTAMP
+            true
         )
     """, (
         produto_id,
         codigo_barras,
         codigo_fornecedor,
-        conversao_detectada[
-            "tipo_compra"
-        ],
-        conversao_detectada[
-            "unidade_compra"
-        ],
-        conversao_detectada[
-            "unidade_estoque"
-        ],
-        fator,
-        conversao_detectada[
-            "observacao"
-        ]
+        conversao_detectada.get(
+            "tipo_compra",
+            "UNIDADE"
+        ) or "UNIDADE",
+        conversao_detectada.get(
+            "unidade_compra",
+            "UNIDADE"
+        ) or "UNIDADE",
+        conversao_detectada.get(
+            "unidade_estoque",
+            "UNIDADE"
+        ) or "UNIDADE",
+        fator
+    ))
+
+    return True
+
+
+# ==========================================================
+# SALVAR / ATUALIZAR CONVERSAO CONFIRMADA
+# ==========================================================
+
+def salvar_conversao_confirmada(
+    cursor,
+    produto_id,
+    codigo_barras,
+    codigo_fornecedor,
+    conversao_confirmada
+):
+    """
+    Persiste a decisao comercial confirmada pelo usuario.
+
+    Diferente da conversao automatica, fator 1 e valido:
+    ele pode significar que a embalagem do fornecedor deve
+    permanecer como uma unica unidade no estoque.
+
+    Usa o cursor recebido para participar da mesma transacao
+    da importacao da compra.
+    """
+
+    if not produto_id:
+        return False
+
+    if not conversao_confirmada:
+        return False
+
+    try:
+        fator = float(
+            conversao_confirmada.get(
+                "fator_conversao",
+                1
+            ) or 1
+        )
+    except (TypeError, ValueError):
+        fator = 1.0
+
+    if fator < 1:
+        fator = 1.0
+
+    codigo_barras = str(
+        codigo_barras or ""
+    ).strip()
+
+    codigo_fornecedor = str(
+        codigo_fornecedor or ""
+    ).strip()
+
+    tipo_compra = str(
+        conversao_confirmada.get(
+            "tipo_compra",
+            "UNIDADE"
+        ) or "UNIDADE"
+    ).strip()
+
+    unidade_compra = str(
+        conversao_confirmada.get(
+            "unidade_compra",
+            "UNIDADE"
+        ) or "UNIDADE"
+    ).strip()
+
+    unidade_estoque = str(
+        conversao_confirmada.get(
+            "unidade_estoque",
+            "UNIDADE"
+        ) or "UNIDADE"
+    ).strip()
+
+    # produto_id e a identidade principal da preferencia.
+    cursor.execute("""
+        SELECT id
+        FROM conversao_produtos_xml
+        WHERE produto_id = %s
+        ORDER BY
+            CASE WHEN ativo = true THEN 0 ELSE 1 END,
+            id DESC
+        LIMIT 1
+    """, (
+        produto_id,
+    ))
+
+    existente = cursor.fetchone()
+
+    if existente:
+        # Se o XML atual nao trouxer algum codigo, preserva
+        # o valor ja cadastrado na preferencia.
+        cursor.execute("""
+            UPDATE conversao_produtos_xml
+            SET
+                codigo_barras = COALESCE(
+                    NULLIF(%s, ''),
+                    codigo_barras
+                ),
+                codigo_fornecedor = COALESCE(
+                    NULLIF(%s, ''),
+                    codigo_fornecedor
+                ),
+                tipo_compra = %s,
+                unidade_compra = %s,
+                unidade_estoque = %s,
+                fator_conversao = %s,
+                ativo = true
+            WHERE id = %s
+        """, (
+            codigo_barras,
+            codigo_fornecedor,
+            tipo_compra,
+            unidade_compra,
+            unidade_estoque,
+            fator,
+            existente[0]
+        ))
+
+        return True
+
+    # criado_em possui DEFAULT CURRENT_TIMESTAMP na tabela,
+    # portanto nao precisa ser informado no INSERT.
+    cursor.execute("""
+        INSERT INTO conversao_produtos_xml (
+            produto_id,
+            codigo_barras,
+            codigo_fornecedor,
+            tipo_compra,
+            unidade_compra,
+            unidade_estoque,
+            fator_conversao,
+            ativo
+        )
+        VALUES (
+            %s,
+            NULLIF(%s, ''),
+            NULLIF(%s, ''),
+            %s,
+            %s,
+            %s,
+            %s,
+            true
+        )
+    """, (
+        produto_id,
+        codigo_barras,
+        codigo_fornecedor,
+        tipo_compra,
+        unidade_compra,
+        unidade_estoque,
+        fator
     ))
 
     return True
