@@ -155,6 +155,7 @@ def _validar_seguranca_ambiente():
             "erp_local",
             "erp_teste",
             "erp_homologacao",
+            "erp_homologacao_lq0i",
         )
 
         if banco not in nomes_permitidos_teste:

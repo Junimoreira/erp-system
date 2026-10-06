@@ -1450,12 +1450,14 @@ def classificar_item_registro_50(
         return resultado
 
     # ------------------------------------------------------
-    # CST 40 - isenta
+    # CST 40 / 41
+    # 40 - isenta
+    # 41 - nao tributada
     # ------------------------------------------------------
 
     if (
         grupo == "ICMS40"
-        and cst == "40"
+        and cst in {"40", "41"}
     ):
         if (
             base_icms != 0
@@ -1464,7 +1466,7 @@ def classificar_item_registro_50(
             resultado[
                 "motivo_classificacao"
             ] = (
-                "CST 40 com base ou valor de ICMS "
+                f"CST {cst} com base ou valor de ICMS "
                 "diferente de zero; exige revisao."
             )
 
@@ -1484,11 +1486,19 @@ def classificar_item_registro_50(
             2,
         )
 
-        resultado[
-            "motivo_classificacao"
-        ] = (
-            "CST 40 identificado como operacao isenta."
-        )
+        if cst == "40":
+            resultado[
+                "motivo_classificacao"
+            ] = (
+                "CST 40 identificado como operacao isenta."
+            )
+        else:
+            resultado[
+                "motivo_classificacao"
+            ] = (
+                "CST 41 identificado como operacao "
+                "nao tributada."
+            )
 
         return resultado
 

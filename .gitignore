@@ -73,3 +73,6 @@ documentos_fiscais/
 temp_testes_nfce/
 
 saida_sintegra/
+
+# XMLs fiscais reais e importados - nunca versionar
+xml/**/*.xml
