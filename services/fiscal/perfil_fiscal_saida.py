@@ -1,3 +1,4 @@
+from services.fiscal.calculo_ibs_cbs import dispensar_ibs_cbs_simples_2026
 from decimal import Decimal, InvalidOperation
 
 from database.connection import conectar
@@ -337,7 +338,8 @@ def identificar_operacao(
 def montar_perfil_fiscal_saida(
     produto_id,
     uf_destino,
-    modelo=None
+    modelo=None,
+    data_referencia=None
 ):
 
     erros = []
@@ -734,105 +736,111 @@ def montar_perfil_fiscal_saida(
     # IBS / CBS
     # ========================================================
 
-    # --------------------------------------------------------
-    # NENHUM INFORMADO
-    # --------------------------------------------------------
-    if (
-        not cst_ibs_cbs
-        and
-        not classificacao_tributaria
-    ):
-
-        avisos.append(
-            (
-                "CST IBS/CBS de saída ainda "
-                "não está configurado."
-            )
-        )
-
-        avisos.append(
-            (
-                "Classificação tributária de saída "
-                "ainda não está configurada."
-            )
-        )
-
-    # --------------------------------------------------------
-    # SOMENTE CST
-    # --------------------------------------------------------
-    elif (
-        cst_ibs_cbs
-        and
-        not classificacao_tributaria
-    ):
-
-        erros.append(
-            (
-                "CST IBS/CBS informado, mas a "
-                "classificação tributária cClassTrib "
-                "não está configurada."
-            )
-        )
-
-    # --------------------------------------------------------
-    # SOMENTE cClassTrib
-    # --------------------------------------------------------
-    elif (
-        not cst_ibs_cbs
-        and
-        classificacao_tributaria
-    ):
-
-        erros.append(
-            (
-                "Classificação tributária cClassTrib "
-                "informada, mas o CST IBS/CBS "
-                "não está configurado."
-            )
-        )
-
-    # --------------------------------------------------------
-    # AMBOS INFORMADOS
-    # --------------------------------------------------------
+    if dispensar_ibs_cbs_simples_2026(configuracao.get("crt"), data_referencia):
+        # Campos do cadastro não participam da emissão neste regime/período.
+        cst_ibs_cbs = ""
+        classificacao_tributaria = ""
+        avisos.append("IBS/CBS não informado: Simples Nacional (CRT 1), emissão em 2026.")
     else:
-
-        validacao_ibs_cbs = (
-            validar_classificacao_oficial_ibs_cbs(
-                cst=cst_ibs_cbs,
-                classificacao=
-                    classificacao_tributaria,
-                modelo=
-                    modelo_normalizado
-            )
-        )
-
-        if not validacao_ibs_cbs.get(
-            "valido"
-        ):
-
-            for erro in validacao_ibs_cbs.get(
-                "erros",
-                []
-            ):
-
-                erros.append(
-                    (
-                        "IBS/CBS: "
-                        f"{erro}"
-                    )
-                )
-
-        for aviso in validacao_ibs_cbs.get(
-            "avisos",
-            []
+        # --------------------------------------------------------
+        # NENHUM INFORMADO
+        # --------------------------------------------------------
+        if (
+            not cst_ibs_cbs
+            and
+            not classificacao_tributaria
         ):
 
             avisos.append(
                 (
-                    "IBS/CBS: "
-                    f"{aviso}"
+                    "CST IBS/CBS de saída ainda "
+                    "não está configurado."
                 )
             )
+
+            avisos.append(
+                (
+                    "Classificação tributária de saída "
+                    "ainda não está configurada."
+                )
+            )
+
+        # --------------------------------------------------------
+        # SOMENTE CST
+        # --------------------------------------------------------
+        elif (
+            cst_ibs_cbs
+            and
+            not classificacao_tributaria
+        ):
+
+            erros.append(
+                (
+                    "CST IBS/CBS informado, mas a "
+                    "classificação tributária cClassTrib "
+                    "não está configurada."
+                )
+            )
+
+        # --------------------------------------------------------
+        # SOMENTE cClassTrib
+        # --------------------------------------------------------
+        elif (
+            not cst_ibs_cbs
+            and
+            classificacao_tributaria
+        ):
+
+            erros.append(
+                (
+                    "Classificação tributária cClassTrib "
+                    "informada, mas o CST IBS/CBS "
+                    "não está configurado."
+                )
+            )
+
+        # --------------------------------------------------------
+        # AMBOS INFORMADOS
+        # --------------------------------------------------------
+        else:
+
+            validacao_ibs_cbs = (
+                validar_classificacao_oficial_ibs_cbs(
+                    cst=cst_ibs_cbs,
+                    classificacao=
+                        classificacao_tributaria,
+                    modelo=
+                        modelo_normalizado
+                )
+            )
+
+            if not validacao_ibs_cbs.get(
+                "valido"
+            ):
+
+                for erro in validacao_ibs_cbs.get(
+                    "erros",
+                    []
+                ):
+
+                    erros.append(
+                        (
+                            "IBS/CBS: "
+                            f"{erro}"
+                        )
+                    )
+
+            for aviso in validacao_ibs_cbs.get(
+                "avisos",
+                []
+            ):
+
+                avisos.append(
+                    (
+                        "IBS/CBS: "
+                        f"{aviso}"
+                    )
+                )
 
     # --------------------------------------------------------
     # RESULTADO
