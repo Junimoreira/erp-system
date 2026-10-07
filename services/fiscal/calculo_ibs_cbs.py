@@ -44,23 +44,29 @@ def _validar(cst, cclass):
     return cst,cclass,erros
 
 
+def dispensar_ibs_cbs_simples_2026(crt, data_referencia=None):
+    """Dispensa restrita ao CRT 1 e ao ano de emissão de 2026."""
+    return _texto(crt) == '1' and _data(data_referencia).year == 2026
+
+
 def calcular_ibs_cbs(*, base_calculo, cst, classificacao_tributaria, data_referencia=None,
                       crt=None, aliquota_ibs_uf=None, aliquota_ibs_municipal=None,
                       aliquota_cbs=None, habilitado=True, permitir_simples_2026=False):
     erros=[]; avisos=[]
     base=_q(base_calculo)
     if base<0: erros.append('Base de cálculo não pode ser negativa.')
-    cst,cclass,e=_validar(cst,classificacao_tributaria); erros.extend(e)
+    cst = _texto(cst); cclass = _texto(classificacao_tributaria)
     d=_data(data_referencia)
     crt=_texto(crt)
     if not habilitado:
         avisos.append('Cálculo IBS/CBS desabilitado pela configuração fiscal.')
-    if crt=='1' and d.year==2026 and not permitir_simples_2026:
+    if dispensar_ibs_cbs_simples_2026(crt, d) and not permitir_simples_2026:
         avisos.append('CRT 1 em 2026: cálculo IBS/CBS bloqueado por padrão; a aplicação poderá habilitar exceções quando cabíveis.')
         return {'sucesso':len(erros)==0,'calcular':False,'base_calculo':base,'cst_ibs_cbs':cst,'classificacao_tributaria':cclass,
                 'pIBSUF':Decimal('0.0000'),'pIBSMun':Decimal('0.0000'),'pCBS':Decimal('0.0000'),
                 'vIBSUF':Decimal('0.00'),'vIBSMun':Decimal('0.00'),'vIBS':Decimal('0.00'),'vCBS':Decimal('0.00'),
                 'erros':erros,'avisos':avisos}
+    cst,cclass,e=_validar(cst,classificacao_tributaria); erros.extend(e)
     if not habilitado or erros:
         return {'sucesso':False if erros else True,'calcular':False,'base_calculo':base,'cst_ibs_cbs':cst,'classificacao_tributaria':cclass,
                 'pIBSUF':Decimal('0.0000'),'pIBSMun':Decimal('0.0000'),'pCBS':Decimal('0.0000'),

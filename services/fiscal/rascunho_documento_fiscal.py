@@ -385,9 +385,8 @@ def montar_rascunho_documento_fiscal(
             classificacao_tributaria=item.get(
                 "classificacao_tributaria"
             ),
-            data_referencia=venda.get(
-                "data_venda"
-            ),
+            # A regra acompanha a emissão atual, não a data antiga da venda.
+            data_referencia=None,
             crt=configuracao.get(
                 "crt"
             ),
