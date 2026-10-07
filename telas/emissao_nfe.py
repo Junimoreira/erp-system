@@ -574,6 +574,32 @@ def _mostrar_resultado_emissao(resultado, modelo=55):
 
     if not resultado.get("sucesso"):
         st.error("❌ A emissão não foi concluída.")
+        # DETALHES_XSD_EMISSAO
+        fontes_xsd = [resultado]
+        detalhe_xsd = resultado.get("resultado")
+        if isinstance(detalhe_xsd, dict):
+            fontes_xsd.append(detalhe_xsd)
+        mensagens_xsd = set()
+        for fonte_xsd in fontes_xsd:
+            validacao_xsd = fonte_xsd.get("validacao")
+            if not isinstance(validacao_xsd, dict):
+                continue
+            erros_xsd = validacao_xsd.get("erros") or []
+            if isinstance(erros_xsd, (str, dict)):
+                erros_xsd = [erros_xsd]
+            for erro_xsd in erros_xsd:
+                if isinstance(erro_xsd, dict):
+                    mensagem_xsd = str(erro_xsd.get("mensagem") or erro_xsd)
+                    linha_xsd = erro_xsd.get("linha")
+                    if linha_xsd is not None:
+                        mensagem_xsd = f"Linha {linha_xsd}: {mensagem_xsd}"
+                else:
+                    mensagem_xsd = str(erro_xsd)
+                if mensagem_xsd not in mensagens_xsd:
+                    if not mensagens_xsd:
+                        st.markdown("#### Erros da validacao XSD")
+                    st.error(mensagem_xsd)
+                    mensagens_xsd.add(mensagem_xsd)
         # Mostrar erros detalhados do gerador XML
         detalhe = resultado.get("resultado")
         if isinstance(detalhe, dict):
