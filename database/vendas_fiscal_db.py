@@ -30,7 +30,9 @@ def buscar_venda_para_emissao(
                 data_venda,
                 autorizacao_cartao,
                 conta_bancaria_id,
-                caixa_id
+                caixa_id,
+                COALESCE(frete, 0),
+                COALESCE(mod_frete, '9')
             FROM vendas
             WHERE id = %s
             LIMIT 1
@@ -57,6 +59,8 @@ def buscar_venda_para_emissao(
             "autorizacao_cartao": registro[8],
             "conta_bancaria_id": registro[9],
             "caixa_id": registro[10],
+            "frete": registro[11],
+            "mod_frete": registro[12],
         }
 
     except Exception as erro:

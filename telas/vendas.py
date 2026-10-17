@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 
 from datetime import datetime
+from telas.cancelamento_vendas import mostrar_cancelamento_vendas
+from services.vendas_valores import calcular
+from telas.edicao_valores_venda import mostrar_edicao_valores, MODALIDADES
 
 from database.vendas_db import (
     listar_clientes,
@@ -41,6 +44,16 @@ def normalizar_forma(forma):
     texto = texto.replace("Ç", "C")
 
     return texto
+
+
+def _remover_item_carrinho(indice, venda_seq):
+    """Executado antes de redesenhar a tela e calcular os totais."""
+    carrinho = st.session_state.get("carrinho", [])
+    if 0 <= indice < len(carrinho):
+        st.session_state["carrinho"] = (
+            carrinho[:indice] + carrinho[indice + 1:]
+        )
+        st.session_state[f"confirmar_finalizar_venda_{venda_seq}"] = False
 
 
 # ==================================================
@@ -452,37 +465,46 @@ def tela_vendas():
         # ==================================================
         st.subheader("🛒 Carrinho")
 
+        frete = st.number_input(
+            "Frete cobrado do cliente (R$)", min_value=0.0, value=0.0,
+            step=0.01, format="%.2f", key=f"frete_venda_{venda_seq}",
+            help="Informe separado do preço dos produtos. O valor integra o total da venda."
+        )
+        mod_frete = st.selectbox(
+            "Modalidade do transporte", options=list(MODALIDADES),
+            index=None, placeholder="Selecione quando houver transporte...",
+            format_func=lambda k: MODALIDADES[k], key=f"mod_frete_venda_{venda_seq}"
+        )
+
         if st.session_state["carrinho"]:
 
-            df = pd.DataFrame(
-                st.session_state["carrinho"]
-            )
+            cabecalho = st.columns([3, 1, 1.4, 1.4, 1.4, 1.5])
+            for coluna, titulo in zip(
+                cabecalho,
+                ["Produto", "Qtd.", "Preço unitário", "Desconto", "Total do item", "Ação"]
+            ):
+                coluna.write(titulo)
 
-            df_exibicao = (
-                formatar_dataframe_brasil(
-                    df.copy(),
-                    com_hora=False,
-                    moedas=True
+            for indice, item in enumerate(st.session_state["carrinho"]):
+                colunas = st.columns([3, 1, 1.4, 1.4, 1.4, 1.5])
+                colunas[0].write(item["produto"])
+                colunas[1].write(item["quantidade"])
+                colunas[2].write(formatar_moeda(item["preco"]))
+                colunas[3].write(formatar_moeda(item["desconto"]))
+                colunas[4].write(formatar_moeda(item["valor_final"]))
+                colunas[5].button(
+                    "🗑️ Remover",
+                    key=f"remover_item_carrinho_{venda_seq}_{indice}",
+                    on_click=_remover_item_carrinho,
+                    args=(indice, venda_seq),
+                    help=f'Remover esta linha: {item["produto"]}',
+                    use_container_width=True
                 )
-            )
 
-            st.dataframe(
-                df_exibicao,
-                use_container_width=True,
-                hide_index=True
-            )
-
-            total_bruto = float(
-                df["subtotal"].sum()
-            )
-
-            desconto_total = float(
-                df["desconto"].sum()
-            )
-
-            total_final = float(
-                df["valor_final"].sum()
-            )
+            valores = calcular(st.session_state["carrinho"], frete)
+            total_bruto = float(valores["valor_total"])
+            desconto_total = float(valores["desconto"])
+            total_final = float(valores["valor_final"])
 
             col1, col2, col3 = st.columns(3)
 
@@ -549,6 +571,10 @@ def tela_vendas():
                 use_container_width=True,
                 key=f"finalizar_venda_{venda_seq}"
             ):
+
+                if frete > 0 and (mod_frete is None or mod_frete == "9"):
+                    st.error("Selecione a modalidade de transporte para o frete cobrado.")
+                    return
 
                 if cliente_id is None:
 
@@ -617,6 +643,8 @@ def tela_vendas():
                     valor_final=float(
                         total_final
                     ),
+                    frete=frete,
+                    mod_frete=mod_frete or "9",
                     forma_pagamento=forma_pagamento,
                     data_venda=datetime.combine(
                         data_venda,
@@ -655,6 +683,9 @@ def tela_vendas():
     # HISTÓRICO DE VENDAS
     # ==================================================
     with abas[1]:
+
+        mostrar_edicao_valores()
+        mostrar_cancelamento_vendas()
 
         st.subheader(
             "📋 Histórico de Vendas"

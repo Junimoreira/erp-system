@@ -16,7 +16,16 @@ from database.finance_engine import (
 def normalizar_texto(valor):
     if valor is None:
         return ""
-    return str(valor).strip().upper()
+    import unicodedata
+
+    texto = str(valor).strip().upper()
+    texto = unicodedata.normalize("NFKD", texto)
+
+    return "".join(
+        caractere
+        for caractere in texto
+        if not unicodedata.combining(caractere)
+    )
 
 
 # ==================================================
@@ -74,10 +83,12 @@ def cadastrar_conta(
     cliente_id=None,
     cliente=None,
     observacoes=None,
-    forma_pagamento=None
+    forma_pagamento=None,
+    conn_externa=None
 ):
 
-    conn = conectar()
+    conexao_propria = conn_externa is None
+    conn = conectar() if conexao_propria else conn_externa
 
     if conn is None:
         return False
@@ -110,17 +121,20 @@ def cadastrar_conta(
             datetime.now()
         ))
 
-        conn.commit()
+        if conexao_propria:
+            conn.commit()
         return True
 
     except Exception as erro:
-        conn.rollback()
+        if conexao_propria:
+            conn.rollback()
         print("Erro cadastrar_conta_receber:", erro)
         return False
 
     finally:
         cursor.close()
-        conn.close()
+        if conexao_propria:
+            conn.close()
 
 
 # ==================================================
@@ -158,6 +172,7 @@ def atualizar_conta(
                 observacoes = %s,
                 forma_pagamento = %s
             WHERE id = %s
+              AND UPPER(COALESCE(status, '')) NOT IN ('CANCELADO', 'CANCELADA')
         """, (
             cliente_id,
             cliente,
@@ -170,6 +185,8 @@ def atualizar_conta(
             conta_id
         ))
 
+        if cursor.rowcount != 1:
+            raise ValueError("Título não encontrado ou cancelado; alteração/exclusão bloqueada.")
         conn.commit()
         return True
 
@@ -232,6 +249,7 @@ def receber_conta(
                 status
             FROM contas_receber
             WHERE id = %s
+            FOR UPDATE
         """, (conta_id,))
 
         conta = cursor.fetchone()
@@ -242,6 +260,9 @@ def receber_conta(
         valor, descricao, status = conta
 
         status_atual = normalizar_texto(status)
+
+        if status_atual in ("CANCELADO", "CANCELADA"):
+            raise ValueError("Título cancelado não pode ser recebido.")
 
         if status_atual in ["RECEBIDO", "PAGO", "PAGA"]:
             raise Exception("Conta já está recebida.")
@@ -281,10 +302,19 @@ def receber_conta(
         ]:
 
             if conta_bancaria_id is None:
-                conta_bancaria_id = buscar_primeira_conta_bancaria(conn)
+                raise ValueError(
+                    "Selecione uma conta bancaria para este recebimento."
+                )
 
-            if conta_bancaria_id is None:
-                raise Exception("Nenhuma conta bancária cadastrada.")
+            conta_bancaria_id = int(conta_bancaria_id)
+
+            cursor.execute(
+                "SELECT 1 FROM contas_bancarias WHERE id = %s",
+                (conta_bancaria_id,)
+            )
+
+            if cursor.fetchone() is None:
+                raise ValueError("Conta bancaria nao cadastrada.")
 
             sucesso = registrar_entrada_banco(
                 conta_bancaria_id=conta_bancaria_id,
@@ -356,8 +386,11 @@ def excluir_conta(conta_id):
         cursor.execute("""
             DELETE FROM contas_receber
             WHERE id = %s
+              AND UPPER(COALESCE(status, '')) NOT IN ('CANCELADO', 'CANCELADA')
         """, (conta_id,))
 
+        if cursor.rowcount != 1:
+            raise ValueError("Título não encontrado ou cancelado; alteração/exclusão bloqueada.")
         conn.commit()
         return True
 
@@ -381,7 +414,8 @@ def cadastrar_conta_receber(
     vencimento,
     observacoes=None,
     cliente=None,
-    forma_pagamento=None
+    forma_pagamento=None,
+    conn_externa=None
 ):
 
     return cadastrar_conta(
@@ -391,5 +425,6 @@ def cadastrar_conta_receber(
         cliente_id=cliente_id,
         cliente=cliente,
         observacoes=observacoes,
-        forma_pagamento=forma_pagamento
+        forma_pagamento=forma_pagamento,
+        conn_externa=conn_externa
     )

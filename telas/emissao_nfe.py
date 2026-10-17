@@ -947,7 +947,87 @@ def _mostrar_resultado_emissao(resultado, modelo=55):
 # ============================================================
 # TELA DE EMISSÃO NF-e
 # ============================================================
+
+# ============================================================
+# CANCELAMENTO FISCAL DE NF-e AUTORIZADA
+# ============================================================
+def _mostrar_cancelamento_nfe(documento):
+    if str(st.session_state.get("perfil", "")).strip().lower() not in ("admin", "diretor"):
+        return
+    if not st.session_state.get("logado") or not st.session_state.get("id"):
+        return
+    from database.documentos_fiscais_db import buscar_documento_por_chave
+    documento_completo = buscar_documento_por_chave(documento.get("chave_acesso"))
+    if not documento_completo:
+        st.error("Não foi possível consultar os dados completos para cancelamento.")
+        return
+    documento = documento_completo
+    if int(documento.get("modelo") or 0) != 55:
+        return
+    from services.fiscal.cancelamento_nfe import cancelar_nfe
+    chave = documento.get("chave_acesso")
+    prefixo = f"cancelar_nfe_{documento['id']}"
+    if st.session_state.pop(prefixo + "_limpar", False):
+        st.session_state[prefixo + "_senha"] = ""
+    with st.expander("Cancelar NF-e / consultar tentativa anterior"):
+        st.write("NF-e:", documento.get("numero"), "| Série:", documento.get("serie"))
+        st.write("Venda:", documento.get("venda_id"), "| Chave:", chave)
+        st.write("Ambiente:", _descricao_ambiente(documento.get("ambiente")))
+        st.caption("O cancelamento fiscal preserva a venda, o estoque e o financeiro.")
+        certificado = buscar_certificado_fiscal() or {}
+        with st.form(prefixo + "_form"):
+            justificativa = st.text_area("Justificativa do cancelamento (15 a 255 caracteres)",
+                                        max_chars=255)
+            sem_circulacao = st.checkbox("Confirmo que a mercadoria permanece na loja e não houve circulação.")
+            confirmar = st.checkbox("Confirmo o cancelamento desta NF-e no ambiente indicado acima.")
+            senha = st.text_input("Senha do certificado A1", type="password", key=prefixo + "_senha")
+            enviar = st.form_submit_button("Solicitar cancelamento / consultar tentativa anterior")
+        if enviar:
+            if not confirmar:
+                st.error("Marque a confirmação do cancelamento.")
+                return
+            try:
+                with st.spinner("Processando cancelamento na SEFAZ-MG..."):
+                    resultado = cancelar_nfe(
+                        chave, justificativa, certificado.get("caminho"), senha,
+                        usuario={k: st.session_state.get(k) for k in
+                                 ("logado", "id", "usuario", "perfil")},
+                        mercadoria_na_loja=sem_circulacao,
+                        permitir_producao=PRODUCAO_INTERFACE_LIBERADA,
+                    )
+            except Exception as erro_cancelamento:
+                detalhe = str(erro_cancelamento)
+                if senha:
+                    detalhe = detalhe.replace(senha, "***")
+                st.error(f"Falha no cancelamento: {type(erro_cancelamento).__name__}: {detalhe}")
+                resultado = {"sucesso": False, "mensagem":
+                    "Não foi possível concluir. Nenhuma nova emissão deve ser feita antes de conferir o status. "
+                    "Verifique a migração, o certificado e a conexão; se houve tentativa de envio, use a consulta deste botão."}
+            if resultado.get("sucesso"):
+                _limpar_estado_emissao()
+                st.session_state["cancelamento_nfe_aviso"] = resultado["mensagem"]
+            if not resultado.get("sucesso") and "detalhe" in locals():
+                resultado["mensagem"] += f" Detalhe: {detalhe}"
+            st.session_state[prefixo + "_resultado"] = resultado
+            st.session_state[prefixo + "_limpar"] = True
+            st.rerun()
+        resultado = st.session_state.get(prefixo + "_resultado")
+        if resultado:
+            if resultado.get("sucesso"):
+                st.success(resultado["mensagem"])
+            else:
+                st.warning(resultado["mensagem"])
+            if resultado.get("resposta"):
+                st.download_button("Baixar retorno da SEFAZ", resultado["resposta"],
+                    file_name=f"retorno_cancelamento_{documento['numero']}.xml",
+                    mime="application/xml", key=prefixo + "_retorno")
+
+
 def tela_emissao_nfe():
+    aviso_cancelamento = st.session_state.pop("cancelamento_nfe_aviso", None)
+    if aviso_cancelamento:
+        st.success(aviso_cancelamento)
+        st.info("Confira produto e frete da venda antes de preparar outra NF-e.")
     _limpar_senha_pendente()
 
     modelo_opcao = st.selectbox(
@@ -1085,6 +1165,8 @@ def tela_emissao_nfe():
         _mostrar_documentos_nfe_autorizada(
             documento_existente
         )
+
+        _mostrar_cancelamento_nfe(documento_existente)
 
         return
 

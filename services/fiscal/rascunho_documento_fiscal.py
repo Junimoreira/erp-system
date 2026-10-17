@@ -125,6 +125,13 @@ def montar_rascunho_documento_fiscal(
     # Nao altera venda, financeiro ou pedido no banco.
     # Apenas cria a representacao usada na emissao fiscal.
     # --------------------------------------------------------
+    if str(venda.get("status") or "").strip().lower() in ("cancelada", "cancelado"):
+        return {
+            "sucesso": False, "pode_gerar_xml": False,
+            "mensagem": "Venda cancelada não pode gerar documento fiscal.",
+            "erros": ["Venda cancelada."], "venda_id": venda_id,
+        }
+
     venda_fiscal = dict(venda)
 
     resultado_marketplace = (
@@ -187,7 +194,7 @@ def montar_rascunho_documento_fiscal(
             valor_desconto
         )
 
-    modalidade_frete = "9"
+    modalidade_frete = str(venda_fiscal.get("mod_frete") or "9")
 
     if pedido_marketplace:
 

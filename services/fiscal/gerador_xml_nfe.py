@@ -1686,120 +1686,39 @@ def _distribuir_desconto_itens(
 # ============================================================
 # DISTRIBUIR FRETE ENTRE OS ITENS
 # ============================================================
-def _distribuir_frete_itens(
-    itens,
-    frete_total
-):
-
-    itens = [
-        dict(item)
-        for item in (itens or [])
-    ]
-
+def _distribuir_frete_itens(itens, frete_total):
+    itens = [dict(item) for item in (itens or [])]
+    frete_total = _decimal(frete_total, Decimal("0.00")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if not frete_total.is_finite() or frete_total < 0:
+        raise ValueError("Frete total inválido.")
     if not itens:
+        if frete_total:
+            raise ValueError("Não é possível distribuir frete sem itens.")
         return itens
-
-    frete_total = _decimal(
-        frete_total,
-        Decimal("0.00")
-    ).quantize(
-        Decimal("0.01"),
-        rounding=ROUND_HALF_UP
-    )
-
-    if frete_total < Decimal("0.00"):
-        raise ValueError(
-            "Frete total nao pode ser negativo."
-        )
-
-    if frete_total == Decimal("0.00"):
-
-        for item in itens:
-            item["frete_item"] = Decimal("0.00")
-
-        return itens
-
-    subtotais = []
-
+    bases = []
     for item in itens:
-
-        subtotal = _decimal(
-            item.get("subtotal"),
-            Decimal("0.00")
-        ).quantize(
-            Decimal("0.01"),
-            rounding=ROUND_HALF_UP
-        )
-
-        if subtotal < Decimal("0.00"):
-            raise ValueError(
-                "Subtotal de item nao pode ser negativo."
-            )
-
-        subtotais.append(subtotal)
-
-    soma_subtotais = sum(
-        subtotais,
-        Decimal("0.00")
-    ).quantize(
-        Decimal("0.01"),
-        rounding=ROUND_HALF_UP
-    )
-
-    if soma_subtotais <= Decimal("0.00"):
-        raise ValueError(
-            "Nao e possivel distribuir frete "
-            "quando o total dos itens e zero."
-        )
-
-    frete_acumulado = Decimal("0.00")
-
-    for indice, item in enumerate(itens):
-
-        ultimo_item = indice == len(itens) - 1
-
-        if ultimo_item:
-            frete_item = (
-                frete_total
-                -
-                frete_acumulado
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP
-            )
-        else:
-            frete_item = (
-                frete_total
-                *
-                subtotais[indice]
-                /
-                soma_subtotais
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP
-            )
-
-            frete_acumulado += frete_item
-
-        item["frete_item"] = frete_item
-
-    soma_frete = sum(
-        (
-            item.get("frete_item", Decimal("0.00"))
-            for item in itens
-        ),
-        Decimal("0.00")
-    ).quantize(
-        Decimal("0.01"),
-        rounding=ROUND_HALF_UP
-    )
-
-    if soma_frete != frete_total:
-        raise ValueError(
-            "Falha na distribuicao do frete. "
-            f"Esperado={frete_total}; itens={soma_frete}."
-        )
-
+        subtotal = _decimal(item.get("subtotal"), Decimal("0.00")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if not subtotal.is_finite() or subtotal < 0:
+            raise ValueError("Subtotal inválido para distribuição do frete.")
+        bases.append(int(subtotal * 100))
+    total_base = sum(bases)
+    centavos = int(frete_total * 100)
+    if centavos and total_base <= 0:
+        raise ValueError("Não é possível distribuir frete quando o total dos itens é zero.")
+    quotas = [0] * len(itens)
+    if centavos:
+        restos = []
+        for indice, base in enumerate(bases):
+            quota, resto = divmod(centavos * base, total_base)
+            quotas[indice] = quota
+            restos.append((resto, indice))
+        restantes = centavos - sum(quotas)
+        for _, indice in sorted(restos, key=lambda par: (-par[0], par[1]))[:restantes]:
+            quotas[indice] += 1
+    for item, quota in zip(itens, quotas):
+        item["frete_item"] = (Decimal(quota) / 100).quantize(Decimal("0.01"))
     return itens
 
 

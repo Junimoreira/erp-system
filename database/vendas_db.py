@@ -186,7 +186,9 @@ def salvar_venda(
     data_venda,
     itens,
     conta_bancaria_id=None,
-    numero_parcelas=1
+    numero_parcelas=1,
+    frete=0,
+    mod_frete="9"
 ):
 
     conn = conectar()
@@ -216,6 +218,36 @@ def salvar_venda(
             valor_final
         )
 
+        from services.vendas_valores import calcular, moeda, modalidade
+        valores = calcular(itens, frete)
+        mod_frete = modalidade(mod_frete, valores["frete"])
+        informados = (valor_total, desconto, valor_final)
+        calculados = (valores["valor_total"], valores["desconto"], valores["valor_final"])
+        if any(moeda(round(v, 2)) != esperado for v, esperado in zip(informados, calculados)):
+            raise ValueError("Totais da venda divergem de itens, descontos e frete.")
+        frete = valores["frete"]
+
+        # Exigir conta explicita para recebimentos bancarios.
+        # A tela seleciona a conta; integracoes devem fazer o mesmo.
+        formas_banco = (
+            "PIX", "DEBITO", "CARTAO DEBITO",
+            "TRANSFERENCIA", "BOLETO", "BANCO"
+        )
+        if forma_normalizada in formas_banco:
+            if conta_bancaria_id is None:
+                raise ValueError(
+                    "Selecione uma conta bancária para esta venda."
+                )
+            conta_bancaria_id = int(conta_bancaria_id)
+            cursor.execute(
+                "SELECT 1 FROM contas_bancarias WHERE id = %s",
+                (conta_bancaria_id,)
+            )
+            if cursor.fetchone() is None:
+                raise ValueError("Conta bancária não cadastrada.")
+        else:
+            conta_bancaria_id = None
+
         # ==========================================
         # INSERIR VENDA
         # ==========================================
@@ -229,9 +261,15 @@ def salvar_venda(
                 valor_final,
                 forma_pagamento,
                 data_venda,
-                status
+                status,
+                conta_bancaria_id,
+                frete,
+                mod_frete
             )
             VALUES (
+                %s,
+                %s,
+                %s,
                 %s,
                 %s,
                 %s,
@@ -249,7 +287,10 @@ def salvar_venda(
                 valor_final,
                 forma_pagamento,
                 data_venda,
-                "Concluída"
+                "Concluída",
+                conta_bancaria_id,
+                frete,
+                mod_frete
             )
         )
 
@@ -402,27 +443,8 @@ def salvar_venda(
         ]:
 
             if conta_bancaria_id is None:
-
-                cursor.execute(
-                    """
-                    SELECT id
-                    FROM contas_bancarias
-                    ORDER BY id
-                    LIMIT 1
-                    """
-                )
-
-                conta = cursor.fetchone()
-
-                if not conta:
-
-                    raise Exception(
-                        "Nenhuma conta bancária "
-                        "cadastrada."
-                    )
-
-                conta_bancaria_id = int(
-                    conta[0]
+                raise ValueError(
+                    "Selecione uma conta bancária para esta venda."
                 )
 
             sucesso_banco = (
@@ -511,7 +533,8 @@ def salvar_venda(
                         ),
                         forma_pagamento=(
                             forma_pagamento
-                        )
+                        ),
+                        conn_externa=conn
                     )
                 )
 
@@ -605,7 +628,9 @@ def historico_vendas():
                 v.valor_final,
                 v.forma_pagamento,
                 v.data_venda,
-                v.status
+                v.status,
+                COALESCE(v.frete, 0) AS frete,
+                COALESCE(v.mod_frete, '9') AS mod_frete
             FROM vendas v
             LEFT JOIN clientes c
                 ON c.id = v.cliente_id
@@ -664,7 +689,9 @@ def buscar_venda_por_id(venda_id):
                 v.valor_final,
                 v.forma_pagamento,
                 v.data_venda,
-                v.status
+                v.status,
+                COALESCE(v.frete, 0) AS frete,
+                COALESCE(v.mod_frete, '9') AS mod_frete
             FROM vendas v
             LEFT JOIN clientes c
                 ON c.id = v.cliente_id
@@ -845,115 +872,18 @@ def resumo_vendas():
 # CANCELAR VENDA
 # ==================================================
 
-def cancelar_venda(venda_id):
-
-    conn = conectar()
-
-    if conn is None:
+def cancelar_venda(venda_id, motivo=None, token=None, usuario=None):
+    """Compatibilidade: exige o novo fluxo autenticado, com prévia e auditoria."""
+    if not motivo or not token or not usuario:
+        print("Use Cancelar venda pendente no Histórico, com prévia e motivo.")
         return False
-
-    cursor = conn.cursor()
-
+    from database.cancelamento_vendas import cancelar_venda_pendente
     try:
-
-        # Verifica se a venda existe
-        cursor.execute(
-            """
-            SELECT status
-            FROM vendas
-            WHERE id = %s
-            LIMIT 1
-            """,
-            (
-                venda_id,
-            )
-        )
-
-        venda = cursor.fetchone()
-
-        if venda is None:
-
-            print(
-                "Venda não encontrada."
-            )
-
-            return False
-
-        status_atual = str(
-            venda[0] or ""
-        ).strip().lower()
-
-        if status_atual == "cancelada":
-
-            print(
-                "Venda já está cancelada."
-            )
-
-            return False
-
-        # Busca os produtos
-        cursor.execute(
-            """
-            SELECT
-                produto_id,
-                quantidade
-            FROM itens_venda
-            WHERE venda_id = %s
-            """,
-            (
-                venda_id,
-            )
-        )
-
-        itens = cursor.fetchall()
-
-        # Devolve ao estoque
-        for produto_id, quantidade in itens:
-
-            cursor.execute(
-                """
-                UPDATE produtos
-                SET estoque =
-                    COALESCE(estoque, 0) + %s
-                WHERE id = %s
-                """,
-                (
-                    quantidade,
-                    produto_id
-                )
-            )
-
-        # Marca como cancelada
-        cursor.execute(
-            """
-            UPDATE vendas
-            SET status = 'Cancelada'
-            WHERE id = %s
-            """,
-            (
-                venda_id,
-            )
-        )
-
-        conn.commit()
-
+        cancelar_venda_pendente(venda_id, motivo, token, usuario)
         return True
-
     except Exception as erro:
-
-        conn.rollback()
-
-        print(
-            "Erro ao cancelar venda:",
-            erro
-        )
-
+        print("Cancelamento não realizado:", erro)
         return False
-
-    finally:
-
-        cursor.close()
-        conn.close()
 
 # ==================================================
 # SALVAR VENDA ORIGINADA DE MARKETPLACE
