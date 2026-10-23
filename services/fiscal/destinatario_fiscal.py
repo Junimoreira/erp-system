@@ -354,6 +354,22 @@ def montar_destinatario_fiscal(
             ) or "Brasil"
     }
 
+    # VALIDACAO MUNICIPIO NF-E 55
+    if str(modelo).strip() == "55":
+        codigo_ibge = endereco.get("codigo_municipio_ibge") or ""
+        if not codigo_ibge:
+            erros.append(
+                "Cliente sem codigo IBGE do municipio. "
+                "Atualize o endereco em Cadastros > Clientes antes de emitir."
+            )
+        elif len(codigo_ibge) != 7 or any(
+            caractere not in "0123456789" for caractere in codigo_ibge
+        ):
+            erros.append(
+                "Codigo IBGE do municipio do cliente invalido: "
+                "informe os 7 digitos em Cadastros > Clientes."
+            )
+
     # --------------------------------------------------------
     # RESULTADO
     # --------------------------------------------------------
