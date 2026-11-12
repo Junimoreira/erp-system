@@ -70,23 +70,26 @@ def _campo_numerico(
 
 
 def _data_aaaammdd(valor):
-    if isinstance(
-        valor,
-        datetime,
-    ):
+    if isinstance(valor, str):
+        texto = valor.strip()
+        try:
+            valor = datetime.fromisoformat(
+                texto.replace("Z", "+00:00")
+            ).date()
+        except ValueError as erro:
+            raise ValueError(
+                f"Data invalida para SINTEGRA: {texto!r}"
+            ) from erro
+
+    if isinstance(valor, datetime):
         valor = valor.date()
 
-    if not isinstance(
-        valor,
-        date,
-    ):
+    if not isinstance(valor, date):
         raise ValueError(
-            "Data invalida para SINTEGRA."
+            f"Data invalida para SINTEGRA: {valor!r}"
         )
 
-    return valor.strftime(
-        "%Y%m%d"
-    )
+    return valor.strftime("%Y%m%d")
 
 
 def _validar_tamanho_registro(
