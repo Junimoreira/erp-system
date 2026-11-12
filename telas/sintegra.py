@@ -458,7 +458,7 @@ def _gerar_registros_entrada(
                 modelo=modelo,
                 serie=serie,
                 numero=numero,
-                emitente=True,
+                emitente="T",
                 valor_contabil_documento=(
                     valor_documento
                 ),
